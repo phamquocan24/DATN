@@ -1,0 +1,56 @@
+# Cursor Rules for Figma MCP Integration
+
+You have access to a Figma MCP server that can:
+- Get Figma file information and structure
+- Generate React/Vue/Angular components from Figma nodes
+- Extract design tokens (colors, typography, spacing, border radius)
+- Get detailed node information and properties
+
+## Available Tools
+
+### 1. get_figma_file
+Lấy thông tin file Figma bằng file key và access token
+- fileKey: Figma file key (từ URL Figma)
+- accessToken: Figma access token
+
+### 2. generate_component
+Generate React/Vue/Angular component từ Figma node
+- nodeId: ID của node trong Figma
+- fileKey: Figma file key
+- accessToken: Figma access token
+- framework: 'react' | 'vue' | 'angular' (default: 'react')
+- styling: 'css' | 'tailwind' | 'styled-components' (default: 'tailwind')
+
+### 3. extract_design_tokens
+Trích xuất design tokens từ Figma file
+- fileKey: Figma file key
+- accessToken: Figma access token
+- includeColors: boolean (default: true)
+- includeTypography: boolean (default: true)
+- includeSpacing: boolean (default: true)
+
+### 4. get_figma_node
+Lấy thông tin chi tiết của một node trong Figma
+- nodeId: ID của node
+- fileKey: Figma file key
+- accessToken: Figma access token
+
+## Usage Guidelines
+
+1. **When working with Figma designs**: Use these tools to generate code directly from Figma
+2. **Component generation**: Prefer Tailwind CSS for styling as it's already configured in the project
+3. **Design tokens**: Extract and use design tokens for consistent styling
+4. **Error handling**: Always provide helpful error messages when Figma API calls fail
+
+## Example Workflow
+
+1. Use `get_figma_file` to explore the design structure
+2. Use `get_figma_node` to get details of specific components
+3. Use `generate_component` to create React components with Tailwind CSS
+4. Use `extract_design_tokens` to get consistent design system values
+
+## Integration Notes
+
+- The MCP server is located at: `./mcp-figma-server/dist/index.js`
+- Make sure to have valid Figma access token and file permissions
+- Generated components will be compatible with the existing React + TypeScript + Tailwind setup 
