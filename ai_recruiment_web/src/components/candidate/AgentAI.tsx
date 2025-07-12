@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import Avatar from '../assets/Avatar17.png';
+import Avatar from '../../assets/Avatar17.png';
+import DashboardSidebar from './DashboardSidebar';
 
 interface Message {
   id: number;
@@ -26,6 +27,7 @@ interface AgentAIProps {
   onDashboardClick?: () => void;
   onFindJobsClick?: () => void;
   onTestManagementClick?: () => void;
+  onSettingsClick?: () => void;
 }
 
 const AgentAI: React.FC<AgentAIProps> = ({ 
@@ -35,22 +37,15 @@ const AgentAI: React.FC<AgentAIProps> = ({
   onBrowseCompaniesClick,
   onDashboardClick,
   onFindJobsClick,
-  onTestManagementClick
+  onTestManagementClick,
+  onSettingsClick
 }) => {
   // Agent AI states
   const [selectedChat, setSelectedChat] = useState<number>(1);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'agent-ai', label: 'Agent AI', icon: '🤖' },
-    { id: 'applications', label: 'My Applications', icon: '📄' },
-    { id: 'test-management', label: 'Test Management', icon: '📝' },
-    { id: 'find-jobs', label: 'Find Jobs', icon: '🔍' },
-    { id: 'browse-companies', label: 'Browse Companies', icon: '🏢' },
-    { id: 'public-profile', label: 'My Public Profile', icon: '👤' },
-  ];
+
 
   // Agent AI data
   const chatUsers: ChatUser[] = [
@@ -162,64 +157,17 @@ const AgentAI: React.FC<AgentAIProps> = ({
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <div className="w-64 bg-white shadow-lg">
-        {/* Menu Items */}
-        <nav className="p-4 pt-6">
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                if (item.id === 'public-profile' && onProfileClick) {
-                  onProfileClick();
-                } else if (item.id === 'dashboard' && onDashboardClick) {
-                  onDashboardClick();
-                } else if (item.id === 'applications' && onMyApplicationsClick) {
-                  onMyApplicationsClick();
-                } else if (item.id === 'browse-companies' && onBrowseCompaniesClick) {
-                  onBrowseCompaniesClick();
-                } else if (item.id === 'find-jobs' && onFindJobsClick) {
-                  onFindJobsClick();
-                } else if (item.id === 'test-management' && onTestManagementClick) {
-                  onTestManagementClick();
-                }
-                // For other items, we stay in the AgentAI component
-              }}
-              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left mb-1 transition-all ${
-                item.id === 'agent-ai'
-                  ? 'bg-[#007BFF] text-white'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              <span className="text-lg">{item.icon}</span>
-              <span className="font-medium">{item.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        {/* Settings */}
-        <div className="absolute bottom-0 w-64 p-4 border-t border-gray-200">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2 text-left">
-            SETTINGS
-          </h3>
-          <button className="w-full flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg text-left">
-            <span>⚙️</span>
-            <span>Settings</span>
-          </button>
-          <button className="w-full flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg text-left">
-            <span>❓</span>
-            <span>Help Center</span>
-          </button>
-          
-          {/* User Info */}
-          <div className="mt-4 pt-4 border-t border-gray-200 flex items-center space-x-3">
-            <img src={Avatar} alt="User" className="w-8 h-8 rounded-full" />
-            <div>
-              <p className="font-medium text-sm">Jake Gyll</p>
-              <p className="text-gray-500 text-xs">jakegyll@email.com</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DashboardSidebar 
+        activeTab="agent-ai"
+        onDashboardClick={onDashboardClick}
+        onAgentAIClick={() => {}}
+        onMyApplicationsClick={onMyApplicationsClick}
+        onTestManagementClick={onTestManagementClick}
+        onFindJobsClick={onFindJobsClick}
+        onBrowseCompaniesClick={onBrowseCompaniesClick}
+        onProfileClick={onProfileClick}
+        onSettingsClick={onSettingsClick}
+      />
 
       {/* Main Content */}
       <div className="flex-1 flex">
@@ -231,7 +179,7 @@ const AgentAI: React.FC<AgentAIProps> = ({
               <h1 className="text-xl font-semibold text-gray-900">Agent AI</h1>
               <button 
                 onClick={onHomeClick}
-                className="text-[#007BFF] hover:text-[#0056b3] font-medium text-sm"
+                className="px-4 py-2 text-[#007BFF] hover:text-white font-medium border border-[#007BFF] rounded-lg hover:bg-[#007BFF] transition-colors"
               >
                 Back to homepage
               </button>

@@ -1,5 +1,5 @@
 import React from 'react';
-import Avatar from '../assets/Avatar17.png';
+import Avatar from '../../assets/Avatar17.png';
 
 interface TestApplication {
   id: number;

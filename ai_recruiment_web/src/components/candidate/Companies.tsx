@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Footer } from './Footer';
 import { CTA } from './CTA';
-import GroupUnderline from '../assets/Group.png';
+import GroupUnderline from '../../assets/Group.png';
 
 interface Company {
   id: number;

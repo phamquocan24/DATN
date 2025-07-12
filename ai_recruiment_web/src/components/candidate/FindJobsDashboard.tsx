@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import Avatar from '../assets/Avatar17.png';
 import JobDetail from './JobDetail';
+import DashboardSidebar from './DashboardSidebar';
 
 interface Job {
   id: number;
@@ -27,16 +27,20 @@ interface FindJobsDashboardProps {
   onMyApplicationsClick?: () => void;
   onTestManagementClick?: () => void;
   onBrowseCompaniesClick?: () => void;
+  onSettingsClick?: () => void;
+  onHelpCenterClick?: () => void;
 }
 
-export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({ 
-  onProfileClick, 
-  onHomeClick, 
+export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
+  onProfileClick,
+  onHomeClick,
   onDashboardClick,
   onAgentAIClick,
   onMyApplicationsClick,
   onTestManagementClick,
-  onBrowseCompaniesClick
+  onBrowseCompaniesClick,
+  onSettingsClick,
+  onHelpCenterClick
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState('Florence, Italy');
@@ -61,15 +65,7 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
     salaryRange: false
   });
 
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'agent-ai', label: 'Agent AI', icon: '🤖' },
-    { id: 'applications', label: 'My Applications', icon: '📄' },
-    { id: 'test-management', label: 'Test Management', icon: '📝' },
-    { id: 'find-jobs', label: 'Find Jobs', icon: '🔍' },
-    { id: 'browse-companies', label: 'Browse Companies', icon: '🏢' },
-    { id: 'public-profile', label: 'My Public Profile', icon: '👤' },
-  ];
+
 
   const jobs: Job[] = [
     {
@@ -189,25 +185,7 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
     }));
   };
 
-  const handleMenuClick = (itemId: string) => {
-    setActiveTab(itemId);
-    
-    // Handle navigation based on menu item
-    if (itemId === 'dashboard' && onDashboardClick) {
-      onDashboardClick();
-    } else if (itemId === 'public-profile' && onProfileClick) {
-      onProfileClick();
-    } else if (itemId === 'agent-ai' && onAgentAIClick) {
-      onAgentAIClick();
-    } else if (itemId === 'applications' && onMyApplicationsClick) {
-      onMyApplicationsClick();
-    } else if (itemId === 'test-management' && onTestManagementClick) {
-      onTestManagementClick();
-    } else if (itemId === 'browse-companies' && onBrowseCompaniesClick) {
-      onBrowseCompaniesClick();
-    }
-    // For find-jobs, stay in current component
-  };
+
 
   const handleJobClick = (job: Job) => {
     setSelectedJob(job);
@@ -353,50 +331,19 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar - synced with Profile */}
-      <div className="w-64 bg-white shadow-lg">
-        {/* Menu Items */}
-        <nav className="p-4 pt-6">
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => handleMenuClick(item.id)}
-              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left mb-1 transition-all ${
-                activeTab === item.id
-                  ? 'bg-[#007BFF] text-white'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              <span className="text-lg">{item.icon}</span>
-              <span className="font-medium">{item.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        {/* Settings */}
-        <div className="absolute bottom-0 w-64 p-4 border-t border-gray-200">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2 text-left">
-            SETTINGS
-          </h3>
-          <button className="w-full flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg text-left">
-            <span>⚙️</span>
-            <span>Settings</span>
-          </button>
-          <button className="w-full flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg text-left">
-            <span>❓</span>
-            <span>Help Center</span>
-          </button>
-          
-          {/* User Info */}
-          <div className="mt-4 pt-4 border-t border-gray-200 flex items-center space-x-3">
-            <img src={Avatar} alt="User" className="w-8 h-8 rounded-full" />
-            <div>
-              <p className="font-medium text-sm">Jake Gyll</p>
-              <p className="text-gray-500 text-xs">jakegyll@email.com</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Sidebar */}
+      <DashboardSidebar 
+        activeTab={activeTab}
+        onDashboardClick={onDashboardClick}
+        onAgentAIClick={onAgentAIClick}
+        onMyApplicationsClick={onMyApplicationsClick}
+        onTestManagementClick={onTestManagementClick}
+        onFindJobsClick={() => setActiveTab('find-jobs')}
+        onBrowseCompaniesClick={onBrowseCompaniesClick}
+        onProfileClick={onProfileClick}
+        onSettingsClick={onSettingsClick}
+        onHelpCenterClick={onHelpCenterClick}
+      />
 
       {/* Main Content */}
       <div className="flex-1 flex">
@@ -568,15 +515,12 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
               {/* Header - moved above search bar */}
               <div className="flex justify-between items-center mb-8">
                 <h1 className="text-2xl font-bold text-gray-900">Find Jobs</h1>
-                <button 
-                  onClick={onHomeClick}
-                  className="flex items-center space-x-2 text-[#007BFF] hover:text-[#0056b3] font-medium"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                  </svg>
-                  <span>Back to homepage</span>
-                </button>
+                                                     <button 
+             onClick={onHomeClick}
+             className="px-4 py-2 text-[#007BFF] hover:text-white font-medium border border-[#007BFF] rounded-lg hover:bg-[#007BFF] transition-colors"
+           >
+             Back to homepage
+           </button>
               </div>
 
           {/* Search Bar */}

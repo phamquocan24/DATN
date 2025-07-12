@@ -3,7 +3,8 @@ import FindJobsDashboard from './FindJobsDashboard';
 import JobDetail from './JobDetail';
 import JobApplication from './JobApplication';
 import AgentAI from './AgentAI';
-import Avatar from '../assets/Avatar17.png';
+import Avatar from '../../assets/Avatar17.png';
+import DashboardSidebar from './DashboardSidebar';
 
 interface Job {
   id: number;
@@ -30,6 +31,10 @@ interface DashboardProps {
   onMyApplicationsClick?: () => void;
   onBrowseCompaniesClick?: () => void;
   onTestManagementClick?: () => void;
+  onFindJobsClick?: () => void;
+  onAgentAIClick?: () => void;
+  onSettingsClick?: () => void;
+  onHelpCenterClick?: () => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ 
@@ -37,29 +42,27 @@ const Dashboard: React.FC<DashboardProps> = ({
   onProfileClick, 
   onMyApplicationsClick, 
   onBrowseCompaniesClick,
-  onTestManagementClick
+  onTestManagementClick,
+  onFindJobsClick,
+  onAgentAIClick,
+  onSettingsClick,
+  onHelpCenterClick
 }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [currentView, setCurrentView] = useState<'dashboard' | 'job-detail'>('dashboard');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false);
 
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'agent-ai', label: 'Agent AI', icon: '🤖' },
-    { id: 'applications', label: 'My Applications', icon: '📄' },
-    { id: 'test-management', label: 'Test Management', icon: '📝' },
-    { id: 'find-jobs', label: 'Find Jobs', icon: '🔍' },
-    { id: 'browse-companies', label: 'Browse Companies', icon: '🏢' },
-    { id: 'public-profile', label: 'My Public Profile', icon: '👤' },
-  ];
-
   const handleGoToDashboard = () => {
     setActiveTab('dashboard');
   };
 
   const handleGoToFindJobs = () => {
-    setActiveTab('find-jobs');
+    if (onFindJobsClick) {
+      onFindJobsClick();
+    } else {
+      setActiveTab('find-jobs');
+    }
   };
 
   const handleGoToTestManagement = () => {
@@ -228,65 +231,18 @@ const Dashboard: React.FC<DashboardProps> = ({
     <>
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <div className="w-64 bg-white shadow-lg">
-        {/* Menu Items */}
-        <nav className="p-4 pt-6">
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                if (item.id === 'public-profile' && onProfileClick) {
-                  onProfileClick();
-                } else if (item.id === 'find-jobs') {
-                  setActiveTab('find-jobs');
-                } else if (item.id === 'applications' && onMyApplicationsClick) {
-                  onMyApplicationsClick();
-                } else if (item.id === 'browse-companies' && onBrowseCompaniesClick) {
-                  onBrowseCompaniesClick();
-                } else if (item.id === 'agent-ai') {
-                  setActiveTab('agent-ai');
-                } else if (item.id === 'test-management' && onTestManagementClick) {
-                  onTestManagementClick();
-                } else {
-                  setActiveTab(item.id);
-                }
-              }}
-              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left mb-1 transition-all ${
-                activeTab === item.id
-                  ? 'bg-[#007BFF] text-white'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              <span className="text-lg">{item.icon}</span>
-              <span className="font-medium">{item.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        {/* Settings */}
-        <div className="absolute bottom-0 w-64 p-4 border-t border-gray-200">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2 text-left">
-            SETTINGS
-          </h3>
-          <button className="w-full flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg text-left">
-            <span>⚙️</span>
-            <span>Settings</span>
-          </button>
-          <button className="w-full flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg text-left">
-            <span>❓</span>
-            <span>Help Center</span>
-          </button>
-          
-          {/* User Info */}
-          <div className="mt-4 pt-4 border-t border-gray-200 flex items-center space-x-3">
-            <img src={Avatar} alt="User" className="w-8 h-8 rounded-full" />
-            <div>
-              <p className="font-medium text-sm">Jake Gyll</p>
-              <p className="text-gray-500 text-xs">jakegyll@email.com</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DashboardSidebar 
+        activeTab={activeTab}
+        onDashboardClick={handleGoToDashboard}
+        onAgentAIClick={onAgentAIClick}
+        onMyApplicationsClick={onMyApplicationsClick}
+        onTestManagementClick={onTestManagementClick}
+        onFindJobsClick={onFindJobsClick}
+        onBrowseCompaniesClick={onBrowseCompaniesClick}
+        onProfileClick={onProfileClick}
+        onSettingsClick={onSettingsClick}
+        onHelpCenterClick={onHelpCenterClick}
+      />
 
       {/* Main Content */}
       <div className="flex-1 p-8">
@@ -295,12 +251,9 @@ const Dashboard: React.FC<DashboardProps> = ({
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <button 
             onClick={onHomeClick}
-            className="flex items-center space-x-2 text-[#007BFF] hover:text-[#0056b3] font-medium"
+            className="px-4 py-2 text-[#007BFF] hover:text-white font-medium border border-[#007BFF] rounded-lg hover:bg-[#007BFF] transition-colors"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            <span>Back to homepage</span>
+            Back to homepage
           </button>
         </div>
 

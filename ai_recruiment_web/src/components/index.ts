@@ -1,23 +1,5 @@
-export { default as Header } from './Header';
-export { default as Hero } from './Hero';
-export { default as CompanyLogos } from './CompanyLogos';
-export { default as Categories } from './Categories';
-export { default as JobList } from './JobList';
-export { default as CTA } from './CTA';
-export { default as Footer } from './Footer';
-export { default as AuthModal } from './AuthModal';
-export { default as FindJobs } from './FindJobs';
-export { default as FavoriteJobs } from './FavoriteJobs';
-export { default as Companies } from './Companies';
-export { default as FindCompanies } from './FindCompanies';
-export { default as JobDetail } from './JobDetail';
-export { default as CompanyProfile } from './CompanyProfile';
-export { default as Resume } from './Resume';
-export { default as ChatBot } from './ChatBot';
-export { default as Profile } from './Profile';
-export { default as Dashboard } from './Dashboard';
-export { default as MyApplications } from './MyApplications';
-export { default as TestManagement } from './TestManagement';
-export { default as TestTaking } from './TestTaking';
-export { default as TestSuccess } from './TestSuccess';
-export { default as TestClosed } from './TestClosed'; 
+// Export all candidate components
+export * from './candidate';
+
+// Export admin components (to be added later)
+// export * from './admin';

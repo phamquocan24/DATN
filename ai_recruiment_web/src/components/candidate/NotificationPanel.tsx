@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import Avatar from '../assets/Avatar17.png';
-import man1 from '../assets/man1.png';
-import man2 from '../assets/man2.png';
+import Avatar from '../../assets/Avatar17.png';
+import man1 from '../../assets/man1.png';
+import man2 from '../../assets/man2.png';
 
 interface Notification {
   id: number;

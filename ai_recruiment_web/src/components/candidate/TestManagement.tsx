@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import Avatar from '../assets/Avatar17.png';
 import TestTaking from './TestTaking';
 import TestSuccess from './TestSuccess';
 import TestClosed from './TestClosed';
+import DashboardSidebar from './DashboardSidebar';
 
 interface TestApplication {
   id: number;
@@ -22,6 +22,7 @@ interface TestManagementProps {
   onFindJobsClick?: () => void;
   onBrowseCompaniesClick?: () => void;
   onAgentAIClick?: () => void;
+  onSettingsClick?: () => void;
 }
 
 const TestManagement: React.FC<TestManagementProps> = ({
@@ -31,22 +32,15 @@ const TestManagement: React.FC<TestManagementProps> = ({
   onMyApplicationsClick,
   onFindJobsClick,
   onBrowseCompaniesClick,
-  onAgentAIClick
+  onAgentAIClick,
+  onSettingsClick
 }) => {
   const [activeTab, setActiveTab] = useState('test-management');
   const [currentView, setCurrentView] = useState<'list' | 'taking' | 'success' | 'closed'>('list');
   const [selectedTest, setSelectedTest] = useState<TestApplication | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'agent-ai', label: 'Agent AI', icon: '🤖' },
-    { id: 'applications', label: 'My Applications', icon: '📄' },
-    { id: 'test-management', label: 'Test Management', icon: '📝' },
-    { id: 'find-jobs', label: 'Find Jobs', icon: '🔍' },
-    { id: 'browse-companies', label: 'Browse Companies', icon: '🏢' },
-    { id: 'public-profile', label: 'My Public Profile', icon: '👤' },
-  ];
+
 
   const testApplications: TestApplication[] = [
     {
@@ -96,23 +90,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
     }
   ];
 
-  const handleMenuClick = (itemId: string) => {
-    if (itemId === 'dashboard' && onDashboardClick) {
-      onDashboardClick();
-    } else if (itemId === 'public-profile' && onProfileClick) {
-      onProfileClick();
-    } else if (itemId === 'applications' && onMyApplicationsClick) {
-      onMyApplicationsClick();
-    } else if (itemId === 'find-jobs' && onFindJobsClick) {
-      onFindJobsClick();
-    } else if (itemId === 'browse-companies' && onBrowseCompaniesClick) {
-      onBrowseCompaniesClick();
-    } else if (itemId === 'agent-ai' && onAgentAIClick) {
-      onAgentAIClick();
-    } else {
-      setActiveTab(itemId);
-    }
-  };
+
 
   const handleTestClick = (test: TestApplication) => {
     setSelectedTest(test);
@@ -176,49 +154,17 @@ const TestManagement: React.FC<TestManagementProps> = ({
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <div className="w-64 bg-white shadow-lg">
-        {/* Menu Items */}
-        <nav className="p-4 pt-6">
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => handleMenuClick(item.id)}
-              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left mb-1 transition-all ${
-                activeTab === item.id
-                  ? 'bg-[#007BFF] text-white'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              <span className="text-lg">{item.icon}</span>
-              <span className="font-medium">{item.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        {/* Settings */}
-        <div className="absolute bottom-0 w-64 p-4 border-t border-gray-200">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2 text-left">
-            SETTINGS
-          </h3>
-          <button className="w-full flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg text-left">
-            <span>⚙️</span>
-            <span>Settings</span>
-          </button>
-          <button className="w-full flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg text-left">
-            <span>❓</span>
-            <span>Help Center</span>
-          </button>
-          
-          {/* User Info */}
-          <div className="mt-4 pt-4 border-t border-gray-200 flex items-center space-x-3">
-            <img src={Avatar} alt="User" className="w-8 h-8 rounded-full" />
-            <div>
-              <p className="font-medium text-sm">Jake Gyll</p>
-              <p className="text-gray-500 text-xs">jakegyll@email.com</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DashboardSidebar 
+        activeTab={activeTab}
+        onDashboardClick={onDashboardClick}
+        onAgentAIClick={onAgentAIClick}
+        onMyApplicationsClick={onMyApplicationsClick}
+        onTestManagementClick={() => setActiveTab('test-management')}
+        onFindJobsClick={onFindJobsClick}
+        onBrowseCompaniesClick={onBrowseCompaniesClick}
+        onProfileClick={onProfileClick}
+        onSettingsClick={onSettingsClick}
+      />
 
       {/* Main Content */}
       <div className="flex-1 p-8">
@@ -236,9 +182,9 @@ const TestManagement: React.FC<TestManagementProps> = ({
             </div>
             <button 
               onClick={onHomeClick}
-              className="flex items-center space-x-2 text-[#007BFF] hover:text-[#0056b3] font-medium"
+              className="px-4 py-2 text-[#007BFF] hover:text-white font-medium border border-[#007BFF] rounded-lg hover:bg-[#007BFF] transition-colors"
             >
-              <span>Back to homepage</span>
+              Back to homepage
             </button>
           </div>
         </div>
@@ -249,7 +195,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
           <p className="text-gray-600">Here are your available assessments from July 19 - July 25.</p>
         </div>
 
-        {/* New Feature Banner */}
+        {/* Assessment Guidelines Banner */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 relative">
           <button 
             onClick={() => {}}
@@ -259,15 +205,15 @@ const TestManagement: React.FC<TestManagementProps> = ({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
-          <div className="flex items-start space-x-3">
-            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white flex-shrink-0">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <div>
+            <div className="flex-1">
               <h3 className="font-semibold text-gray-900 mb-1">Assessment Guidelines</h3>
-              <p className="text-gray-600 text-sm">
+              <p className="text-gray-600 text-sm mb-1">
                 Complete your assessments within the given time limit. Each assessment can only be taken once.
               </p>
               <p className="text-gray-600 text-sm">Review instructions carefully before starting.</p>

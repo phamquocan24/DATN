@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import Avatar from '../assets/Avatar17.png';
+import Avatar from '../../assets/Avatar17.png';
 import FindJobsDashboard from './FindJobsDashboard';
+import DashboardSidebar from './DashboardSidebar';
 
 interface ProfileProps {
   onHomeClick?: () => void;
@@ -10,28 +11,22 @@ interface ProfileProps {
   onTestManagementClick?: () => void;
   onFindJobsClick?: () => void;
   onBrowseCompaniesClick?: () => void;
+  onSettingsClick?: () => void;
+  onHelpCenterClick?: () => void;
 }
 
 const Profile: React.FC<ProfileProps> = ({ 
   onHomeClick, 
-  onDashboardClick,
-  onAgentAIClick,
-  onMyApplicationsClick,
-  onTestManagementClick,
-  onFindJobsClick,
-  onBrowseCompaniesClick
+  onDashboardClick, 
+  onAgentAIClick, 
+  onMyApplicationsClick, 
+  onTestManagementClick, 
+  onFindJobsClick, 
+  onBrowseCompaniesClick, 
+  onSettingsClick,
+  onHelpCenterClick
 }) => {
   const [activeTab, setActiveTab] = useState('public-profile');
-
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'agent-ai', label: 'Agent AI', icon: '🤖' },
-    { id: 'applications', label: 'My Applications', icon: '📄' },
-    { id: 'test-management', label: 'Test Management', icon: '📝' },
-    { id: 'find-jobs', label: 'Find Jobs', icon: '🔍' },
-    { id: 'browse-companies', label: 'Browse Companies', icon: '🏢' },
-    { id: 'public-profile', label: 'My Public Profile', icon: '👤' },
-  ];
 
   const handleGoToProfile = () => {
     setActiveTab('public-profile');
@@ -55,73 +50,18 @@ const Profile: React.FC<ProfileProps> = ({
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <div className="w-64 bg-white shadow-lg">
-        {/* Menu Items */}
-        <nav className="p-4 pt-6">
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                if (item.id === 'dashboard' && onDashboardClick) {
-                  onDashboardClick();
-                } else if (item.id === 'agent-ai' && onAgentAIClick) {
-                  onAgentAIClick();
-                } else if (item.id === 'applications' && onMyApplicationsClick) {
-                  onMyApplicationsClick();
-                } else if (item.id === 'test-management' && onTestManagementClick) {
-                  onTestManagementClick();
-                } else if (item.id === 'find-jobs' && onFindJobsClick) {
-                  onFindJobsClick();
-                } else if (item.id === 'browse-companies' && onBrowseCompaniesClick) {
-                  onBrowseCompaniesClick();
-                } else {
-                  setActiveTab(item.id);
-                }
-              }}
-              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left mb-1 transition-all ${
-                activeTab === item.id
-                  ? 'bg-[#007BFF] text-white'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              <span className="text-lg">{item.icon}</span>
-              <span className="font-medium">{item.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        {/* Settings */}
-        <div className="absolute bottom-0 w-64 p-4 border-t border-gray-200">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2 text-left">
-            SETTINGS
-          </h3>
-          <button className="w-full flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg text-left">
-            <span>⚙️</span>
-            <span>Settings</span>
-          </button>
-          <button className="w-full flex items-center space-x-3 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg text-left">
-            <span>❓</span>
-            <span>Help Center</span>
-          </button>
-          
-          {/* Logout Button */}
-          <button className="w-full flex items-center space-x-2 text-red-600 hover:text-red-700 py-2 mt-4 text-left">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            <span className="font-medium">Logout</span>
-          </button>
-          
-          {/* User Info */}
-          <div className="mt-4 pt-4 border-t border-gray-200 flex items-center space-x-3">
-            <img src={Avatar} alt="User" className="w-8 h-8 rounded-full" />
-            <div>
-              <p className="font-medium text-sm">Jake Gyll</p>
-              <p className="text-gray-500 text-xs">jakegyll@email.com</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DashboardSidebar 
+        activeTab={activeTab}
+        onDashboardClick={onDashboardClick}
+        onAgentAIClick={onAgentAIClick}
+        onMyApplicationsClick={onMyApplicationsClick}
+        onTestManagementClick={onTestManagementClick}
+        onFindJobsClick={onFindJobsClick}
+        onBrowseCompaniesClick={onBrowseCompaniesClick}
+        onProfileClick={handleGoToProfile}
+        onSettingsClick={onSettingsClick}
+        onHelpCenterClick={onHelpCenterClick}
+      />
 
       {/* Main Content */}
       <div className="flex-1 p-8">
@@ -130,12 +70,9 @@ const Profile: React.FC<ProfileProps> = ({
           <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
           <button 
             onClick={onHomeClick}
-            className="flex items-center space-x-2 text-[#007BFF] hover:text-[#0056b3] font-medium"
+            className="px-4 py-2 text-[#007BFF] hover:text-white font-medium border border-[#007BFF] rounded-lg hover:bg-[#007BFF] transition-colors"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            <span>Back to homepage</span>
+            Back to homepage
           </button>
         </div>
 

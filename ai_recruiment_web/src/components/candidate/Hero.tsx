@@ -1,6 +1,6 @@
 
-import Man1 from '../assets/man1.png';
-import GroupUnderline from '../assets/Group.png';
+import Man1 from '../../assets/man1.png';
+import GroupUnderline from '../../assets/Group.png';
 
 export const Hero = () => {
   return (

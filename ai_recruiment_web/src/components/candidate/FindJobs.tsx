@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Footer } from './Footer';
 import { JobApplication } from './JobApplication';
-import GroupUnderline from '../assets/Group.png';
+import GroupUnderline from '../../assets/Group.png';
 
 interface Job {
   id: number;

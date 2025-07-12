@@ -1,4 +1,4 @@
-import CTAImage from '../assets/CTA.png';
+import CTAImage from '../../assets/CTA.png';
 
 export const CTA = () => {
   return (

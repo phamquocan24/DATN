@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import Logo from '../assets/Logo.png';
-import BellIcon from '../assets/bell-outlined.png';
-import UserIcon from '../assets/user-outlined.png';
+import Logo from '../../assets/Logo.png';
+import BellIcon from '../../assets/bell-outlined.png';
+import UserIcon from '../../assets/user-outlined.png';
 import NotificationPanel from './NotificationPanel';
 
-type CurrentPage = 'home' | 'find-jobs' | 'favorite-jobs' | 'companies' | 'find-companies' | 'job-detail' | 'company-profile' | 'resume' | 'profile' | 'dashboard' | 'my-applications' | 'test-management';
+type CurrentPage = 'home' | 'find-jobs' | 'find-jobs-dashboard' | 'agent-ai' | 'favorite-jobs' | 'companies' | 'find-companies' | 'browse-companies' | 'job-detail' | 'company-profile' | 'resume' | 'profile' | 'dashboard' | 'my-applications' | 'test-management' | 'settings' | 'help-center';
 
 interface HeaderProps {
   onPageChange: (page: CurrentPage) => void;
   currentPage: CurrentPage;
-  onAuthOpen: () => void;
+  onAuthOpen: (mode: 'login' | 'signup') => void;
   onHomeClick: () => void;
 }
 
@@ -160,13 +160,13 @@ export const Header: React.FC<HeaderProps> = ({ onPageChange, currentPage, onAut
 
               {/* Auth buttons */}
               <button 
-                onClick={onAuthOpen}
+                onClick={() => onAuthOpen('login')}
                 className="text-[#007BFF] font-medium hover:text-[#007BFF]"
               >
                 Login
               </button>
               <button 
-                onClick={onAuthOpen}
+                onClick={() => onAuthOpen('signup')}
                 className="bg-[#007BFF] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#0056b3] transition-colors"
               >
                 Sign Up

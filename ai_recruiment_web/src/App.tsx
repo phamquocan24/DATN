@@ -12,6 +12,7 @@ import {
   FavoriteJobs, 
   Companies, 
   FindCompanies, 
+  BrowseCompanies,
   JobDetail,
   CompanyProfile,
   Resume,
@@ -19,21 +20,31 @@ import {
   Profile,
   Dashboard,
   MyApplications,
-  TestManagement
+  TestManagement,
+  FindJobsDashboard,
+  AgentAI,
+  Settings,
+  HelpCenter
 } from './components';
 
 import './App.css';
 
-type CurrentPage = 'home' | 'find-jobs' | 'favorite-jobs' | 'companies' | 'find-companies' | 'job-detail' | 'company-profile' | 'resume' | 'profile' | 'dashboard' | 'my-applications' | 'test-management';
+type CurrentPage = 'home' | 'find-jobs' | 'find-jobs-dashboard' | 'agent-ai' | 'favorite-jobs' | 'companies' | 'find-companies' | 'browse-companies' | 'job-detail' | 'company-profile' | 'resume' | 'profile' | 'dashboard' | 'my-applications' | 'test-management' | 'settings' | 'help-center';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<CurrentPage>('home');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
 
   const handlePageChange = (page: CurrentPage) => {
     setCurrentPage(page);
+  };
+
+  const handleAuthOpen = (mode: 'login' | 'signup') => {
+    setAuthMode(mode);
+    setIsAuthModalOpen(true);
   };
 
   const handleJobClick = (jobId: string) => {
@@ -66,12 +77,47 @@ function App() {
         );
       case 'find-jobs':
         return <FindJobs onJobClick={handleJobClick} />;
+      case 'find-jobs-dashboard':
+        return <FindJobsDashboard 
+          onHomeClick={handleBackClick}
+          onDashboardClick={() => setCurrentPage('dashboard')}
+          onProfileClick={() => setCurrentPage('profile')}
+          onMyApplicationsClick={() => setCurrentPage('my-applications')}
+          onTestManagementClick={() => setCurrentPage('test-management')}
+          onBrowseCompaniesClick={() => setCurrentPage('browse-companies')}
+          onAgentAIClick={() => setCurrentPage('agent-ai')}
+          onSettingsClick={() => setCurrentPage('settings')}
+          onHelpCenterClick={() => setCurrentPage('help-center')}
+        />;
+      case 'agent-ai':
+        return <AgentAI 
+          onHomeClick={handleBackClick}
+          onDashboardClick={() => setCurrentPage('dashboard')}
+          onProfileClick={() => setCurrentPage('profile')}
+          onMyApplicationsClick={() => setCurrentPage('my-applications')}
+          onTestManagementClick={() => setCurrentPage('test-management')}
+          onBrowseCompaniesClick={() => setCurrentPage('browse-companies')}
+          onFindJobsClick={() => setCurrentPage('find-jobs-dashboard')}
+          onSettingsClick={() => setCurrentPage('settings')}
+        />;
       case 'favorite-jobs':
         return <FavoriteJobs onJobClick={handleJobClick} />;
       case 'companies':
         return <Companies onCompanyClick={handleCompanyClick} />;
       case 'find-companies':
         return <FindCompanies onCompanyClick={handleCompanyClick} />;
+      case 'browse-companies':
+        return <BrowseCompanies 
+          onCompanyClick={handleCompanyClick} 
+          onHomeClick={handleBackClick}
+          onDashboardClick={() => setCurrentPage('dashboard')}
+          onAgentAIClick={() => setCurrentPage('agent-ai')}
+          onMyApplicationsClick={() => setCurrentPage('my-applications')}
+          onTestManagementClick={() => setCurrentPage('test-management')}
+          onFindJobsClick={() => setCurrentPage('find-jobs-dashboard')}
+          onProfileClick={() => setCurrentPage('profile')}
+          onSettingsClick={() => setCurrentPage('settings')}
+        />;
                     case 'job-detail':
         // Mock job data for demonstration
         const mockJob = {
@@ -108,29 +154,37 @@ function App() {
         return <Profile 
           onHomeClick={handleBackClick} 
           onDashboardClick={() => setCurrentPage('dashboard')}
-          onAgentAIClick={() => setCurrentPage('dashboard')}
+          onAgentAIClick={() => setCurrentPage('agent-ai')}
           onMyApplicationsClick={() => setCurrentPage('my-applications')}
           onTestManagementClick={() => setCurrentPage('test-management')}
-          onFindJobsClick={() => setCurrentPage('find-jobs')}
-          onBrowseCompaniesClick={() => setCurrentPage('companies')}
+          onFindJobsClick={() => setCurrentPage('find-jobs-dashboard')}
+          onBrowseCompaniesClick={() => setCurrentPage('browse-companies')}
+          onSettingsClick={() => setCurrentPage('settings')}
+          onHelpCenterClick={() => setCurrentPage('help-center')}
         />;
       case 'dashboard':
         return <Dashboard 
           onHomeClick={handleBackClick} 
           onProfileClick={() => setCurrentPage('profile')}
           onMyApplicationsClick={() => setCurrentPage('my-applications')}
-          onBrowseCompaniesClick={() => setCurrentPage('companies')}
+          onBrowseCompaniesClick={() => setCurrentPage('browse-companies')}
           onTestManagementClick={() => setCurrentPage('test-management')}
+          onFindJobsClick={() => setCurrentPage('find-jobs-dashboard')}
+          onAgentAIClick={() => setCurrentPage('agent-ai')}
+          onSettingsClick={() => setCurrentPage('settings')}
+          onHelpCenterClick={() => setCurrentPage('help-center')}
         />;
       case 'my-applications':
         return <MyApplications 
           onHomeClick={handleBackClick}
           onDashboardClick={() => setCurrentPage('dashboard')}
           onProfileClick={() => setCurrentPage('profile')}
-          onFindJobsClick={() => setCurrentPage('find-jobs')}
-          onBrowseCompaniesClick={() => setCurrentPage('companies')}
+          onFindJobsClick={() => setCurrentPage('find-jobs-dashboard')}
+          onBrowseCompaniesClick={() => setCurrentPage('browse-companies')}
           onTestManagementClick={() => setCurrentPage('test-management')}
-          onAgentAIClick={() => setCurrentPage('dashboard')} // Will navigate to agent AI in dashboard
+          onAgentAIClick={() => setCurrentPage('agent-ai')}
+          onSettingsClick={() => setCurrentPage('settings')}
+          onHelpCenterClick={() => setCurrentPage('help-center')}
         />;
       case 'test-management':
         return <TestManagement 
@@ -138,9 +192,33 @@ function App() {
           onDashboardClick={() => setCurrentPage('dashboard')}
           onProfileClick={() => setCurrentPage('profile')}
           onMyApplicationsClick={() => setCurrentPage('my-applications')}
-          onFindJobsClick={() => setCurrentPage('find-jobs')}
-          onBrowseCompaniesClick={() => setCurrentPage('companies')}
-          onAgentAIClick={() => setCurrentPage('dashboard')}
+          onFindJobsClick={() => setCurrentPage('find-jobs-dashboard')}
+          onBrowseCompaniesClick={() => setCurrentPage('browse-companies')}
+          onAgentAIClick={() => setCurrentPage('agent-ai')}
+          onSettingsClick={() => setCurrentPage('settings')}
+        />;
+      case 'settings':
+        return <Settings 
+          onHomeClick={handleBackClick}
+          onDashboardClick={() => setCurrentPage('dashboard')}
+          onProfileClick={() => setCurrentPage('profile')}
+          onMyApplicationsClick={() => setCurrentPage('my-applications')}
+          onTestManagementClick={() => setCurrentPage('test-management')}
+          onFindJobsClick={() => setCurrentPage('find-jobs-dashboard')}
+          onBrowseCompaniesClick={() => setCurrentPage('browse-companies')}
+          onAgentAIClick={() => setCurrentPage('agent-ai')}
+        />;
+      case 'help-center':
+        return <HelpCenter 
+          onHomeClick={handleBackClick}
+          onDashboardClick={() => setCurrentPage('dashboard')}
+          onProfileClick={() => setCurrentPage('profile')}
+          onMyApplicationsClick={() => setCurrentPage('my-applications')}
+          onTestManagementClick={() => setCurrentPage('test-management')}
+          onFindJobsClick={() => setCurrentPage('find-jobs-dashboard')}
+          onBrowseCompaniesClick={() => setCurrentPage('browse-companies')}
+          onAgentAIClick={() => setCurrentPage('agent-ai')}
+          onSettingsClick={() => setCurrentPage('settings')}
         />;
       default:
         return (
@@ -160,7 +238,7 @@ function App() {
       <Header 
         onPageChange={handlePageChange} 
         currentPage={currentPage} 
-        onAuthOpen={() => setIsAuthModalOpen(true)}
+        onAuthOpen={handleAuthOpen}
         onHomeClick={handleBackClick}
       />
       {renderPage()}
@@ -169,7 +247,7 @@ function App() {
         currentPage === 'profile' || 
         currentPage === 'my-applications' || 
         currentPage === 'test-management') && <Footer />}
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} initialMode="login" />
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} initialMode={authMode} />
       <ChatBot />
     </div>
   );

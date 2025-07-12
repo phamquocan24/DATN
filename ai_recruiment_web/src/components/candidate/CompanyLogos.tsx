@@ -1,7 +1,7 @@
-import AMDLogo from '../assets/amd-logo-1.png';
-import IntelLogo from '../assets/intel-3.png';
-import TeslaLogo from '../assets/TESLA.png';
-import TalkitLogo from '../assets/talkit1.png';
+import AMDLogo from '../../assets/amd-logo-1.png';
+import IntelLogo from '../../assets/intel-3.png';
+import TeslaLogo from '../../assets/TESLA.png';
+import TalkitLogo from '../../assets/talkit1.png';
 
 export const CompanyLogos = () => {
   return (

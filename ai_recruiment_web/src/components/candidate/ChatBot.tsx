@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import ChatBotIcon from '../assets/chatbot.png';
+import ChatBotIcon from '../../assets/chatbot.png';
 
 interface Message {
   id: number;

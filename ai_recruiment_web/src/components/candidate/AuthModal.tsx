@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import Logo from '../assets/Logo.png';
-import Man2 from '../assets/man2.png';
-import Avatar17 from '../assets/Avatar17.png';
+import React, { useState, useEffect } from 'react';
+import Logo from '../../assets/Logo.png';
+import Man2 from '../../assets/man2.png';
+import Avatar17 from '../../assets/Avatar17.png';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -19,6 +19,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
     password: '',
     rememberMe: false
   });
+
+  // Cập nhật mode khi initialMode thay đổi
+  useEffect(() => {
+    setMode(initialMode);
+    // Reset form data khi chuyển mode
+    setFormData({
+      fullName: '',
+      email: '',
+      password: '',
+      rememberMe: false
+    });
+  }, [initialMode]);
+
+  // Reset form khi modal đóng
+  useEffect(() => {
+    if (!isOpen) {
+      setFormData({
+        fullName: '',
+        email: '',
+        password: '',
+        rememberMe: false
+      });
+      setShowPassword(false);
+    }
+  }, [isOpen]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
