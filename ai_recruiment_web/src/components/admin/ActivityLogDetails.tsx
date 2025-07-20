@@ -1,5 +1,7 @@
 import React from 'react';
 import { FiArrowLeft, FiUser, FiDatabase } from 'react-icons/fi';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface Log {
   id: number;
@@ -110,9 +112,9 @@ const ActivityLogDetails: React.FC<ActivityLogDetailsProps> = ({ log, onBack }) 
                             <FiDatabase className="w-5 h-5 text-gray-500" />
                             <h3 className="text-lg font-semibold">Event Metadata</h3>
                         </div>
-                        <pre className="text-xs bg-gray-900 text-white p-4 rounded-md overflow-x-auto">
+                        <SyntaxHighlighter language="json" style={atomDark} customStyle={{ borderRadius: '0.375rem', margin: 0 }}>
                             {JSON.stringify(log, null, 2)}
-                        </pre>
+                        </SyntaxHighlighter>
                     </div>
                 </div>
             </div>
