@@ -1,3 +1,4 @@
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useState } from 'react';
 import { 
   Header, 
@@ -24,14 +25,58 @@ import {
   FindJobsDashboard,
   AgentAI,
   Settings,
-  HelpCenter
+  HelpCenter,
 } from './components';
+import {
+  AdminDashboard,
+  AdminJobListings,
+  AdminCandidateManagement,
+  AdminQuestionManagement,
+  AdminStatistics,
+  AdminActivityLog,
+  AdminSettings,
+  AdminFeedbackIssues,
+  AdminAccountsList,
+  AdminCompanyProfile,
+  AdminCandidateDetail,
+  AdminHRDetail,
+} from './components/admin';
+import {
+  HrLogin,
+  HrSignUp,
+  HrDashboard,
+  PostNewJob,
+  JobManagement,
+  HrCompanyProfile,
+  HrLayout,
+  JobApplications,
+} from './components/hr';
 
 import './App.css';
 
 type CurrentPage = 'home' | 'find-jobs' | 'find-jobs-dashboard' | 'agent-ai' | 'favorite-jobs' | 'companies' | 'find-companies' | 'browse-companies' | 'job-detail' | 'company-profile' | 'resume' | 'profile' | 'dashboard' | 'my-applications' | 'test-management' | 'settings' | 'help-center';
 
-function App() {
+const App = () => {
+  // Add authentication state management here
+  const isAdmin = true; // This should be replaced with actual auth logic
+  const isHr = true; // This should be replaced with actual auth logic
+
+  // Protected Route component
+  const ProtectedAdminRoute = ({ children }: { children: React.ReactNode }) => {
+    if (!isAdmin) {
+      return <Navigate to="/login" replace />;
+    }
+    return <>{children}</>;
+  };
+
+  // Protected Route component for HR
+  const ProtectedHrRoute = ({ children }: { children: React.ReactNode }) => {
+    if (!isHr) {
+      return <Navigate to="/hr/login" replace />;
+    }
+    return <>{children}</>;
+  };
+
   const [currentPage, setCurrentPage] = useState<CurrentPage>('home');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
@@ -234,23 +279,149 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
-      <Header 
-        onPageChange={handlePageChange} 
-        currentPage={currentPage} 
-        onAuthOpen={handleAuthOpen}
-        onHomeClick={handleBackClick}
-      />
-      {renderPage()}
-      {(currentPage === 'home' || 
-        currentPage === 'dashboard' || 
-        currentPage === 'profile' || 
-        currentPage === 'my-applications' || 
-        currentPage === 'test-management') && <Footer />}
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} initialMode={authMode} />
-      <ChatBot />
-    </div>
+    <Router>
+      <Routes>
+        {/* Admin Routes */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedAdminRoute>
+              <Navigate to="/admin/dashboard" replace />
+            </ProtectedAdminRoute>
+          }
+        />
+        <Route
+          path="/admin/dashboard"
+          element={
+            <ProtectedAdminRoute>
+              <AdminDashboard />
+            </ProtectedAdminRoute>
+          }
+        />
+        <Route
+          path="/admin/job-listings"
+          element={
+            <ProtectedAdminRoute>
+              <AdminJobListings />
+            </ProtectedAdminRoute>
+          }
+        />
+        <Route
+          path="/admin/candidates"
+          element={
+            <ProtectedAdminRoute>
+              <AdminCandidateManagement />
+            </ProtectedAdminRoute>
+          }
+        />
+        <Route
+          path="/admin/questions"
+          element={
+            <ProtectedAdminRoute>
+              <AdminQuestionManagement />
+            </ProtectedAdminRoute>
+          }
+        />
+        <Route
+          path="/admin/statistics"
+          element={
+            <ProtectedAdminRoute>
+              <AdminStatistics />
+            </ProtectedAdminRoute>
+          }
+        />
+        <Route
+          path="/admin/activity-log"
+          element={
+            <ProtectedAdminRoute>
+              <AdminActivityLog />
+            </ProtectedAdminRoute>
+          }
+        />
+        <Route
+          path="/admin/feedback"
+          element={
+            <ProtectedAdminRoute>
+              <AdminFeedbackIssues />
+            </ProtectedAdminRoute>
+          }
+        />
+        <Route
+          path="/admin/settings"
+          element={
+            <ProtectedAdminRoute>
+              <AdminSettings />
+            </ProtectedAdminRoute>
+          }
+        />
+        <Route
+          path="/admin/accounts"
+          element={
+            <ProtectedAdminRoute>
+              <AdminAccountsList />
+            </ProtectedAdminRoute>
+          }
+        />
+        <Route
+          path="/admin/accounts/hr/:id"
+          element={<ProtectedAdminRoute><AdminHRDetail /></ProtectedAdminRoute>}
+        />
+        <Route
+          path="/admin/company/:id"
+          element={
+            <ProtectedAdminRoute>
+              <AdminCompanyProfile />
+            </ProtectedAdminRoute>
+          }
+        />
+        <Route
+          path="/admin/candidates/:id"
+          element={
+            <ProtectedAdminRoute>
+              <AdminCandidateDetail />
+            </ProtectedAdminRoute>
+          }
+        />
+        <Route
+          path="/admin/hr/:id"
+          element={
+            <ProtectedAdminRoute>
+              <AdminHRDetail />
+            </ProtectedAdminRoute>
+          }
+        />
+
+        {/* HR Routes */}
+        <Route path="/hr/login" element={<HrLogin />} />
+        <Route path="/hr/signup" element={<HrSignUp />} />
+        <Route path="/hr/dashboard" element={<ProtectedHrRoute><HrLayout><HrDashboard /></HrLayout></ProtectedHrRoute>} />
+        <Route path="/hr/post-job" element={<ProtectedHrRoute><HrLayout><PostNewJob /></HrLayout></ProtectedHrRoute>} />
+        <Route path="/hr/job-management" element={<ProtectedHrRoute><HrLayout><JobManagement /></HrLayout></ProtectedHrRoute>} />
+        <Route path="/hr/job-applications" element={<ProtectedHrRoute><HrLayout><JobApplications /></HrLayout></ProtectedHrRoute>} />
+        <Route path="/hr/company-profile" element={<ProtectedHrRoute><HrLayout><HrCompanyProfile /></HrLayout></ProtectedHrRoute>} />
+
+        {/* Candidate facing pages */}
+        <Route path="/*" element={
+          <div className="bg-white">
+            <Header 
+              onPageChange={handlePageChange} 
+              currentPage={currentPage} 
+              onAuthOpen={handleAuthOpen}
+              onHomeClick={handleBackClick}
+            />
+            {renderPage()}
+            {(currentPage === 'home' || 
+              currentPage === 'dashboard' || 
+              currentPage === 'profile' || 
+              currentPage === 'my-applications' || 
+              currentPage === 'test-management') && <Footer />}
+            <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} initialMode={authMode} />
+            <ChatBot />
+          </div>
+        } />
+      </Routes>
+    </Router>
   );
-}
+};
 
 export default App;

@@ -1,5 +1,14 @@
 import React from 'react';
 import Avatar from '../../assets/Avatar17.png';
+import DashboardIcon from '../../assets/dashboard.png';
+import AIIcon from '../../assets/ai.png';
+import DocIcon from '../../assets/document.png';
+import TestIcon from '../../assets/test.png';
+import GlassIcon from '../../assets/glass1.png';
+import CompanyIcon from '../../assets/company.png';
+import AccountIcon from '../../assets/account1.png';
+import SettingsIcon from '../../assets/settings.png';
+import FeedbackIcon from '../../assets/feedback.png';
 
 interface DashboardSidebarProps {
   activeTab: string;
@@ -31,13 +40,13 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   onLogoutClick
 }) => {
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'agent-ai', label: 'Agent AI', icon: '🤖' },
-    { id: 'applications', label: 'My Applications', icon: '📄' },
-    { id: 'test-management', label: 'Test Management', icon: '📝' },
-    { id: 'find-jobs', label: 'Find Jobs', icon: '🔍' },
-    { id: 'browse-companies', label: 'Browse Companies', icon: '🏢' },
-    { id: 'public-profile', label: 'My Public Profile', icon: '👤' },
+    { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
+    { id: 'agent-ai', label: 'Agent AI', icon: AIIcon },
+    { id: 'applications', label: 'My Applications', icon: DocIcon },
+    { id: 'test-management', label: 'Test Management', icon: TestIcon },
+    { id: 'find-jobs', label: 'Find Jobs', icon: GlassIcon },
+    { id: 'browse-companies', label: 'Browse Companies', icon: CompanyIcon },
+    { id: 'public-profile', label: 'My Public Profile', icon: AccountIcon },
   ];
 
   const handleMenuClick = (itemId: string) => {
@@ -72,7 +81,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                 : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
-            <span className="text-lg">{item.icon}</span>
+            <img src={item.icon} alt="icon" className={`w-5 h-5 flex-shrink-0 ${activeTab===item.id? 'filter brightness-0 invert': ''}`} />
             <span className="font-medium">{item.label}</span>
           </button>
         ))}
@@ -91,7 +100,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
               : 'text-gray-700 hover:bg-gray-100'
           }`}
         >
-          <span>⚙️</span>
+          <img src={SettingsIcon} alt="settings" className={`w-4 h-4 ${activeTab==='settings' ? 'filter brightness-0 invert' : ''}`} />
           <span>Settings</span>
         </button>
         <button 
@@ -102,7 +111,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
               : 'text-gray-700 hover:bg-gray-100'
           }`}
         >
-          <span>❓</span>
+          <img src={FeedbackIcon} alt="feedback" className={`w-4 h-4 ${activeTab==='help-center' ? 'filter brightness-0 invert' : ''}`} />
           <span>Help Center</span>
         </button>
         

@@ -1,0 +1,9 @@
+export { default as HrLogin } from './HrLogin';
+export { default as HrSignUp } from './HrSignUp';
+export { default as HrDashboard } from './HrDashboard';
+export { default as JobApplications } from './JobApplications';
+export { default as PostNewJob } from './PostNewJob';
+export { default as JobManagement } from './JobManagement';
+export { default as HrCompanyProfile } from './HrCompanyProfile';
+export { default as HrLayout } from './HrLayout';
+export { default as HrDashboardSidebar } from './DashboardSidebar'; 
