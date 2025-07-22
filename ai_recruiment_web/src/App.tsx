@@ -41,16 +41,7 @@ import {
   AdminCandidateDetail,
   AdminHRDetail,
 } from './components/admin';
-import {
-  HrLogin,
-  HrSignUp,
-  HrDashboard,
-  PostNewJob,
-  JobManagement,
-  HrCompanyProfile,
-  HrLayout,
-  JobApplications,
-} from './components/hr';
+import HrRoutes from './components/hr/HrRoutes';
 
 import './App.css';
 
@@ -59,20 +50,11 @@ type CurrentPage = 'home' | 'find-jobs' | 'find-jobs-dashboard' | 'agent-ai' | '
 const App = () => {
   // Add authentication state management here
   const isAdmin = true; // This should be replaced with actual auth logic
-  const isHr = true; // This should be replaced with actual auth logic
 
   // Protected Route component
   const ProtectedAdminRoute = ({ children }: { children: React.ReactNode }) => {
     if (!isAdmin) {
       return <Navigate to="/login" replace />;
-    }
-    return <>{children}</>;
-  };
-
-  // Protected Route component for HR
-  const ProtectedHrRoute = ({ children }: { children: React.ReactNode }) => {
-    if (!isHr) {
-      return <Navigate to="/hr/login" replace />;
     }
     return <>{children}</>;
   };
@@ -392,13 +374,7 @@ const App = () => {
         />
 
         {/* HR Routes */}
-        <Route path="/hr/login" element={<HrLogin />} />
-        <Route path="/hr/signup" element={<HrSignUp />} />
-        <Route path="/hr/dashboard" element={<ProtectedHrRoute><HrLayout><HrDashboard /></HrLayout></ProtectedHrRoute>} />
-        <Route path="/hr/post-job" element={<ProtectedHrRoute><HrLayout><PostNewJob /></HrLayout></ProtectedHrRoute>} />
-        <Route path="/hr/job-management" element={<ProtectedHrRoute><HrLayout><JobManagement /></HrLayout></ProtectedHrRoute>} />
-        <Route path="/hr/job-applications" element={<ProtectedHrRoute><HrLayout><JobApplications /></HrLayout></ProtectedHrRoute>} />
-        <Route path="/hr/company-profile" element={<ProtectedHrRoute><HrLayout><HrCompanyProfile /></HrLayout></ProtectedHrRoute>} />
+        <Route path="/hr/*" element={<HrRoutes />} />
 
         {/* Candidate facing pages */}
         <Route path="/*" element={

@@ -105,11 +105,11 @@ const Statistics: React.FC = () => {
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center space-x-3">
                         <img src={AvatarImg} alt="Avatar" className="w-10 h-10 rounded-full" />
-                        <div>
-                            <p className="font-semibold text-gray-800">Maria Kelly</p>
-                            <p className="text-sm text-gray-500">MariaKelly@email.com</p>
+                        <div className="text-left">
+                          <p className="text-sm font-semibold text-gray-800">Maria Kelly</p>
+                          <p className="text-xs text-gray-500">MariaKelly@email.com</p>
                         </div>
-                        <FiChevronDown className="text-gray-400" />
+                        <FiChevronDown className="h-4 w-4 text-gray-500" />
                     </div>
                     <div className="flex items-center space-x-6 relative">
                         <button onClick={() => setNotifOpen(!notifOpen)} className="relative focus:outline-none">

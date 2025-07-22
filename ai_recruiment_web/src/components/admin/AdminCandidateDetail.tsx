@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
-import { FiArrowLeft, FiStar, FiEdit, FiMessageSquare, FiDownload, FiCheckCircle, FiClock, FiCalendar } from 'react-icons/fi';
+import { FiArrowLeft, FiStar, FiEdit, FiMessageSquare, FiDownload, FiCheckCircle, FiClock, FiCalendar, FiMoreHorizontal, FiPlus, FiChevronDown } from 'react-icons/fi';
 import { FaInstagram } from 'react-icons/fa';
 import { BiWorld } from 'react-icons/bi';
+import { IoLocationSharp } from "react-icons/io5";
 
 interface CandidateDetails {
   id: number;
@@ -35,6 +36,7 @@ interface CandidateDetails {
     education: string;
     skills: string[];
   };
+  matchPercentage: number;
 }
 
 const AdminCandidateDetail: React.FC = () => {
@@ -75,7 +77,8 @@ const AdminCandidateDetail: React.FC = () => {
       },
       education: 'Bachelors in Engineering',
       skills: ['Project Management', 'Copywriting', 'English']
-    }
+    },
+    matchPercentage: 90,
   };
 
   // Mock hiring timeline data
@@ -116,13 +119,13 @@ const AdminCandidateDetail: React.FC = () => {
             {/* Avatar & Basic Info */}
             <div className="flex items-center gap-4 mb-6">
               <img src={candidateDetails.avatar} alt={candidateDetails.fullName} className="w-24 h-24 rounded-full object-cover" />
-              <div className="h-24 flex flex-col justify-between">
+              <div className="h-24 flex flex-col justify-between text-left">
                 <h2 className="text-lg font-semibold text-gray-900">{candidateDetails.fullName}</h2>
                 <p className="text-sm text-gray-500">Product Designer</p>
-                <div className="flex items-center gap-1 mt-1">
-                  <FiStar className="text-yellow-400 fill-current" />
-                  <span className="text-sm font-medium">4.0</span>
-                </div>
+                <p className="text-sm font-semibold">
+                  <span className="text-gray-800">Match: </span>
+                  <span className="text-green-500">{candidateDetails.matchPercentage}%</span>
+                </p>
               </div>
             </div>
 
@@ -314,83 +317,283 @@ const AdminCandidateDetail: React.FC = () => {
             )}
 
             {activeTab === 'resume' && (
-              <div className="flex flex-col lg:flex-row gap-8">
-                {/* Summary / Details */}
-                <div className="flex-1 space-y-4 text-sm text-left">
-                  <h4 className="text-lg font-semibold text-gray-900">Resume Details</h4>
-                  <div>
-                    <p className="text-gray-500">Name</p>
-                    <p className="text-gray-900 font-medium">{candidateDetails.fullName}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Education</p>
-                    <p className="text-gray-900 font-medium">{candidateDetails.education}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Experience</p>
-                    <ul className="list-disc ml-5 space-y-1">
-                      {candidateDetails.experience.map((exp, idx) => (
-                        <li key={idx}>{exp}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <button className="inline-flex items-center gap-2 px-4 py-2 bg-[#007BFF] text-white rounded hover:bg-blue-600 text-sm">
-                    <FiDownload className="w-4 h-4" /> Download Resume
-                  </button>
-                </div>
+              <div className="p-6 bg-white rounded-lg shadow-md text-left border border-gray-300">
+                <div className="grid grid-cols-3 gap-8">
+                  {/* Left Column */}
+                  <div className="col-span-2">
+                    <h2 className="text-4xl font-bold">Jerome Bell</h2>
+                    <p className="text-xl text-gray-600 mb-6">Product Designer</p>
 
-                {/* Resume Preview */}
-                <div className="flex-1">
-                  <div className="border border-gray-200 rounded-lg overflow-hidden h-[500px] flex items-center justify-center bg-gray-50">
-                    {/* Replace with actual embed/iframe */}
-                    <span className="text-gray-400 text-sm">Resume preview (PDF)</span>
+                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Experience</h3>
+                    <div className="space-y-6">
+                      <div>
+                        <p className="font-semibold">Senior UI/UX Product Designer</p>
+                        <p className="text-gray-600">Enterprise name</p>
+                        <p className="text-gray-500 text-xs">Aug 2018 - Present • 1 year, Paris</p>
+                        <p className="mt-2">Directly collaborated with CEO and Product team to prototype, design and deliver the UI and UX experience with a lean design process: research, design, test, and iterate.</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">UI/UX Product Designer</p>
+                        <p className="text-gray-600">Enterprise name</p>
+                        <p className="text-gray-500 text-xs">Aug 2013 - Aug 2018 • 5 years, Paris</p>
+                        <p className="mt-2">Lead the UI design with the accountability of the design system, collaborated with product and development teams on core projects to improve product interfaces and experiences.</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">UI Designer</p>
+                        <p className="text-gray-600">Enterprise name</p>
+                        <p className="text-gray-500 text-xs">Aug 2012 - Jul 2013 • 1 year, Paris</p>
+                        <p className="mt-2">Designed mobile UI applications for Orange R&D departement, BNP Paribas, La Poste, Le Cned...</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold">Graphic Designer</p>
+                        <p className="text-gray-600">Enterprise name</p>
+                        <p className="text-gray-500 text-xs">Sept 2010 - Jul 2012 • 2 years, Paris</p>
+                        <p className="mt-2">Designed print and web applications for Pau Brasil, Renault, Le théatre du Mantois, La mairie de Mantes la Ville...</p>
+                      </div>
+                    </div>
+                    
+                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-8 mb-4">Education</h3>
+                    <div className="space-y-4">
+                  <div>
+                        <p className="font-semibold">Bachelor European in Graphic Design</p>
+                        <p className="text-gray-600">School name</p>
+                        <p className="text-gray-500 text-xs">2006 - 2010, Bagnolet</p>
+                  </div>
+                  <div>
+                        <p className="font-semibold">BTS Communication Visuelle option Multimédia</p>
+                        <p className="text-gray-600">School name</p>
+                        <p className="text-gray-500 text-xs">2007 - 2009, Bagnolet</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column */}
+                  <div>
+                    <img src="https://i.pravatar.cc/150?u=a042581f4e29026704d" alt="Jerome Bell" className="w-24 h-24 rounded-full mb-4" />
+                    <div>
+                      <p>jeromebell@gmail.com</p>
+                      <p>+44 1245 572 135</p>
+                      <p>Vernouillet</p>
+                  </div>
+                    <div className="mt-6">
+                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Industry Knowledge</h3>
+                      <p>Product Design</p>
+                      <p>User Interface</p>
+                      <p>User Experience</p>
+                      <p>Interaction Design</p>
+                      <p>Wireframing</p>
+                      <p>Rapid Prototyping</p>
+                      <p>Design Research</p>
+
+                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-6 mb-4">Tools & Technologies</h3>
+                      <p>Figma, Sketch, Protopie, Framer, Invision, Abstract, Zeplin, Google Analytics, Amplitude, Fullstory...</p>
+
+                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-6 mb-4">Other Skills</h3>
+                      <p>HTML, CSS, JQuery</p>
+
+                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-6 mb-4">Languages</h3>
+                      <p>French (native)</p>
+                      <p>English (professionnal)</p>
+
+                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-6 mb-4">Social</h3>
+                      <p className="text-blue-600 hover:underline cursor-pointer">yoursite.com</p>
+                      <p className="text-blue-600 hover:underline cursor-pointer">linkedin.com/in/yourname</p>
+                      <p className="text-blue-600 hover:underline cursor-pointer">dribbble.com/yourname</p>
+                </div>
                   </div>
                 </div>
               </div>
             )}
 
             {activeTab === 'progress' && (
-              <div className="space-y-6 text-left">
-                {hiringTimeline.map(step => (
-                  <div key={step.id} className="flex items-start gap-3">
-                    {step.status === 'completed' && <FiCheckCircle className="w-5 h-5 text-green-500 mt-0.5" />}
-                    {step.status === 'current' && <FiClock className="w-5 h-5 text-[#007BFF] mt-0.5" />}
-                    {step.status === 'upcoming' && <FiClock className="w-5 h-5 text-gray-300 mt-0.5" />}
+              <div className="p-6 bg-white rounded-lg shadow-md border border-gray-300">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-semibold">Current Stage</h3>
+                  <button className="flex items-center border border-gray-300 rounded-md px-4 py-2 text-sm font-semibold hover:bg-gray-50" style={{ color: '#007BFF' }}>
+                    <FiChevronDown className="mr-2" /> Give Rating
+                  </button>
+                </div>
+                
+                <div className="flex items-center bg-gray-100 rounded-full p-1">
+                  <div className="flex-1 py-2 text-center text-sm font-semibold rounded-full" style={{ color: '#007BFF' }}>
+                    In-Review
+                  </div>
+                  <div className="flex-1 py-2 text-center text-sm font-semibold rounded-full" style={{ color: '#007BFF' }}>
+                    Approve
+                  </div>
+                  <div className="flex-1 py-2 text-center text-white text-sm font-semibold rounded-full shadow-md" style={{ backgroundColor: '#007BFF' }}>
+                    Interview
+                  </div>
+                  <div className="flex-1 py-2 text-center text-gray-400 text-sm font-semibold rounded-full">
+                    Mini-test
+                  </div>
+                  <div className="flex-1 py-2 text-center text-gray-400 text-sm font-semibold rounded-full">
+                    Hired / Declined
+                  </div>
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-gray-300">
+                  <h4 className="font-semibold mb-4 text-left">Stage Info</h4>
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-left">
                     <div>
-                      <p className={`font-medium ${step.status === 'current' ? 'text-[#007BFF]' : 'text-gray-900'}`}>{step.label}</p>
-                      <p className="text-xs text-gray-500">{step.date}</p>
+                      <p className="text-sm text-gray-500">Interview Date</p>
+                      <p>10 - 13 July 2021</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Interview Status</p>
+                      <p className="font-semibold">
+                        <span className="bg-yellow-100 text-yellow-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">On Progress</span>
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Interview Location</p>
+                      <p>
+                        Silver Crysta Room, Nomad Office<br />
+                        3517 W. Gray St. Utica,<br />
+                        Pennsylvania 57867
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Assigned to</p>
+                      <div className="flex -space-x-2 overflow-hidden">
+                        <img className="inline-block h-8 w-8 rounded-full ring-2 ring-white" src="https://i.pravatar.cc/50?u=a" alt="User 1" />
+                        <img className="inline-block h-8 w-8 rounded-full ring-2 ring-white" src="https://i.pravatar.cc/50?u=b" alt="User 2" />
+                        <img className="inline-block h-8 w-8 rounded-full ring-2 ring-white" src="https://i.pravatar.cc/50?u=c" alt="User 3" />
+                      </div>
                     </div>
                   </div>
-                ))}
+                  <div className="text-left mt-6">
+                    <button className="border px-4 py-2 rounded-md hover:bg-gray-50 text-sm font-semibold" style={{ borderColor: '#007BFF', color: '#007BFF' }}>
+                      Move To Next Step
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-8 pt-6 border-t">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="font-semibold text-left">Notes</h4>
+                    <button className="flex items-center text-sm font-semibold" style={{ color: '#007BFF' }}>
+                      <FiPlus className="mr-1" /> Add Notes
+                    </button>
+                  </div>
+                  <div className="space-y-4 text-left">
+                    <div className="p-4 border rounded-md">
+                      <div className="flex items-start">
+                        <img src="https://i.pravatar.cc/50?u=maria" alt="Maria Kelly" className="w-10 h-10 rounded-full mr-4" />
+                        <div className="flex-1">
+                          <div className="flex justify-between items-center">
+                            <p className="font-semibold">Maria Kelly</p>
+                            <p className="text-xs text-gray-500">10 July, 2021 • 11:30 AM</p>
+                          </div>
+                          <p className="text-sm mt-1">Please, do an interview stage immediately. The design division needs more new employee now</p>
+                          <button className="text-sm font-semibold mt-2" style={{ color: '#007BFF' }}>2 Replies</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-4 border rounded-md">
+                      <div className="flex items-start">
+                        <img src="https://i.pravatar.cc/50?u=maria" alt="Maria Kelly" className="w-10 h-10 rounded-full mr-4" />
+                        <div className="flex-1">
+                          <div className="flex justify-between items-center">
+                            <p className="font-semibold">Maria Kelly</p>
+                            <p className="text-xs text-gray-500">10 July, 2021 • 10:30 AM</p>
+                          </div>
+                          <p className="text-sm mt-1">Please, do an interview stage immediately.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
             {activeTab === 'schedule' && (
-              <div className="space-y-4 text-left">
-                <button className="inline-flex items-center gap-2 px-4 py-2 bg-[#007BFF] text-white rounded hover:bg-blue-600 text-sm mb-2">
-                  <FiCalendar className="w-4 h-4" /> Schedule New Interview
-                </button>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm border border-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-3 py-2 text-left">Date</th>
-                        <th className="px-3 py-2 text-left">Time</th>
-                        <th className="px-3 py-2 text-left">Interviewer</th>
-                        <th className="px-3 py-2 text-left">Mode</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {interviewSchedule.map(row => (
-                        <tr key={row.id} className="border-t">
-                          <td className="px-3 py-2">{row.date}</td>
-                          <td className="px-3 py-2">{row.time}</td>
-                          <td className="px-3 py-2">{row.interviewer}</td>
-                          <td className="px-3 py-2">{row.mode}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <div className="bg-white p-6 rounded-lg shadow-md border border-gray-300">
+                <div className="flex justify-between items-center mb-4 text-left">
+                  <h3 className="text-lg font-semibold">Interview List</h3>
+                  <button className="flex items-center gap-2 px-4 py-2 bg-[#007BFF] text-white rounded-lg"><FiPlus /> Add Schedule Interview</button>
+                </div>
+                <div className="space-y-4 text-left">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-500 mb-2">Tomorrow - 10 July, 2021</p>
+                    <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <div className="flex items-center gap-4">
+                        <img src="https://i.pravatar.cc/48?u=d" className="w-12 h-12 rounded-full"/>
+                        <div>
+                          <p className="font-bold">Kathryn Murphy</p>
+                          <p className="text-sm text-gray-500">Written Test</p>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-sm">10:00 AM - 11:30 AM</p>
+                        <p className="text-sm text-gray-500">Silver Crysta Room, Nomad</p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <button className="flex items-center gap-2 px-3 py-1.5 border border-[#007BFF] text-[#007BFF] font-semibold rounded-lg text-sm"><FiEdit /> Add Feedback</button>
+                        <button><FiMoreHorizontal /></button>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-500 mb-2">11 July, 2021</p>
+                    <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <div className="flex items-center gap-4">
+                        <img src="https://i.pravatar.cc/48?u=e" className="w-12 h-12 rounded-full"/>
+                        <div>
+                          <p className="font-bold">Jenny Wilson</p>
+                          <p className="text-sm text-gray-500">Written Test 2</p>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-sm">10:00 AM - 11:00 AM</p>
+                        <p className="text-sm text-gray-500">Silver Crysta Room, Nomad</p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <button className="flex items-center gap-2 px-3 py-1.5 border border-[#007BFF] text-[#007BFF] font-semibold rounded-lg text-sm"><FiEdit /> Add Feedback</button>
+                        <button><FiMoreHorizontal /></button>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-500 mb-2">12 July, 2021</p>
+                    <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <div className="flex items-center gap-4">
+                        <img src="https://i.pravatar.cc/48?u=f" className="w-12 h-12 rounded-full"/>
+                        <div>
+                          <p className="font-bold">Thad Eddings</p>
+                          <p className="text-sm text-gray-500">Skill Test</p>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-sm">10:00 AM - 11:00 AM</p>
+                        <p className="text-sm text-gray-500">Silver Crysta Room, Nomad</p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <button className="flex items-center gap-2 px-3 py-1.5 border border-[#007BFF] text-[#007BFF] font-semibold rounded-lg text-sm"><FiEdit /> Add Feedback</button>
+                        <button><FiMoreHorizontal /></button>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-500 mb-2">13 July, 2021</p>
+                    <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <div className="flex items-center gap-4">
+                        <img src="https://i.pravatar.cc/48?u=g" className="w-12 h-12 rounded-full"/>
+                        <div>
+                          <p className="font-bold">Thad Eddings</p>
+                          <p className="text-sm text-gray-500">Final Test</p>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-sm">10:00 AM - 11:00 AM</p>
+                        <p className="text-sm text-gray-500">Silver Crysta Room, Nomad</p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <button className="flex items-center gap-2 px-3 py-1.5 border border-[#007BFF] text-[#007BFF] font-semibold rounded-lg text-sm"><FiEdit /> Add Feedback</button>
+                        <button><FiMoreHorizontal /></button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

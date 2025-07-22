@@ -43,7 +43,9 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       <div className="w-64 bg-white shadow-lg min-h-screen border-l border-r border-gray-200 sticky top-0 z-10 flex flex-col overflow-y-auto">
         {/* Logo */}
         <div className="p-4 border-b border-gray-200">
-          <img src={Logo} alt="Logo" className="h-8 w-auto" />
+          <button onClick={handleDashboardClick} className="flex items-center">
+            <img src={Logo} alt="Logo" className="h-8 w-auto" />
+          </button>
         </div>
 
         {/* Sidebar */}

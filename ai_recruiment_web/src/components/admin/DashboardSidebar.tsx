@@ -2,7 +2,7 @@ import React from 'react';
 import DashboardIcon from '../../assets/dashboard.png';
 import JDIcon from '../../assets/jd.png';
 import AccountIcon from '../../assets/account.png';
-import QuestionIcon from '../../assets/question.png';
+import QuestionIcon from '../../assets/document.png';
 import StatIcon from '../../assets/statitics.png';
 import LogIcon from '../../assets/log.png';
 import SettingsIcon from '../../assets/settings.png';
@@ -81,7 +81,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                 : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
-            <img src={item.icon} alt="icon" className={`w-5 ${item.id==='job-listings' ? 'h-6' : 'h-5'} flex-shrink-0 ${activeTab===item.id ? 'filter brightness-0 invert' : ''}`} />
+            <img src={item.icon} alt="icon" className={`w-5 ${item.id==='job-listings' ? 'h-5' : 'h-5'} flex-shrink-0 ${activeTab===item.id ? 'filter brightness-0 invert' : ''}`} />
             <span className="font-medium">{item.label}</span>
           </button>
         ))}
