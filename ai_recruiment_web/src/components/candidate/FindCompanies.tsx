@@ -147,7 +147,7 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick }) 
         onChange={onChange}
         className="w-4 h-4 text-[#007BFF] border-gray-300 rounded focus:ring-[#007BFF]"
       />
-      <label className="flex-1 text-sm text-gray-700 cursor-pointer" onClick={onChange}>
+      <label className="flex-1 text-sm text-gray-700 cursor-pointer text-left" onClick={onChange}>
         {label}
       </label>
       {count && <span className="text-sm text-gray-500">({count})</span>}
@@ -156,7 +156,7 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick }) 
 
   const CompanyCard = ({ company }: { company: Company }) => (
     <div 
-      className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group cursor-pointer"
+      className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group cursor-pointer text-left"
       onClick={() => onCompanyClick?.(company.id.toString())}
     >
       <div className="flex items-start justify-between mb-4">
@@ -164,7 +164,7 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick }) 
           <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold ${company.logoColor}`}>
             {company.logo}
           </div>
-          <div>
+          <div className="text-left">
             <h3 className="font-semibold text-gray-900 group-hover:text-[#007BFF] transition-colors">
               {company.name}
             </h3>
@@ -280,7 +280,7 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick }) 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex gap-8">
             {/* Filters Sidebar */}
-            <div className="w-80 bg-white rounded-lg p-6 h-fit">
+            <div className="w-80 bg-white rounded-lg p-6 h-fit text-left">
               {/* Industry */}
               <div className="mb-6">
                 <h3 
@@ -435,7 +435,7 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick }) 
             </div>
 
             {/* Company Listings */}
-            <div className="flex-1">
+            <div className="flex-1 text-left">
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">

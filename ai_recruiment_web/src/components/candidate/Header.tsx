@@ -38,6 +38,16 @@ export const Header: React.FC<HeaderProps> = ({ onPageChange, currentPage, onAut
 
             {/* Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
+              <button 
+                onClick={onHomeClick}
+                className={`font-medium py-4 ${
+                  currentPage === 'home' 
+                    ? 'text-[#007BFF] border-b-2 border-[#007BFF]' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Home
+              </button>
               <div className="relative group">
                 <button 
                   className={`font-medium py-4 flex items-center space-x-1 ${

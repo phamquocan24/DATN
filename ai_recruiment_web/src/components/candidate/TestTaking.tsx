@@ -137,7 +137,7 @@ const TestTaking: React.FC<TestTakingProps> = ({
         </div>
 
         {/* Test Info */}
-        <div className="p-4">
+        <div className="p-4 text-left">
           <div className="flex items-center space-x-3 mb-4">
             <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold ${test.logoColor}`}>
               {test.logo}
@@ -210,14 +210,14 @@ const TestTaking: React.FC<TestTakingProps> = ({
         </div>
 
         {/* Instructions */}
-        <div className="mb-8">
+        <div className="mb-8 text-left">
           <p className="text-gray-600">
             Click the finish button below to submit assessment, you can go back at any time to edit your answers.
           </p>
         </div>
 
         {/* Question */}
-        <div className="bg-white rounded-lg shadow-sm p-8 mb-8">
+        <div className="bg-white rounded-lg shadow-sm p-8 mb-8 text-left">
           <div className="mb-6">
             <p className="text-sm text-gray-500 mb-2">Question {currentQuestion + 1}</p>
             <h2 className="text-xl font-semibold text-gray-900 mb-6">

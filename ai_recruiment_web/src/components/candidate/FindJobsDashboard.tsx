@@ -19,6 +19,29 @@ interface Job {
   isSaved?: boolean;
 }
 
+const mockJobDetails = {
+  description: "Stripe is looking for Social Media Marketing expert to help manage our online networks. You will be responsible for monitoring our social media channels, creating content, finding effective ways to engage the community and incentivize others to engage on our channels.",
+  requirements: [
+    "Community engagement to ensure that is supported and actively represented online",
+    "Focus on social media content development and publication",
+    "Marketing and strategy support",
+    "Stay on top of trends on social media platforms, and suggest content ideas to the team",
+    "Engage with online communities"
+  ],
+  whoYouAre: [
+    "You get energy from people and building the ideal work environment",
+    "You have a sense for beautiful spaces and office experiences",
+    "You are a confident office manager, ready for added responsibilities",
+    "You're detail-oriented and creative",
+    "You're a growth marketer and know how to run campaigns"
+  ],
+  niceToHaves: [
+    "Fluent in English",
+    "Project management skills",
+    "Copy editing skills"
+  ]
+};
+
 interface FindJobsDashboardProps {
   onProfileClick?: () => void;
   onHomeClick?: () => void;
@@ -79,7 +102,8 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
       logoColor: 'bg-green-500 text-white',
       match: 90,
       applied: 5,
-      capacity: 10
+      capacity: 10,
+      ...mockJobDetails
     },
     {
       id: 2,
@@ -92,7 +116,8 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
       logoColor: 'bg-[#007BFF] text-white',
       match: 42,
       applied: 2,
-      capacity: 10
+      capacity: 10,
+      ...mockJobDetails
     },
     {
       id: 3,
@@ -105,7 +130,8 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
       logoColor: 'bg-[#007BFF] text-white',
       match: 98,
       applied: 8,
-      capacity: 12
+      capacity: 12,
+      ...mockJobDetails
     },
     {
       id: 4,
@@ -118,7 +144,8 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
       logoColor: 'bg-black text-white',
       match: 55,
       applied: 0,
-      capacity: 10
+      capacity: 10,
+      ...mockJobDetails
     },
     {
       id: 5,
@@ -131,7 +158,8 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
       logoColor: 'bg-teal-500 text-white',
       match: 57,
       applied: 5,
-      capacity: 10
+      capacity: 10,
+      ...mockJobDetails
     },
     {
       id: 6,
@@ -144,7 +172,8 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
       logoColor: 'bg-[#007BFF] text-white',
       match: 88,
       applied: 5,
-      capacity: 10
+      capacity: 10,
+      ...mockJobDetails
     },
     {
       id: 7,
@@ -157,7 +186,8 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
       logoColor: 'bg-black text-white',
       match: 30,
       applied: 5,
-      capacity: 10
+      capacity: 10,
+      ...mockJobDetails
     }
   ];
 
@@ -262,7 +292,7 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
   );
 
   const JobCard = ({ job }: { job: Job }) => (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow text-left">
       <div className="flex items-start justify-between">
         <div 
           className="flex items-start space-x-4 flex-1 cursor-pointer"
@@ -347,171 +377,172 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
 
       {/* Main Content */}
       <div className="flex-1 flex">
-        {/* Filters Sidebar */}
-        <div className={`${isFilterVisible ? 'w-80' : 'w-0'} transition-all duration-300 overflow-hidden bg-white shadow-sm border-r border-gray-200`}>
-          <div className="w-80 p-6 overflow-y-auto">
-            <div className="space-y-6">
-              {/* Type of Employment */}
-              <FilterSection title="Type of Employment" sectionKey="employmentType">
-                <FilterCheckbox
-                  label="Full-time"
-                  count={3}
-                  checked={filters.employmentType.includes('Full-time')}
-                  onChange={() => handleFilterChange('employmentType', 'Full-time')}
-                />
-                <FilterCheckbox
-                  label="Part-Time"
-                  count={5}
-                  checked={filters.employmentType.includes('Part-Time')}
-                  onChange={() => handleFilterChange('employmentType', 'Part-Time')}
-                />
-                <FilterCheckbox
-                  label="Remote"
-                  count={2}
-                  checked={filters.employmentType.includes('Remote')}
-                  onChange={() => handleFilterChange('employmentType', 'Remote')}
-                />
-                <FilterCheckbox
-                  label="Internship"
-                  count={24}
-                  checked={filters.employmentType.includes('Internship')}
-                  onChange={() => handleFilterChange('employmentType', 'Internship')}
-                />
-                <FilterCheckbox
-                  label="Contract"
-                  count={3}
-                  checked={filters.employmentType.includes('Contract')}
-                  onChange={() => handleFilterChange('employmentType', 'Contract')}
-                />
-              </FilterSection>
-
-              {/* Categories */}
-              <FilterSection title="Categories" sectionKey="categories">
-                <FilterCheckbox
-                  label="Design"
-                  count={24}
-                  checked={filters.categories.includes('Design')}
-                  onChange={() => handleFilterChange('categories', 'Design')}
-                />
-                <FilterCheckbox
-                  label="Sales"
-                  count={3}
-                  checked={filters.categories.includes('Sales')}
-                  onChange={() => handleFilterChange('categories', 'Sales')}
-                />
-                <FilterCheckbox
-                  label="Marketing"
-                  count={3}
-                  checked={filters.categories.includes('Marketing')}
-                  onChange={() => handleFilterChange('categories', 'Marketing')}
-                />
-                <FilterCheckbox
-                  label="Business"
-                  count={3}
-                  checked={filters.categories.includes('Business')}
-                  onChange={() => handleFilterChange('categories', 'Business')}
-                />
-                <FilterCheckbox
-                  label="Human Resource"
-                  count={6}
-                  checked={filters.categories.includes('Human Resource')}
-                  onChange={() => handleFilterChange('categories', 'Human Resource')}
-                />
-                <FilterCheckbox
-                  label="Finance"
-                  count={4}
-                  checked={filters.categories.includes('Finance')}
-                  onChange={() => handleFilterChange('categories', 'Finance')}
-                />
-                <FilterCheckbox
-                  label="Engineering"
-                  count={4}
-                  checked={filters.categories.includes('Engineering')}
-                  onChange={() => handleFilterChange('categories', 'Engineering')}
-                />
-                <FilterCheckbox
-                  label="Technology"
-                  count={5}
-                  checked={filters.categories.includes('Technology')}
-                  onChange={() => handleFilterChange('categories', 'Technology')}
-                />
-              </FilterSection>
-
-              {/* Job Level */}
-              <FilterSection title="Job Level" sectionKey="jobLevel">
-                <FilterCheckbox
-                  label="Entry Level"
-                  count={57}
-                  checked={filters.jobLevel.includes('Entry Level')}
-                  onChange={() => handleFilterChange('jobLevel', 'Entry Level')}
-                />
-                <FilterCheckbox
-                  label="Mid Level"
-                  count={3}
-                  checked={filters.jobLevel.includes('Mid Level')}
-                  onChange={() => handleFilterChange('jobLevel', 'Mid Level')}
-                />
-                <FilterCheckbox
-                  label="Senior Level"
-                  count={5}
-                  checked={filters.jobLevel.includes('Senior Level')}
-                  onChange={() => handleFilterChange('jobLevel', 'Senior Level')}
-                />
-                <FilterCheckbox
-                  label="Director"
-                  count={12}
-                  checked={filters.jobLevel.includes('Director')}
-                  onChange={() => handleFilterChange('jobLevel', 'Director')}
-                />
-                <FilterCheckbox
-                  label="VP or Above"
-                  count={8}
-                  checked={filters.jobLevel.includes('VP or Above')}
-                  onChange={() => handleFilterChange('jobLevel', 'VP or Above')}
-                />
-              </FilterSection>
-
-              {/* Salary Range */}
-              <FilterSection title="Salary Range" sectionKey="salaryRange">
-                <FilterCheckbox
-                  label="$700 - $1000"
-                  count={4}
-                  checked={filters.salaryRange.includes('$700 - $1000')}
-                  onChange={() => handleFilterChange('salaryRange', '$700 - $1000')}
-                />
-                <FilterCheckbox
-                  label="$100 - $1500"
-                  count={6}
-                  checked={filters.salaryRange.includes('$100 - $1500')}
-                  onChange={() => handleFilterChange('salaryRange', '$100 - $1500')}
-                />
-                <FilterCheckbox
-                  label="$1500 - $2000"
-                  count={10}
-                  checked={filters.salaryRange.includes('$1500 - $2000')}
-                  onChange={() => handleFilterChange('salaryRange', '$1500 - $2000')}
-                />
-                <FilterCheckbox
-                  label="$3000 or above"
-                  count={4}
-                  checked={filters.salaryRange.includes('$3000 or above')}
-                  onChange={() => handleFilterChange('salaryRange', '$3000 or above')}
-                />
-              </FilterSection>
-            </div>
-          </div>
-        </div>
-
-        {/* Job Listings */}
-        <div className="flex-1 p-8">
-          {/* Conditional rendering based on view */}
-          {currentView === 'detail' && selectedJob ? (
+        {currentView === 'detail' && selectedJob ? (
+          <div className="flex-1 p-8">
             <JobDetail 
               job={selectedJob} 
               onBack={handleBackToList}
             />
-          ) : (
-            <>
+          </div>
+        ) : (
+          <>
+            {/* Filters Sidebar */}
+            <div className={`${isFilterVisible ? 'w-80' : 'w-0'} transition-all duration-300 overflow-hidden bg-white shadow-sm border-r border-gray-200`}>
+              <div className="w-80 p-6 overflow-y-auto">
+                <div className="space-y-6">
+                  {/* Type of Employment */}
+                  <FilterSection title="Type of Employment" sectionKey="employmentType">
+                    <FilterCheckbox
+                      label="Full-time"
+                      count={3}
+                      checked={filters.employmentType.includes('Full-time')}
+                      onChange={() => handleFilterChange('employmentType', 'Full-time')}
+                    />
+                    <FilterCheckbox
+                      label="Part-Time"
+                      count={5}
+                      checked={filters.employmentType.includes('Part-Time')}
+                      onChange={() => handleFilterChange('employmentType', 'Part-Time')}
+                    />
+                    <FilterCheckbox
+                      label="Remote"
+                      count={2}
+                      checked={filters.employmentType.includes('Remote')}
+                      onChange={() => handleFilterChange('employmentType', 'Remote')}
+                    />
+                    <FilterCheckbox
+                      label="Internship"
+                      count={24}
+                      checked={filters.employmentType.includes('Internship')}
+                      onChange={() => handleFilterChange('employmentType', 'Internship')}
+                    />
+                    <FilterCheckbox
+                      label="Contract"
+                      count={3}
+                      checked={filters.employmentType.includes('Contract')}
+                      onChange={() => handleFilterChange('employmentType', 'Contract')}
+                    />
+                  </FilterSection>
+
+                  {/* Categories */}
+                  <FilterSection title="Categories" sectionKey="categories">
+                    <FilterCheckbox
+                      label="Design"
+                      count={24}
+                      checked={filters.categories.includes('Design')}
+                      onChange={() => handleFilterChange('categories', 'Design')}
+                    />
+                    <FilterCheckbox
+                      label="Sales"
+                      count={3}
+                      checked={filters.categories.includes('Sales')}
+                      onChange={() => handleFilterChange('categories', 'Sales')}
+                    />
+                    <FilterCheckbox
+                      label="Marketing"
+                      count={3}
+                      checked={filters.categories.includes('Marketing')}
+                      onChange={() => handleFilterChange('categories', 'Marketing')}
+                    />
+                    <FilterCheckbox
+                      label="Business"
+                      count={3}
+                      checked={filters.categories.includes('Business')}
+                      onChange={() => handleFilterChange('categories', 'Business')}
+                    />
+                    <FilterCheckbox
+                      label="Human Resource"
+                      count={6}
+                      checked={filters.categories.includes('Human Resource')}
+                      onChange={() => handleFilterChange('categories', 'Human Resource')}
+                    />
+                    <FilterCheckbox
+                      label="Finance"
+                      count={4}
+                      checked={filters.categories.includes('Finance')}
+                      onChange={() => handleFilterChange('categories', 'Finance')}
+                    />
+                    <FilterCheckbox
+                      label="Engineering"
+                      count={4}
+                      checked={filters.categories.includes('Engineering')}
+                      onChange={() => handleFilterChange('categories', 'Engineering')}
+                    />
+                    <FilterCheckbox
+                      label="Technology"
+                      count={5}
+                      checked={filters.categories.includes('Technology')}
+                      onChange={() => handleFilterChange('categories', 'Technology')}
+                    />
+                  </FilterSection>
+
+                  {/* Job Level */}
+                  <FilterSection title="Job Level" sectionKey="jobLevel">
+                    <FilterCheckbox
+                      label="Entry Level"
+                      count={57}
+                      checked={filters.jobLevel.includes('Entry Level')}
+                      onChange={() => handleFilterChange('jobLevel', 'Entry Level')}
+                    />
+                    <FilterCheckbox
+                      label="Mid Level"
+                      count={3}
+                      checked={filters.jobLevel.includes('Mid Level')}
+                      onChange={() => handleFilterChange('jobLevel', 'Mid Level')}
+                    />
+                    <FilterCheckbox
+                      label="Senior Level"
+                      count={5}
+                      checked={filters.jobLevel.includes('Senior Level')}
+                      onChange={() => handleFilterChange('jobLevel', 'Senior Level')}
+                    />
+                    <FilterCheckbox
+                      label="Director"
+                      count={12}
+                      checked={filters.jobLevel.includes('Director')}
+                      onChange={() => handleFilterChange('jobLevel', 'Director')}
+                    />
+                    <FilterCheckbox
+                      label="VP or Above"
+                      count={8}
+                      checked={filters.jobLevel.includes('VP or Above')}
+                      onChange={() => handleFilterChange('jobLevel', 'VP or Above')}
+                    />
+                  </FilterSection>
+
+                  {/* Salary Range */}
+                  <FilterSection title="Salary Range" sectionKey="salaryRange">
+                    <FilterCheckbox
+                      label="$700 - $1000"
+                      count={4}
+                      checked={filters.salaryRange.includes('$700 - $1000')}
+                      onChange={() => handleFilterChange('salaryRange', '$700 - $1000')}
+                    />
+                    <FilterCheckbox
+                      label="$100 - $1500"
+                      count={6}
+                      checked={filters.salaryRange.includes('$100 - $1500')}
+                      onChange={() => handleFilterChange('salaryRange', '$100 - $1500')}
+                    />
+                    <FilterCheckbox
+                      label="$1500 - $2000"
+                      count={10}
+                      checked={filters.salaryRange.includes('$1500 - $2000')}
+                      onChange={() => handleFilterChange('salaryRange', '$1500 - $2000')}
+                    />
+                    <FilterCheckbox
+                      label="$3000 or above"
+                      count={4}
+                      checked={filters.salaryRange.includes('$3000 or above')}
+                      onChange={() => handleFilterChange('salaryRange', '$3000 or above')}
+                    />
+                  </FilterSection>
+                </div>
+              </div>
+            </div>
+
+            {/* Job Listings */}
+            <div className="flex-1 p-8">
               {/* Header - moved above search bar */}
               <div className="flex justify-between items-center mb-8">
                 <h1 className="text-2xl font-bold text-gray-900">Find Jobs</h1>
@@ -561,7 +592,7 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
           </div>
 
           {/* Popular searches */}
-          <div className="mb-6">
+          <div className="mb-6 text-left">
             <span className="text-gray-500 text-sm">Popular: </span>
             <span className="text-[#007BFF] text-sm">UI Designer, UX Researcher, Android, Admin</span>
           </div>
@@ -652,12 +683,10 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
                   </svg>
                 </button>
               </div>
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        )}
       </div>
-      
-
     </div>
   );
 };

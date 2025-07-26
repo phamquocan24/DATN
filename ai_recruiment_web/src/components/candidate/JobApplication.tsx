@@ -268,7 +268,7 @@ export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose,
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Attach your resume
                 </label>
-                <p className="text-sm text-gray-600 mb-3">or choose in collection</p>
+                <p className="text-sm text-gray-600 mb-3">or <span className="text-[#007BFF]">choose in collection</span></p>
                 
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
                   <div className="flex items-center justify-center">

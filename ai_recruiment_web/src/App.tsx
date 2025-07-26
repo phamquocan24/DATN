@@ -90,6 +90,15 @@ const App = () => {
     setSelectedCompanyId(null);
   };
 
+  const handleFindJobsClick = () => {
+    setCurrentPage('find-jobs');
+  };
+
+  const handleApplyClick = () => {
+    // Placeholder for apply logic
+    console.log("Apply button clicked for job ID:", selectedJobId);
+  };
+
   const renderPage = () => {
     switch (currentPage) {
       case 'home':
@@ -97,9 +106,9 @@ const App = () => {
           <>
             <Hero />
             <CompanyLogos />
-            <Categories />
-            <JobList onJobClick={handleJobClick} />
-            <CTA />
+            <Categories onFindJobsClick={handleFindJobsClick} />
+            <CTA onSignUpClick={() => handleAuthOpen('signup')} />
+            <JobList onJobClick={handleJobClick} onFindJobsClick={handleFindJobsClick} />
           </>
         );
       case 'find-jobs':
@@ -126,6 +135,7 @@ const App = () => {
           onBrowseCompaniesClick={() => setCurrentPage('browse-companies')}
           onFindJobsClick={() => setCurrentPage('find-jobs-dashboard')}
           onSettingsClick={() => setCurrentPage('settings')}
+          onHelpCenterClick={() => setCurrentPage('help-center')}
         />;
       case 'favorite-jobs':
         return <FavoriteJobs onJobClick={handleJobClick} />;
@@ -144,22 +154,43 @@ const App = () => {
           onFindJobsClick={() => setCurrentPage('find-jobs-dashboard')}
           onProfileClick={() => setCurrentPage('profile')}
           onSettingsClick={() => setCurrentPage('settings')}
+          onHelpCenterClick={() => setCurrentPage('help-center')}
         />;
                     case 'job-detail':
         // Mock job data for demonstration
         const mockJob = {
           id: parseInt(selectedJobId || '1'),
           title: 'Social Media Assistant',
-          company: 'Nomad',
+          company: 'Stripe',
           location: 'Paris, France',
           type: 'Full-Time',
-          tags: ['Marketing', 'Design', 'Match: 95%'],
-          logo: 'N',
-          logoColor: 'bg-blue-100',
+          tags: ['Marketing', 'Design'],
+          logo: 'S',
+          logoColor: 'bg-purple-500',
           match: 95,
           applied: 5,
           capacity: 10,
-          salary: '$40,000 - $60,000',
+          salary: '$75k-$85k USD',
+          description: 'Stripe is looking for Social Media Marketing expert to help manage our online networks. You will be responsible for monitoring our social media channels, creating content, finding effective ways to engage the community and incentivize others to engage on our channels.',
+          requirements: [
+            'Community engagement to ensure that is supported and actively represented online',
+            'Focus on social media content development and publication',
+            'Marketing and strategy support',
+            'Stay on top of trends on social media platforms, and suggest content ideas to the team',
+            'Engage with online communities'
+          ],
+          whoYouAre: [
+            'You get energy from people and building the ideal work environment',
+            'You have a sense for beautiful spaces and office experiences',
+            'You are a confident office manager, ready for added responsibilities',
+            'You\'re detail-oriented and creative',
+            'You\'re a growth marketer and know how to run campaigns'
+          ],
+          niceToHaves: [
+            'Fluent in English',
+            'Project management skills',
+            'Copy editing skills'
+          ]
         };
         
         return (
@@ -223,6 +254,7 @@ const App = () => {
           onBrowseCompaniesClick={() => setCurrentPage('browse-companies')}
           onAgentAIClick={() => setCurrentPage('agent-ai')}
           onSettingsClick={() => setCurrentPage('settings')}
+          onHelpCenterClick={() => setCurrentPage('help-center')}
         />;
       case 'settings':
         return <Settings 
@@ -234,6 +266,7 @@ const App = () => {
           onFindJobsClick={() => setCurrentPage('find-jobs-dashboard')}
           onBrowseCompaniesClick={() => setCurrentPage('browse-companies')}
           onAgentAIClick={() => setCurrentPage('agent-ai')}
+          onHelpCenterClick={() => setCurrentPage('help-center')}
         />;
       case 'help-center':
         return <HelpCenter 
@@ -246,15 +279,17 @@ const App = () => {
           onBrowseCompaniesClick={() => setCurrentPage('browse-companies')}
           onAgentAIClick={() => setCurrentPage('agent-ai')}
           onSettingsClick={() => setCurrentPage('settings')}
+          onHelpCenterClick={() => setCurrentPage('help-center')}
         />;
       default:
         return (
           <>
             <Hero />
             <CompanyLogos />
-            <Categories />
-            <JobList onJobClick={handleJobClick} />
-            <CTA />
+            <Categories onFindJobsClick={handleFindJobsClick} />
+            <CTA onSignUpClick={() => handleAuthOpen('signup')} />
+            <JobList onJobClick={handleJobClick} onFindJobsClick={handleFindJobsClick} />
+            <CTA onSignUpClick={() => handleAuthOpen('signup')} />
           </>
         );
     }
@@ -390,7 +425,8 @@ const App = () => {
               currentPage === 'dashboard' || 
               currentPage === 'profile' || 
               currentPage === 'my-applications' || 
-              currentPage === 'test-management') && <Footer />}
+              currentPage === 'test-management' ||
+              currentPage === 'job-detail') && <Footer />}
             <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} initialMode={authMode} />
             <ChatBot />
           </div>

@@ -22,6 +22,7 @@ interface BrowseCompaniesProps {
   onFindJobsClick?: () => void;
   onProfileClick?: () => void;
   onSettingsClick?: () => void;
+  onHelpCenterClick?: () => void;
 }
 
 export const BrowseCompanies: React.FC<BrowseCompaniesProps> = ({
@@ -33,7 +34,8 @@ export const BrowseCompanies: React.FC<BrowseCompaniesProps> = ({
   onTestManagementClick,
   onFindJobsClick,
   onProfileClick,
-  onSettingsClick
+  onSettingsClick,
+  onHelpCenterClick
 }) => {
   const [searchQuery, setSearchQuery] = useState('Company title or keyword');
   const [location, setLocation] = useState('Florence, Italy');
@@ -222,7 +224,7 @@ export const BrowseCompanies: React.FC<BrowseCompaniesProps> = ({
 
   const CompanyCard = ({ company }: { company: Company }) => (
     <div 
-      className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group cursor-pointer"
+      className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group cursor-pointer text-left"
       onClick={() => onCompanyClick?.(company.id.toString())}
     >
       <div className="flex items-start justify-between mb-4">
@@ -280,6 +282,7 @@ export const BrowseCompanies: React.FC<BrowseCompaniesProps> = ({
         onBrowseCompaniesClick={() => setActiveTab('browse-companies')}
         onProfileClick={onProfileClick}
         onSettingsClick={onSettingsClick}
+        onHelpCenterClick={onHelpCenterClick}
       />
 
       {/* Main Content */}
@@ -332,7 +335,7 @@ export const BrowseCompanies: React.FC<BrowseCompaniesProps> = ({
             </button>
           </div>
           
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 text-left">
             Popular: <span className="text-[#007BFF]">Twitter, Microsoft, Apple, Facebook</span>
           </div>
         </div>

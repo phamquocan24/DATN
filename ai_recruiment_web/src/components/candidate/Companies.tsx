@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Footer } from './Footer';
 import { CTA } from './CTA';
 import GroupUnderline from '../../assets/Group.png';
+import { FiArrowRight, FiArrowLeft } from 'react-icons/fi';
 
 interface Company {
   id: number;
@@ -96,7 +97,10 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
     { name: 'Fintech', count: 12, active: false },
     { name: 'Hosting', count: 8, active: false },
     { name: 'Business Service', count: 15, active: false },
-    { name: 'Development', count: 18, active: false }
+    { name: 'Development', count: 18, active: false },
+    { name: 'Marketing', count: 10, active: false },
+    { name: 'Education', count: 22, active: false },
+    { name: 'Crypto', count: 7, active: false },
   ];
 
   const designCompanies = [
@@ -120,20 +124,38 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
 
   const CompanyCard = ({ company, showDescription = true }: { company: Company, showDescription?: boolean }) => (
     <div 
-      className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group cursor-pointer"
+      className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group cursor-pointer text-left"
       onClick={() => onCompanyClick?.(company.id.toString())}
     >
       <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold ${company.logoColor}`}>
-            {company.logo}
-          </div>
-          <div>
-            <h3 className="font-semibold text-gray-900 group-hover:text-[#007BFF] transition-colors">
-              {company.name}
-            </h3>
-            <p className="text-sm text-gray-500">{company.location}</p>
-          </div>
+        <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold ${company.logoColor}`}>
+          {company.logo}
+        </div>
+        <span className="text-sm text-[#007BFF] bg-[#007BFF]/10 px-3 py-1 rounded-full">
+            {company.jobs} Jobs
+        </span>
+      </div>
+
+      <h3 className="font-semibold text-gray-900 group-hover:text-[#007BFF] transition-colors text-lg mb-2">
+        {company.name}
+      </h3>
+
+      {showDescription && (
+        <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+          {company.description}
+        </p>
+      )}
+
+      <div className="flex items-center justify-between">
+        <div className="flex space-x-2">
+          <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full font-medium border border-yellow-200">
+            Business Service
+          </span>
+           {company.category !== 'Design' && 
+             <span className="px-3 py-1 bg-red-100 text-red-700 text-xs rounded-full font-medium border border-red-200">
+                {company.category}
+            </span>
+           }
         </div>
         <button 
           onClick={(e) => {
@@ -151,23 +173,6 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
           </svg>
         </button>
       </div>
-
-      {showDescription && (
-        <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-          {company.description}
-        </p>
-      )}
-
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-gray-500">
-          {company.jobs} jobs
-        </span>
-        <div className="flex space-x-2">
-          <span className="px-3 py-1 bg-[#007BFF]/10 text-[#007BFF] text-xs rounded-full font-medium">
-            {company.category}
-          </span>
-        </div>
-      </div>
     </div>
   );
 
@@ -176,14 +181,93 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
       className="bg-white border border-gray-200 rounded-lg p-4 hover:border-[#007BFF]/30 transition-all duration-200 group text-center cursor-pointer"
       onClick={() => onCompanyClick?.(company.id?.toString() || company.name)}
     >
-      <div className={`w-16 h-16 rounded-lg flex items-center justify-center font-bold ${company.logoColor} mx-auto mb-3`}>
+      <div className={`w-24 h-24 rounded-full flex items-center justify-center font-bold ${company.logoColor} mx-auto mb-4 text-3xl`}>
         {company.logo}
       </div>
-      <h3 className="font-semibold text-gray-900 group-hover:text-[#007BFF] transition-colors mb-2">
+      <h3 className="font-semibold text-gray-900 group-hover:text-[#007BFF] transition-colors mb-3">
         {company.name}
       </h3>
-      <p className="text-sm text-gray-500">{company.jobs} jobs</p>
+      <span className="text-sm text-[#007BFF] bg-[#007BFF]/10 px-3 py-1 rounded-full">
+        {company.jobs} Jobs
+      </span>
     </div>
+  );
+
+  const getCategoryIcon = (categoryName: string) => {
+    switch (categoryName) {
+      case 'Design':
+        return (
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v6a2 2 0 002 2h4a2 2 0 002-2V5zM21 15a2 2 0 00-2-2h-4a2 2 0 00-2 2v2a4 4 0 004 4h2a2 2 0 002-2v-2z" />
+          </svg>
+        );
+      case 'Fintech':
+        return (
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+            </svg>
+        );
+      case 'Hosting':
+        return (
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12c0 4.97-4.03 9-9 9S3 16.97 3 12 7.03 3 12 3s9 4.03 9 9z"></path>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.5 9h17"></path>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.5 15h17"></path>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3c-2.485 0-4.5 4.03-4.5 9s2.015 9 4.5 9 4.5-4.03 4.5-9-2.015-9-4.5-9z"></path>
+            </svg>
+        );
+      case 'Business Service':
+        return (
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
+        );
+      case 'Development':
+        return (
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+            </svg>
+        );
+      case 'Marketing':
+        return (
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+            </svg>
+        );
+      case 'Education':
+         return (
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 14l9-5-9-5-9 5 9 5z"></path>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path>
+             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 14l9-5-9-5-9 5 9 5zm0 0v6"></path>
+          </svg>
+        );
+      case 'Crypto':
+        return (
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+            </svg>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const [categoryPage, setCategoryPage] = useState(0);
+  const categoriesPerPage = 5;
+  const totalCategoryPages = Math.ceil(categories.length / categoriesPerPage);
+
+  const handleNextCategory = () => {
+      setCategoryPage(prev => Math.min(prev + 1, totalCategoryPages - 1));
+  };
+
+  const handlePrevCategory = () => {
+      setCategoryPage(prev => Math.max(prev - 1, 0));
+  };
+
+  const displayedCategories = categories.slice(
+      categoryPage * categoriesPerPage,
+      (categoryPage + 1) * categoriesPerPage
   );
 
   return (
@@ -246,7 +330,7 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
             </div>
 
             {/* Popular tags */}
-            <div className="text-center text-sm text-gray-600">
+            <div className="text-left text-sm text-gray-600">
               <span className="mr-2">Popular:</span>
               <span className="text-gray-800">Twitter, Microsoft, Apple, Facebook</span>
             </div>
@@ -257,7 +341,7 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Recommended Companies */}
           <div className="mb-16">
-            <div className="mb-8">
+            <div className="mb-8 text-left">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Recommended Companies</h2>
               <p className="text-gray-600">Based on your profile, company preferences, and recent activity</p>
             </div>
@@ -268,60 +352,89 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
               ))}
             </div>
           </div>
+        </div>
+        
+        {/* CTA Section */}
+        <div className="mb-16">
+          <CTA onSignUpClick={() => {}} />
+        </div>
 
-          {/* CTA Section */}
-          <div className="mb-16">
-            <CTA />
-          </div>
-
-          {/* Companies by Category */}
+        {/* Companies by Category */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-8">Companies by Category</h2>
+            <div className="flex items-center justify-between mb-8">
+                <h2 className="text-3xl font-bold text-gray-900 text-left">Companies by Category</h2>
+                <div className="flex items-center gap-2">
+                    <button 
+                        onClick={handlePrevCategory}
+                        disabled={categoryPage === 0}
+                        className="bg-white border border-gray-300 text-gray-700 p-3 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <FiArrowLeft className="w-5 h-5" />
+                    </button>
+                    <button 
+                        onClick={handleNextCategory}
+                        disabled={categoryPage >= totalCategoryPages - 1}
+                        className="bg-[#007BFF] text-white p-3 rounded-md hover:bg-[#0056b3] disabled:opacity-50 disabled:cursor-not-allowed">
+                        <FiArrowRight className="w-5 h-5" />
+                    </button>
+                </div>
+            </div>
             
-            {/* Category Tabs */}
-            <div className="flex space-x-1 mb-8 bg-gray-100 rounded-lg p-1 w-fit">
-              {categories.map((category) => (
-                <button
-                  key={category.name}
-                  onClick={() => setActiveCategory(category.name)}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    activeCategory === category.name
-                      ? 'bg-[#007BFF] text-white'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  {category.name}
-                </button>
-              ))}
-            </div>
+            {/* Category Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
+                    {displayedCategories.map((category) => (
+                    <div
+                        key={category.name}
+                        onClick={() => setActiveCategory(category.name)}
+                        className="p-6 rounded-xl border border-gray-200 transition-all duration-300 group cursor-pointer relative hover:shadow-lg hover:-translate-y-1 text-[#007BFF] hover:bg-[#007BFF] hover:text-white"
+                    >
+                        <div className="w-auto flex items-center justify-start mb-4">
+                            {getCategoryIcon(category.name)}
+                        </div>
+                        
+                        <h3 className="font-semibold text-gray-900 mb-2 transition-colors text-left group-hover:text-white">
+                            {category.name}
+                        </h3>
+                        
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-500 transition-colors group-hover:text-white">
+                                {category.count} companies
+                            </span>
+                            <svg className="w-4 h-4 text-gray-400 transition-colors group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </div>
+                    </div>
+                    ))}
+                </div>
 
-            {/* Results count */}
-            <div className="flex items-center justify-between mb-6">
-              <p className="text-gray-600">
-                <span className="text-[#007BFF] font-medium">24 Results</span>
-              </p>
-              <button className="text-[#007BFF] hover:text-[#007BFF] font-medium">
-                View all
-              </button>
-            </div>
+                {/* Results count */}
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3 text-gray-600">
+                        <svg className="w-5 h-5 text-[#007BFF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                        </svg>
+                        <p>
+                            <span className="text-gray-900 font-medium">24 Results</span>
+                        </p>
+                    </div>
+                </div>
 
-            {/* Companies Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-              {designCompanies.map((company, index) => (
-                <SmallCompanyCard key={index} company={company} />
-              ))}
-            </div>
+                {/* Companies Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+                    {designCompanies.map((company, index) => (
+                    <SmallCompanyCard key={index} company={company} />
+                    ))}
+                </div>
 
-            {/* View more link */}
-            <div className="text-center">
-              <button className="text-[#007BFF] hover:text-[#007BFF] font-medium flex items-center mx-auto">
-                View more Design companies
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+                {/* View more link */}
+                <div className="text-left">
+                    <button className="text-[#007BFF] hover:text-[#007BFF] font-medium flex items-center">
+                    View more Design companies
+                    <FiArrowRight className="w-4 h-4 ml-2" />
+                    </button>
+                </div>
             </div>
-          </div>
         </div>
       </div>
       

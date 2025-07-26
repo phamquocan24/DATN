@@ -103,7 +103,7 @@ const Profile: React.FC<ProfileProps> = ({
                 </div>
                 
                 {/* Content area */}
-                <div className="pt-16 px-6 pb-6 h-full">
+                <div className="pt-16 px-6 pb-6 h-full text-left">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <h2 className="text-3xl font-bold text-gray-900 mb-2">Jake Gyll</h2>
@@ -133,7 +133,7 @@ const Profile: React.FC<ProfileProps> = ({
             </div>
 
             {/* About Me */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="bg-white rounded-lg shadow-sm p-6 text-left">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">About Me</h3>
                 <button className="text-[#007BFF]">
@@ -158,7 +158,7 @@ const Profile: React.FC<ProfileProps> = ({
           {/* Right Sidebar */}
           <div className="space-y-6">
             {/* Additional Details */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="bg-white rounded-lg shadow-sm p-6 text-left">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Additional Details</h3>
                 <button className="text-[#007BFF]">
@@ -212,7 +212,7 @@ const Profile: React.FC<ProfileProps> = ({
             </div>
 
             {/* Social Links */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="bg-white rounded-lg shadow-sm p-6 text-left">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Social Links</h3>
                 <button className="text-[#007BFF]">
@@ -258,7 +258,7 @@ const Profile: React.FC<ProfileProps> = ({
         </div>
 
         {/* Full Width Sections */}
-        <div className="space-y-6 mt-8">
+        <div className="space-y-6 mt-8 text-left">
           {/* Experiences */}
           <div className="bg-white rounded-lg shadow-sm p-6">
             <div className="flex items-center justify-between mb-6">
@@ -428,7 +428,7 @@ const Profile: React.FC<ProfileProps> = ({
                 { title: 'Planna - Project Management App', image: '📱' },
                 { title: 'Tunoio - furniture sale app', image: '🪑' }
               ].map((portfolio, index) => (
-                <div key={index} className="text-center">
+                <div key={index} className="text-left">
                   <div className="h-28 bg-gradient-to-br from-purple-100 to-[#007BFF]/10 rounded-lg flex items-center justify-center text-3xl mb-3 hover:shadow-md transition-shadow">
                     {portfolio.image}
                   </div>

@@ -28,6 +28,7 @@ interface AgentAIProps {
   onFindJobsClick?: () => void;
   onTestManagementClick?: () => void;
   onSettingsClick?: () => void;
+  onHelpCenterClick?: () => void;
 }
 
 const AgentAI: React.FC<AgentAIProps> = ({ 
@@ -38,7 +39,8 @@ const AgentAI: React.FC<AgentAIProps> = ({
   onDashboardClick,
   onFindJobsClick,
   onTestManagementClick,
-  onSettingsClick
+  onSettingsClick,
+  onHelpCenterClick
 }) => {
   // Agent AI states
   const [selectedChat, setSelectedChat] = useState<number>(1);
@@ -167,6 +169,7 @@ const AgentAI: React.FC<AgentAIProps> = ({
         onBrowseCompaniesClick={onBrowseCompaniesClick}
         onProfileClick={onProfileClick}
         onSettingsClick={onSettingsClick}
+        onHelpCenterClick={onHelpCenterClick}
       />
 
       {/* Main Content */}
@@ -217,7 +220,7 @@ const AgentAI: React.FC<AgentAIProps> = ({
                       <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 text-left">
                     <div className="flex items-center justify-between">
                       <h3 className="font-medium text-gray-900 truncate">{user.name}</h3>
                       <span className="text-xs text-gray-500">{user.timestamp}</span>

@@ -3,7 +3,7 @@ import LogoFooter from '../../assets/Logo_footer.png';
 export const Footer = () => {
   return (
     <footer className="bg-gray-900 text-white py-16">
-      <div className="w-full px-6 lg:px-8">
+      <div className="w-full px-6 lg:px-20">
         <div className="grid lg:grid-cols-4 gap-8 mb-12">
           {/* Company Info */}
           <div>
@@ -14,7 +14,7 @@ export const Footer = () => {
                 className="h-8 w-auto object-contain"
               />
             </div>
-            <p className="text-gray-400 max-w-sm">
+            <p className="text-gray-400 max-w-sm text-left">
               Great platform for the job seeker that passionate about startups. Find your dream job easier.
             </p>
           </div>
@@ -44,17 +44,17 @@ export const Footer = () => {
 
           {/* Newsletter */}
           <div>
-            <h3 className="font-semibold mb-2 text-white">Get job notifications</h3>
-            <p className="text-gray-400 mb-4">
+            <h3 className="font-semibold mb-2 text-white text-left">Get job notifications</h3>
+            <p className="text-gray-400 mb-4 text-left">
               The latest job news, articles, sent to your inbox weekly.
             </p>
-            <div className="flex flex-col space-y-3">
+            <div className="flex flex-row space-x-2">
               <input
                 type="email"
                 placeholder="Email Address"
-                className="px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-[#007BFF] text-white placeholder-gray-400"
+                className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-[#007BFF] text-white placeholder-gray-400"
               />
-              <button className="bg-[#007BFF] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#0056b3] transition-colors">
+              <button className="bg-[#007BFF] text-white px-6 py-2 rounded-lg font-medium hover:bg-[#0056b3] transition-colors whitespace-nowrap">
                 Subscribe
               </button>
             </div>
@@ -64,7 +64,7 @@ export const Footer = () => {
         {/* Bottom Section */}
         <div className="pt-8 border-t border-gray-800 flex flex-col lg:flex-row lg:items-center lg:justify-between">
           {/* Copyright */}
-          <div className="text-gray-400 mb-4 lg:mb-0">
+          <div className="text-gray-400 mb-4 lg:mb-0 text-left">
             <p>2025 @ JobHuntly. All rights reserved.</p>
           </div>
           

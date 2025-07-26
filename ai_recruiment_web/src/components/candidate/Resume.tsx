@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Footer } from './Footer';
 import GroupUnderline from '../../assets/Group.png';
+import { EnhanceResumeModal } from './EnhanceResumeModal';
 
 interface Resume {
   id: number;
@@ -16,6 +17,8 @@ export const Resume: React.FC = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [matchScore, setMatchScore] = useState('');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isEnhanceModalOpen, setIsEnhanceModalOpen] = useState(false);
+  const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
 
   const resumes: Resume[] = [
     {
@@ -71,6 +74,16 @@ export const Resume: React.FC = () => {
     }
   ];
 
+  const handleOpenEnhanceModal = (resume: Resume) => {
+    setSelectedResume(resume);
+    setIsEnhanceModalOpen(true);
+  };
+
+  const handleCloseEnhanceModal = () => {
+    setIsEnhanceModalOpen(false);
+    setSelectedResume(null);
+  };
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type === 'application/pdf' && file.size <= 5 * 1024 * 1024) {
@@ -95,7 +108,7 @@ export const Resume: React.FC = () => {
   };
 
   const ResumeCard = ({ resume }: { resume: Resume }) => (
-    <div className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group">
+    <div className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group text-left">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
           <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center text-2xl">
@@ -131,7 +144,10 @@ export const Resume: React.FC = () => {
         </div>
         
         {resume.hasEnhanced && (
-          <button className="bg-[#007BFF] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#0056b3] transition-colors">
+          <button 
+            onClick={() => handleOpenEnhanceModal(resume)}
+            className="bg-[#007BFF] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#0056b3] transition-colors"
+          >
             Enhanced resume
           </button>
         )}
@@ -144,9 +160,9 @@ export const Resume: React.FC = () => {
       <div className="min-h-screen bg-gray-50">
         {/* Header Section */}
         <div className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
             {/* Title */}
-            <div className="text-center mb-8">
+            <div className="mb-8">
               <h1 className="text-4xl font-bold text-gray-900 mb-2">
                 Build your <span className="text-[#007BFF] relative inline-block">
                   dream resume
@@ -197,7 +213,7 @@ export const Resume: React.FC = () => {
             </div>
 
             {/* Popular Suggestions */}
-            <div className="text-center text-sm text-gray-600">
+            <div className="text-left text-sm text-gray-600">
               <span className="mr-2">Popular:</span>
               <span className="text-gray-800">Twitter, Microsoft, Apple, Facebook</span>
             </div>
@@ -205,7 +221,7 @@ export const Resume: React.FC = () => {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-left">
           {/* All Your Resumes Section */}
           <div className="mb-16">
             <div className="mb-8">
@@ -276,6 +292,14 @@ export const Resume: React.FC = () => {
       </div>
       
       <Footer />
+
+      {selectedResume && (
+        <EnhanceResumeModal
+          isOpen={isEnhanceModalOpen}
+          onClose={handleCloseEnhanceModal}
+          resume={selectedResume}
+        />
+      )}
     </>
   );
 };

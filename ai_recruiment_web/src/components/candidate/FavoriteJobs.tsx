@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Footer } from './Footer';
-import { JobApplication } from './JobApplication';
 import GroupUnderline from '../../assets/Group.png';
 
 interface Job {
@@ -40,18 +39,6 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
     jobLevel: false,
     salaryRange: false
   });
-  const [isApplicationOpen, setIsApplicationOpen] = useState(false);
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-
-  const handleApplyClick = (job: Job) => {
-    setSelectedJob(job);
-    setIsApplicationOpen(true);
-  };
-
-  const handleCloseApplication = () => {
-    setIsApplicationOpen(false);
-    setSelectedJob(null);
-  };
 
   // Sample favorite jobs data
   const favoriteJobs: Job[] = [
@@ -197,16 +184,16 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
         onChange={onChange}
         className="w-4 h-4 text-[#007BFF] border-gray-300 rounded focus:ring-[#007BFF]"
       />
-      <label className="flex-1 text-sm text-gray-700 cursor-pointer" onClick={onChange}>
+      <label className="flex-1 text-sm text-gray-700 cursor-pointer text-left" onClick={onChange}>
         {label}
       </label>
       {count && <span className="text-sm text-gray-500">({count})</span>}
     </div>
   );
 
-  const JobCard = ({ job, onApply }: { job: Job, onApply: (job: Job) => void }) => (
+  const JobCard = ({ job }: { job: Job }) => (
     <div 
-      className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group cursor-pointer"
+      className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group cursor-pointer text-left"
       onClick={() => onJobClick?.(job.id.toString())}
     >
       <div className="flex items-start justify-between mb-4">
@@ -214,7 +201,7 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
           <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold ${job.logoColor}`}>
             {job.logo}
           </div>
-          <div>
+          <div className="text-left">
             <h3 className="font-semibold text-gray-900 group-hover:text-[#007BFF] transition-colors">
               {job.title}
             </h3>
@@ -255,7 +242,7 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
         <button 
           onClick={(e) => {
             e.stopPropagation();
-            onApply(job);
+            onJobClick?.(job.id.toString());
           }}
           className="bg-[#007BFF] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#0056b3] transition-colors"
         >
@@ -325,7 +312,7 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
             </div>
 
             {/* Popular tags */}
-            <div className="text-center text-sm text-gray-600">
+            <div className="text-left text-sm text-gray-600">
               <span className="mr-2">Popular:</span>
               <span className="text-gray-800">UI Designer, UX Researcher, Android, Admin</span>
             </div>
@@ -336,7 +323,7 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex gap-8">
             {/* Filters Sidebar */}
-            <div className="w-80 bg-white rounded-lg p-6 h-fit">
+            <div className="w-80 bg-white rounded-lg p-6 h-fit text-left">
               {/* Type of Employment */}
               <div className="mb-6">
                 <h3 
@@ -559,7 +546,7 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
             </div>
 
             {/* Job Listings */}
-            <div className="flex-1">
+            <div className="flex-1 text-left">
               {/* Favorite Jobs Section */}
               <div className="mb-8">
                 <div className="flex items-center justify-between mb-6">
@@ -592,7 +579,7 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
 
                 <div className="space-y-4">
                   {favoriteJobs.map((job) => (
-                    <JobCard key={job.id} job={job} onApply={handleApplyClick} />
+                    <JobCard key={job.id} job={job} />
                   ))}
                 </div>
               </div>
@@ -624,23 +611,6 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
       
       {/* Footer */}
       <Footer />
-      
-      {/* Job Application Modal */}
-      {selectedJob && (
-        <JobApplication 
-          isOpen={isApplicationOpen}
-          onClose={handleCloseApplication}
-          job={{
-            id: selectedJob.id,
-            title: selectedJob.title,
-            company: selectedJob.company,
-            location: selectedJob.location,
-            type: selectedJob.type,
-            logo: selectedJob.logo,
-            logoColor: selectedJob.logoColor
-          }}
-        />
-      )}
     </>
   );
 };

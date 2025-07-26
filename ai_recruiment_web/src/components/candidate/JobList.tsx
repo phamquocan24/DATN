@@ -3,15 +3,15 @@ import { JobApplication } from './JobApplication';
 
 interface JobListProps {
   onJobClick?: (jobId: string) => void;
+  onFindJobsClick: () => void;
 }
 
-export const JobList: React.FC<JobListProps> = ({ onJobClick }) => {
+export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick }) => {
   const [isApplicationOpen, setIsApplicationOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState<any>(null);
 
   const handleApplyClick = (job: any) => {
-    setSelectedJob(job);
-    setIsApplicationOpen(true);
+    onJobClick?.(job.id.toString());
   };
 
   const handleCloseApplication = () => {
@@ -25,8 +25,9 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick }) => {
       title: 'Email Marketing',
       company: 'Revolut',
       location: 'Madrid, Spain',
+      description: 'Revolut is looking for Email Marketing to help team ma ...',
       type: 'Full Time',
-      tags: ['Marketing', 'Design', 'Feature'],
+      tags: ['Marketing', 'Design'],
       logo: 'R',
       logoColor: 'bg-black text-white',
       featured: true,
@@ -38,8 +39,9 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick }) => {
       title: 'Brand Designer',
       company: 'Dropbox',
       location: 'San Francisco, USA',
+      description: 'Dropbox is looking for Brand Designer to help team ma ...',
       type: 'Full Time',
-      tags: ['Marketing', 'Design', 'Feature'],
+      tags: ['Marketing', 'Design'],
       logo: 'D',
       logoColor: 'bg-[#007BFF] text-white',
       featured: true,
@@ -51,8 +53,9 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick }) => {
       title: 'Email Marketing',
       company: 'Pitch',
       location: 'Berlin, Germany',
+      description: 'Pitch is looking for Email Marketing to help team ma ...',
       type: 'Full Time',
-      tags: ['Marketing', 'Design', 'Feature'],
+      tags: ['Marketing', 'Design'],
       logo: 'P',
       logoColor: 'bg-black text-white',
       featured: true,
@@ -64,8 +67,9 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick }) => {
       title: 'Visual Designer',
       company: 'Blinkist',
       location: 'Granada, Spain',
+      description: 'Blinkist is looking for Visual Designer to help team ma ...',
       type: 'Full Time',
-      tags: ['Design', 'Featured'],
+      tags: ['Design'],
       logo: 'C',
       logoColor: 'bg-[#007BFF] text-white',
       featured: true,
@@ -77,8 +81,9 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick }) => {
       title: 'Product Designer',
       company: 'ClassPass',
       location: 'Berlin, Germany',
+      description: 'ClassPass is looking for Product Designer to help team ma ...',
       type: 'Full Time',
-      tags: ['Marketing', 'Design', 'Feature'],
+      tags: ['Marketing', 'Design'],
       logo: 'C',
       logoColor: 'bg-[#007BFF] text-white',
       featured: true,
@@ -90,8 +95,9 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick }) => {
       title: 'Lead Engineer',
       company: 'Canva',
       location: 'Ankara, Turkey',
+      description: 'Canva is looking for Lead Engineer to help team ma ...',
       type: 'Full Time',
-      tags: ['Marketing', 'Design', 'Feature'],
+      tags: ['Marketing', 'Design'],
       logo: 'C',
       logoColor: 'bg-purple-600 text-white',
       featured: true,
@@ -103,8 +109,9 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick }) => {
       title: 'Product Strategist',
       company: 'Twitter',
       location: 'San Diego, USA',
+      description: 'Twitter is looking for Product Strategist to help team ma ...',
       type: 'Full Time',
-      tags: ['Marketing', 'Design', 'Feature'],
+      tags: ['Marketing', 'Design'],
       logo: 'T',
       logoColor: 'bg-[#007BFF] text-white',
       featured: true,
@@ -116,8 +123,9 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick }) => {
       title: 'Customer Manager',
       company: 'Pitch',
       location: 'Berlin, Germany',
+      description: 'Pitch is looking for Customer Manager to help team ma ...',
       type: 'Full Time',
-      tags: ['Marketing', 'Design', 'Featured'],
+      tags: ['Marketing', 'Design'],
       logo: 'P',
       logoColor: 'bg-black text-white',
       featured: true,
@@ -245,85 +253,111 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick }) => {
     }
   };
 
-  const JobCard = ({ job, showFeaturedTag = false, onJobClick, onApply }: { 
+  const JobCard = ({ job, cardStyle, onJobClick, onApply }: { 
     job: any, 
-    showFeaturedTag?: boolean,
+    cardStyle: 'featured' | 'latest',
     onJobClick?: (jobId: string) => void,
     onApply?: (job: any) => void
-  }) => (
-    <div 
-      className="bg-white border border-gray-200 rounded-xl p-6 hover:border-[#007BFF]/30 transition-all duration-200 group cursor-pointer relative"
-      onClick={() => onJobClick?.(job.id.toString())}
-    >
-      {/* Heart icon - top right */}
-      <button 
-        className="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition-colors"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-        </svg>
-      </button>
+  }) => {
+    const [isFavorited, setIsFavorited] = useState(false);
 
-      {/* Company logo and job info */}
-      <div className="flex items-start space-x-3 mb-4">
-        <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold text-lg ${job.logoColor}`}>
-          {job.logo}
-        </div>
-        <div className="flex-1 pr-8">
-          <h3 className="font-semibold text-gray-900 group-hover:text-[#007BFF] transition-colors mb-1">
-            {job.title}
-          </h3>
-          <p className="text-sm text-gray-600">{job.company}</p>
-          <p className="text-sm text-gray-500">{job.location}</p>
-        </div>
-      </div>
+    const handleFavoriteClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setIsFavorited(!isFavorited);
+    };
 
-      {/* Tags */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        <span className={`px-3 py-1 text-xs rounded-full font-medium ${getTagColor(job.type)}`}>
-          {job.type}
-        </span>
-        {job.tags.map((tag: string, index: number) => (
-          <span key={index} className={`px-3 py-1 text-xs rounded-full font-medium ${getTagColor(tag)}`}>
-            {tag}
-          </span>
-        ))}
-        {showFeaturedTag && job.featured && (
-          <span className={`px-3 py-1 text-xs rounded-full font-medium ${getTagColor('featured')}`}>
-            Featured
-          </span>
-        )}
-      </div>
-
-      {/* Apply section */}
-      <div className="space-y-3">
-        <p className="text-sm text-gray-500">
-          {job.applied} applied of {job.capacity} capacity
-        </p>
+    const latestJobCard = (
+      <>
+        {/* Apply Button for Latest */}
         <button 
           onClick={(e) => {
             e.stopPropagation();
             onApply?.(job);
           }}
-          className="w-full bg-[#007BFF] text-white py-2.5 rounded-lg font-medium hover:bg-[#0056b3] transition-colors"
+          className="absolute top-4 right-4 bg-[#007BFF] text-white px-4 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#0056b3] transition-colors"
         >
           Apply
         </button>
+        {/* Latest Card Content */}
+        <div className="flex items-center space-x-4 mb-4">
+          <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold text-lg ${job.logoColor} flex-shrink-0`}>
+            {job.logo}
+          </div>
+          <div className="flex-1 text-left">
+            <h3 className="font-semibold text-gray-900 group-hover:text-[#007BFF] transition-colors mb-1 truncate">
+              {job.title}
+            </h3>
+            <p className="text-sm text-gray-500">
+              {job.company} &bull; {job.location}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 mb-6 justify-between items-center">
+          <div className="flex flex-wrap gap-2">
+            <span className={`px-3 py-1 text-xs rounded-full font-medium ${getTagColor(job.type)}`}>
+              {job.type}
+            </span>
+            {job.tags.map((tag: string, index: number) => (
+              <span key={index} className={`px-3 py-1 text-xs rounded-full font-medium ${getTagColor(tag)}`}>
+                {tag}
+              </span>
+            ))}
+          </div>
+          <p className="text-sm text-gray-500 whitespace-nowrap">
+            {job.applied} applied of {job.capacity} capacity
+          </p>
+        </div>
+      </>
+    );
+
+    const featuredJobCard = (
+      <>
+        {/* Featured Card Content */}
+        <div className="flex justify-between items-start mb-4">
+        <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold text-lg ${job.logoColor}`}>
+          {job.logo}
+        </div>
+        <span className={`px-3 py-1 text-xs rounded-full font-medium border border-[#007BFF] text-[#007BFF]`}>
+          {job.type}
+        </span>
       </div>
-    </div>
-  );
+      <h3 className="font-semibold text-gray-900 mb-2 text-left">{job.title}</h3>
+      <p className="text-sm text-gray-500 mb-4 text-left">
+        {job.company} &bull; {job.location}
+      </p>
+      <p className="text-sm text-gray-600 mb-4 text-left truncate">
+        {job.description}
+      </p>
+      <div className="flex flex-wrap gap-2 justify-start">
+        {job.tags.map((tag: string, index: number) => (
+          <span key={index} className={`px-3 py-1 text-xs rounded-full font-medium ${getTagColor(tag)}`}>
+            {tag}
+          </span>
+        ))}
+      </div>
+      </>
+    );
+
+    return (
+      <div 
+        className="bg-white border border-gray-200 rounded-xl p-6 hover:border-[#007BFF] transition-all duration-300 group cursor-pointer relative hover:shadow-lg hover:-translate-y-1"
+        onClick={() => onJobClick?.(job.id.toString())}
+      >
+        {cardStyle === 'latest' ? latestJobCard : featuredJobCard}
+      </div>
+    );
+  };
 
   return (
-    <div className="py-16 bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Featured Jobs Section */}
-        <div className="mb-16">
+    <>
+      {/* Featured Jobs Section */}
+      <div className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-3xl font-bold text-gray-900">
               Featured <span className="text-[#007BFF]">jobs</span>
             </h2>
-            <button className="text-[#007BFF] hover:text-[#007BFF] font-medium flex items-center">
+            <button onClick={onFindJobsClick} className="text-[#007BFF] hover:text-[#007BFF] font-medium flex items-center">
               Show all jobs
               <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -333,18 +367,23 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick }) => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {featuredJobs.map((job) => (
-              <JobCard key={job.id} job={job} showFeaturedTag={true} onJobClick={onJobClick} onApply={handleApplyClick} />
+              <JobCard key={job.id} job={job} cardStyle="featured" onJobClick={onJobClick} onApply={handleApplyClick} />
             ))}
           </div>
         </div>
+      </div>
 
-        {/* Latest Jobs Section */}
-        <div>
+      {/* Latest Jobs Section */}
+      <div 
+        className="py-16 bg-gray-50"
+        style={{ clipPath: 'polygon(15% 0, 100% 0, 100% 100%, 100% 100%, 0 100%, 0 5%)' }}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-3xl font-bold text-gray-900">
               Latest <span className="text-[#007BFF]">jobs open</span>
             </h2>
-            <button className="text-[#007BFF] hover:text-[#007BFF] font-medium flex items-center">
+            <button onClick={onFindJobsClick} className="text-[#007BFF] hover:text-[#007BFF] font-medium flex items-center">
               Show all jobs
               <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -354,7 +393,7 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick }) => {
 
           <div className="grid md:grid-cols-2 gap-6">
             {latestJobs.map((job) => (
-              <JobCard key={job.id} job={job} onJobClick={onJobClick} onApply={handleApplyClick} />
+              <JobCard key={job.id} job={job} cardStyle="latest" onJobClick={onJobClick} onApply={handleApplyClick} />
             ))}
           </div>
         </div>
@@ -376,7 +415,7 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick }) => {
           }}
         />
       )}
-    </div>
+    </>
   );
 };
 

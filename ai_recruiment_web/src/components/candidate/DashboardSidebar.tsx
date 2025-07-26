@@ -130,7 +130,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
             </button>
           )}
           
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 text-left">
             <img src={Avatar} alt="User" className="w-8 h-8 rounded-full" />
             <div>
               <p className="font-medium text-sm">Jake Gyll</p>

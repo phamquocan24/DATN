@@ -14,6 +14,7 @@ interface SettingsProps {
   onFindJobsClick?: () => void;
   onBrowseCompaniesClick?: () => void;
   onSettingsClick?: () => void;
+  onHelpCenterClick?: () => void;
 }
 
 const Settings: React.FC<SettingsProps> = ({
@@ -24,7 +25,8 @@ const Settings: React.FC<SettingsProps> = ({
   onMyApplicationsClick,
   onTestManagementClick,
   onFindJobsClick,
-  onBrowseCompaniesClick
+  onBrowseCompaniesClick,
+  onHelpCenterClick
 }) => {
   const [activeTab, setActiveTab] = useState('my-profile');
 
@@ -58,6 +60,7 @@ const Settings: React.FC<SettingsProps> = ({
         onBrowseCompaniesClick={onBrowseCompaniesClick}
         onProfileClick={onProfileClick}
         onSettingsClick={() => {}}
+        onHelpCenterClick={onHelpCenterClick}
       />
 
       {/* Main Content */}

@@ -11,6 +11,7 @@ interface HelpCenterProps {
   onFindJobsClick?: () => void;
   onBrowseCompaniesClick?: () => void;
   onSettingsClick?: () => void;
+  onHelpCenterClick?: () => void;
 }
 
 interface FAQItem {
@@ -29,7 +30,8 @@ const HelpCenter: React.FC<HelpCenterProps> = ({
   onTestManagementClick,
   onFindJobsClick,
   onBrowseCompaniesClick,
-  onSettingsClick
+  onSettingsClick,
+  onHelpCenterClick
 }) => {
   const [activeTab] = useState('help-center');
   const [searchQuery, setSearchQuery] = useState('');
@@ -90,6 +92,7 @@ const HelpCenter: React.FC<HelpCenterProps> = ({
         onBrowseCompaniesClick={onBrowseCompaniesClick}
         onProfileClick={onProfileClick}
         onSettingsClick={onSettingsClick}
+        onHelpCenterClick={onHelpCenterClick}
       />
 
       {/* Vertical Divider */}
