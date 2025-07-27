@@ -1,22 +1,44 @@
-import axios from 'axios';
+import axios, {AxiosError} from 'axios';
+import {ErrorResponse} from "react-router-dom";
 
-const api = axios.create({
-  baseURL: '/api/v1',
+const apiClient = axios.create({
+  baseURL: 'https://topcv.click/api-docs/#/api/v1',
+  timeout: 10000,
+  withCredentials: false,
 });
 
-export const checkApiHealth = async () => {
-  try {
-    const response = await axios.get('/health');
-    console.log('API Health Check Response:', response); // Log the full response
-    // The health check endpoint for this API returns HTML, not JSON.
-    // A successful health check will return a 200 OK status.
-    const isOk = response.status === 200;
-    console.log('Is API healthy?', isOk);
-    return isOk;
-  } catch (error) {
-    console.error('API health check failed:', error);
-    return false;
-  }
-};
+apiClient.interceptors.request.use((config: any) => {
+  // @todo: get access token
+  const accessToken = '';
+  return {
+    ...config,
+    headers: {
+      Authorization: `Bearer ${accessToken || ""}`,
+      ...config.headers,
+    },
+  };
+});
 
-export default api; 
+apiClient.interceptors.response.use(
+    (response) => {
+      return response;
+    },
+    (error: AxiosError<ErrorResponse>) => {
+      if (!error.response || !error.response?.data) {
+        return Promise.reject({
+          code: "Unknown",
+          errors: {
+            code: "Unknown",
+            message: "Server error",
+            status: 500,
+          },
+          message: "Server error",
+        });
+      }
+      return Promise.reject({
+        ...error.response?.data,
+      });
+    },
+);
+
+export default apiClient;
