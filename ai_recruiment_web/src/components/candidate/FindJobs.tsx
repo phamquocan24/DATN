@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Footer } from './Footer';
 import GroupUnderline from '../../assets/Group.png';
+import api from '../../services/api';
 
 interface Job {
   id: number;
@@ -25,7 +26,12 @@ interface FindJobsProps {
 
 export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [location, setLocation] = useState('Florence, Italy');
+  const [location, setLocation] = useState('');
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
+
   const [savedJobs, setSavedJobs] = useState<number[]>([]);
   const [filters, setFilters] = useState({
     employmentType: [] as string[],
@@ -40,139 +46,37 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
     salaryRange: false
   });
 
-  const jobs: Job[] = [
-    {
-      id: 1,
-      title: 'Social Media Assistant',
-      company: 'Nomad',
-      location: 'Paris, France',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design', 'Match: 87%'],
-      logo: 'N',
-      logoColor: 'bg-green-500 text-white',
-      match: 87,
-      applied: 5,
-      capacity: 10,
-      isNew: true
-    },
-    {
-      id: 2,
-      title: 'Interactive Developer',
-      company: 'Terraform',
-      location: 'Hamburg, Germany',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design', 'Match: 100%'],
-      logo: 'T',
-      logoColor: 'bg-[#007BFF] text-white',
-      match: 100,
-      applied: 8,
-      capacity: 12
-    },
-    {
-      id: 3,
-      title: 'Email Marketing',
-      company: 'Revolut',
-      location: 'Madrid, Spain',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design', 'Match: 90%'],
-      logo: 'R',
-      logoColor: 'bg-black text-white',
-      match: 90,
-      applied: 0,
-      capacity: 10
-    },
-    {
-      id: 4,
-      title: 'Product Designer',
-      company: 'ClassPass',
-      location: 'Berlin, Germany',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design', 'Match: 87%'],
-      logo: 'C',
-      logoColor: 'bg-[#007BFF] text-white',
-      match: 87,
-      applied: 5,
-      capacity: 10
-    },
-    {
-      id: 5,
-      title: 'Customer Manager',
-      company: 'Pitch',
-      location: 'Berlin, Germany',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design', 'Match: 89%'],
-      logo: 'P',
-      logoColor: 'bg-black text-white',
-      match: 89,
-      applied: 5,
-      capacity: 10
-    },
-    {
-      id: 6,
-      title: 'Social Media Assistant',
-      company: 'Nomad',
-      location: 'Paris, France',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design', 'Match: 87%'],
-      logo: 'N',
-      logoColor: 'bg-green-500 text-white',
-      match: 87,
-      applied: 5,
-      capacity: 10
-    },
-    {
-      id: 7,
-      title: 'Brand Designer',
-      company: 'Dropbox',
-      location: 'San Francisco, USA',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design', 'Match: 95%'],
-      logo: 'D',
-      logoColor: 'bg-[#007BFF] text-white',
-      match: 95,
-      applied: 2,
-      capacity: 10
-    },
-    {
-      id: 8,
-      title: 'Interactive Developer',
-      company: 'Terraform',
-      location: 'Hamburg, Germany',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design', 'Match: 88%'],
-      logo: 'T',
-      logoColor: 'bg-[#007BFF] text-white',
-      match: 88,
-      applied: 8,
-      capacity: 12
-    },
-    {
-      id: 9,
-      title: 'Email Marketing',
-      company: 'Revolut',
-      location: 'Madrid, Spain',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design', 'Match: 90%'],
-      logo: 'R',
-      logoColor: 'bg-black text-white',
-      match: 90,
-      applied: 0,
-      capacity: 10
-    },
-    {
-      id: 10,
-      title: 'Lead Engineer',
-      company: 'Canva',
-      location: 'Ankara, Turkey',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design', 'Match: 77%'],
-      logo: 'C',
-      logoColor: 'bg-teal-500 text-white',
-      match: 77,
-      applied: 5,
-      capacity: 10
+  const fetchJobs = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams({
+        query: searchQuery,
+        location: location,
+        page: pagination.page.toString(),
+        limit: pagination.limit.toString(),
+        // Add other filters from state
+        ...Object.fromEntries(
+          Object.entries(filters)
+            .filter(([, values]) => values.length > 0)
+            .map(([key, values]) => [key, values.join(',')])
+        )
+      });
+      
+      const response = await api.get(`/jobs/search?${params.toString()}`);
+      setJobs(response.data.data.jobs);
+      setPagination(prev => ({ ...prev, total: response.data.data.total }));
+      setError(null);
+    } catch (err) {
+      setError('Failed to fetch jobs.');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
     }
-  ];
+  }, [searchQuery, location, pagination.page, pagination.limit, filters]);
+
+  useEffect(() => {
+    fetchJobs();
+  }, [fetchJobs]);
 
   const toggleSavedJob = (jobId: number) => {
     setSavedJobs(prev => 
@@ -197,6 +101,11 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
       [section]: !prev[section]
     }));
   };
+
+  const handleSearch = () => {
+    setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page on new search
+    fetchJobs();
+  }
 
   const FilterCheckbox = ({ 
     label, 
@@ -341,7 +250,10 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
                   />
                 </div>
                 
-                <button className="bg-[#007BFF] text-white px-6 py-3 rounded-md font-medium hover:bg-[#0056b3] transition-colors">
+                <button 
+                  onClick={handleSearch}
+                  className="bg-[#007BFF] text-white px-6 py-3 rounded-md font-medium hover:bg-[#0056b3] transition-colors"
+                >
                   Search
                 </button>
               </div>
@@ -615,9 +527,17 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
                 </div>
 
                 <div className="space-y-4">
-                  {jobs.slice(0, 5).map((job) => (
-                    <JobCard key={job.id} job={job} />
-                  ))}
+                  {isLoading ? (
+                    <p>Loading...</p>
+                  ) : error ? (
+                    <p className="text-red-500">{error}</p>
+                  ) : jobs.length > 0 ? (
+                    jobs.map((job) => (
+                      <JobCard key={job.id} job={job} />
+                    ))
+                  ) : (
+                    <p>No jobs found.</p>
+                  )}
                 </div>
               </div>
 

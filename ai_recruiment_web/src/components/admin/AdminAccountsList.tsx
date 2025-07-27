@@ -5,6 +5,7 @@ import AdminLayout from './AdminLayout';
 import AvatarImg from '../../assets/Avatar17.png';
 import BellIcon from '../../assets/bell-outlined.png';
 import NotificationPanel from './NotificationPanelAdmin';
+import api from '../../services/api';
 
 interface AccountItem {
   id: number;
@@ -19,12 +20,33 @@ const AdminAccountsList = () => {
   const [notifOpen, setNotifOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(true);
   const navigate = useNavigate();
+  const [accounts, setAccounts] = useState<AccountItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // State for custom dropdown
   const [accountsPerPage, setAccountsPerPage] = useState(10);
   const [isPageSelectOpen, setIsPageSelectOpen] = useState(false);
   const pageOptions = [10, 20, 30];
   const pageSelectRef = useRef<HTMLDivElement>(null);
+
+  const fetchAccounts = async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.get('/admin/users');
+      setAccounts(response.data.data);
+      setError(null);
+    } catch (err) {
+      setError('Failed to load accounts.');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAccounts();
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -38,18 +60,20 @@ const AdminAccountsList = () => {
     };
   }, [pageSelectRef]);
   
-  const accounts: AccountItem[] = [
-    { id: 1, fullName: 'Jake Gyll', email: 'abcxyz@gmail.com', status: 'Active', type: 'HR' },
-    { id: 2, fullName: 'Guy Hawkins', email: 'abcxyz@gmail.com', status: 'Active', type: 'Candidate' },
-    { id: 3, fullName: 'Cyndy Lillibridge', email: 'abcxyz@gmail.com', status: 'Locked', type: 'Candidate' },
-    { id: 4, fullName: 'Rodolfo Goode', email: 'abcxyz@gmail.com', status: 'Locked', type: 'Candidate' },
-    { id: 5, fullName: 'Leif Floyd', email: 'abcxyz@gmail.com', status: 'Active', type: 'HR' },
-    { id: 6, fullName: 'Jenny Wilson', email: 'abcxyz@gmail.com', status: 'Active', type: 'Candidate' },
-    { id: 7, fullName: 'Jerome Bell', email: 'abcxyz@gmail.com', status: 'Active', type: 'HR' },
-    { id: 8, fullName: 'Eleanor Pena', email: 'abcxyz@gmail.com', status: 'Locked', type: 'HR' },
-    { id: 9, fullName: 'Darrell Steward', email: 'abcxyz@gmail.com', status: 'Active', type: 'Candidate' },
-    { id: 10, fullName: 'Floyd Miles', email: 'abcxyz@gmail.com', status: 'Active', type: 'HR' },
-  ];
+  const handleDelete = async (e: React.MouseEvent, userId: number) => {
+    e.stopPropagation(); // Prevent navigation
+    if (window.confirm('Are you sure you want to delete this account?')) {
+      try {
+        await api.delete(`/admin/users/${userId}`);
+        // Refresh the list after deletion
+        fetchAccounts();
+      } catch (err) {
+        console.error(`Failed to delete user ${userId}`, err);
+        // Optionally show an error message to the admin
+        alert('Failed to delete account.');
+      }
+    }
+  };
 
   return (
     <AdminLayout>
@@ -152,7 +176,11 @@ const AdminAccountsList = () => {
             </tr>
           </thead>
           <tbody>
-            {accounts.map((account) => (
+            {isLoading ? (
+              <tr><td colSpan={6} className="text-center p-4">Loading accounts...</td></tr>
+            ) : error ? (
+              <tr><td colSpan={6} className="text-center p-4 text-red-500">{error}</td></tr>
+            ) : accounts.map((account) => (
               <tr key={account.id} className="border-b border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors" onClick={() => {
                 const path = account.type === 'Candidate' ? `/admin/candidates/${account.id}` : `/admin/hr/${account.id}`;
                 navigate(path);
@@ -187,7 +215,10 @@ const AdminAccountsList = () => {
                 </td>
                 <td className="px-4 py-4">
                   <div className="flex items-center gap-2">
-                    <button className="px-3 py-1 text-sm border border-red-500 text-red-500 rounded hover:bg-red-50">
+                    <button 
+                      onClick={(e) => handleDelete(e, account.id)}
+                      className="px-3 py-1 text-sm border border-red-500 text-red-500 rounded hover:bg-red-50"
+                    >
                       Delete
                     </button>
                     <button className="px-3 py-1 text-sm border border-blue-500 text-blue-500 rounded hover:bg-blue-50" onClick={(e) => {e.stopPropagation(); const path = account.type === 'Candidate' ? `/admin/candidates/${account.id}` : `/admin/hr/${account.id}`; navigate(path);}}>

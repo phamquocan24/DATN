@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { JobApplication } from './JobApplication';
+import api from '../../services/api';
 
 interface JobListProps {
   onJobClick?: (jobId: string) => void;
@@ -9,6 +10,32 @@ interface JobListProps {
 export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick }) => {
   const [isApplicationOpen, setIsApplicationOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState<any>(null);
+  const [featuredJobs, setFeaturedJobs] = useState<any[]>([]);
+  const [latestJobs, setLatestJobs] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchJobs = async () => {
+      setIsLoading(true);
+      try {
+        const [featuredResponse, latestResponse] = await Promise.all([
+          api.get('/homepage/featured-jobs'),
+          api.get('/homepage/latest-jobs')
+        ]);
+        setFeaturedJobs(featuredResponse.data.data || []);
+        setLatestJobs(latestResponse.data.data || []);
+        setError(null);
+      } catch (err) {
+        setError('Failed to load job listings.');
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchJobs();
+  }, []);
 
   const handleApplyClick = (job: any) => {
     onJobClick?.(job.id.toString());
@@ -19,219 +46,25 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
     setSelectedJob(null);
   };
 
-  const featuredJobs = [
-    {
-      id: 1,
-      title: 'Email Marketing',
-      company: 'Revolut',
-      location: 'Madrid, Spain',
-      description: 'Revolut is looking for Email Marketing to help team ma ...',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'R',
-      logoColor: 'bg-black text-white',
-      featured: true,
-      applied: 5,
-      capacity: 10
-    },
-    {
-      id: 2,
-      title: 'Brand Designer',
-      company: 'Dropbox',
-      location: 'San Francisco, USA',
-      description: 'Dropbox is looking for Brand Designer to help team ma ...',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'D',
-      logoColor: 'bg-[#007BFF] text-white',
-      featured: true,
-      applied: 2,
-      capacity: 10
-    },
-    {
-      id: 3,
-      title: 'Email Marketing',
-      company: 'Pitch',
-      location: 'Berlin, Germany',
-      description: 'Pitch is looking for Email Marketing to help team ma ...',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'P',
-      logoColor: 'bg-black text-white',
-      featured: true,
-      applied: 0,
-      capacity: 10
-    },
-    {
-      id: 4,
-      title: 'Visual Designer',
-      company: 'Blinkist',
-      location: 'Granada, Spain',
-      description: 'Blinkist is looking for Visual Designer to help team ma ...',
-      type: 'Full Time',
-      tags: ['Design'],
-      logo: 'C',
-      logoColor: 'bg-[#007BFF] text-white',
-      featured: true,
-      applied: 5,
-      capacity: 10
-    },
-    {
-      id: 5,
-      title: 'Product Designer',
-      company: 'ClassPass',
-      location: 'Berlin, Germany',
-      description: 'ClassPass is looking for Product Designer to help team ma ...',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'C',
-      logoColor: 'bg-[#007BFF] text-white',
-      featured: true,
-      applied: 5,
-      capacity: 10
-    },
-    {
-      id: 6,
-      title: 'Lead Engineer',
-      company: 'Canva',
-      location: 'Ankara, Turkey',
-      description: 'Canva is looking for Lead Engineer to help team ma ...',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'C',
-      logoColor: 'bg-purple-600 text-white',
-      featured: true,
-      applied: 5,
-      capacity: 10
-    },
-    {
-      id: 7,
-      title: 'Product Strategist',
-      company: 'Twitter',
-      location: 'San Diego, USA',
-      description: 'Twitter is looking for Product Strategist to help team ma ...',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'T',
-      logoColor: 'bg-[#007BFF] text-white',
-      featured: true,
-      applied: 5,
-      capacity: 10
-    },
-    {
-      id: 8,
-      title: 'Customer Manager',
-      company: 'Pitch',
-      location: 'Berlin, Germany',
-      description: 'Pitch is looking for Customer Manager to help team ma ...',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'P',
-      logoColor: 'bg-black text-white',
-      featured: true,
-      applied: 5,
-      capacity: 10
-    }
-  ];
+  if (isLoading) {
+    return (
+      <div className="py-16 bg-white text-center">
+        <svg className="animate-spin h-8 w-8 text-[#007BFF] mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p className="mt-2 text-gray-600">Loading Jobs...</p>
+      </div>
+    );
+  }
 
-  const latestJobs = [
-    {
-      id: 9,
-      title: 'Social Media Assistant',
-      company: 'Nomad',
-      location: 'Paris, France',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'N',
-      logoColor: 'bg-green-500 text-white',
-      applied: 5,
-      capacity: 10
-    },
-    {
-      id: 10,
-      title: 'Social Media Assistant',
-      company: 'Netlify',
-      location: 'Paris, France',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'N',
-      logoColor: 'bg-teal-500 text-white',
-      applied: 5,
-      capacity: 10
-    },
-    {
-      id: 11,
-      title: 'Brand Designer',
-      company: 'Dropbox',
-      location: 'San Francisco, USA',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'D',
-      logoColor: 'bg-[#007BFF] text-white',
-      applied: 2,
-      capacity: 10
-    },
-    {
-      id: 12,
-      title: 'Brand Designer',
-      company: 'Maze',
-      location: 'San Francisco, USA',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'M',
-      logoColor: 'bg-[#007BFF] text-white',
-      applied: 2,
-      capacity: 10
-    },
-    {
-      id: 13,
-      title: 'Interactive Developer',
-      company: 'Terraform',
-      location: 'Hamburg, Germany',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'T',
-      logoColor: 'bg-[#007BFF] text-white',
-      applied: 8,
-      capacity: 12
-    },
-    {
-      id: 14,
-      title: 'Interactive Developer',
-      company: 'Udacity',
-      location: 'Hamburg, Germany',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'U',
-      logoColor: 'bg-[#007BFF] text-white',
-      applied: 8,
-      capacity: 12
-    },
-    {
-      id: 15,
-      title: 'HR Manager',
-      company: 'Packer',
-      location: 'Lucern, Switzerland',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'P',
-      logoColor: 'bg-red-500 text-white',
-      applied: 5,
-      capacity: 10
-    },
-    {
-      id: 16,
-      title: 'HR Manager',
-      company: 'Webflow',
-      location: 'Lucern, Switzerland',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'W',
-      logoColor: 'bg-[#007BFF] text-white',
-      applied: 5,
-      capacity: 10
-    }
-  ];
+  if (error) {
+    return (
+      <div className="py-16 bg-red-50 text-center">
+        <p className="text-red-600 font-semibold">{error}</p>
+      </div>
+    );
+  }
 
   const getTagColor = (tag: string) => {
     switch (tag.toLowerCase()) {
@@ -269,7 +102,7 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
     const latestJobCard = (
       <>
         {/* Apply Button for Latest */}
-        <button 
+      <button 
           onClick={(e) => {
             e.stopPropagation();
             onApply?.(job);
@@ -277,7 +110,7 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
           className="absolute top-4 right-4 bg-[#007BFF] text-white px-4 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#0056b3] transition-colors"
         >
           Apply
-        </button>
+      </button>
         {/* Latest Card Content */}
         <div className="flex items-center space-x-4 mb-4">
           <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold text-lg ${job.logoColor} flex-shrink-0`}>
@@ -344,15 +177,15 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
         onClick={() => onJobClick?.(job.id.toString())}
       >
         {cardStyle === 'latest' ? latestJobCard : featuredJobCard}
-      </div>
-    );
+    </div>
+  );
   };
 
   return (
     <>
       {/* Featured Jobs Section */}
       <div className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-3xl font-bold text-gray-900">
               Featured <span className="text-[#007BFF]">jobs</span>
@@ -370,10 +203,10 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
               <JobCard key={job.id} job={job} cardStyle="featured" onJobClick={onJobClick} onApply={handleApplyClick} />
             ))}
           </div>
+          </div>
         </div>
-      </div>
 
-      {/* Latest Jobs Section */}
+        {/* Latest Jobs Section */}
       <div 
         className="py-16 bg-gray-50"
         style={{ clipPath: 'polygon(15% 0, 100% 0, 100% 100%, 100% 100%, 0 100%, 0 5%)' }}

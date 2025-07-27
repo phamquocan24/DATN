@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FiBriefcase, FiFileText, FiAward, FiClipboard, FiChevronLeft } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
+import api from '../../services/api';
 
 const Stepper = ({ currentStep }: { currentStep: number }) => {
   const steps = [
@@ -30,7 +31,7 @@ const Stepper = ({ currentStep }: { currentStep: number }) => {
   );
 };
 
-const JobInformation = () => (
+const JobInformation = ({ jobData, handleInputChange }: { jobData: any, handleInputChange: (e: any) => void }) => (
     <div className="bg-white p-8 rounded-lg border">
         <h2 className="text-lg font-semibold mb-2">Basic Information</h2>
         <p className="text-gray-500 mb-6">This information will be displayed publicly.</p>
@@ -39,7 +40,14 @@ const JobInformation = () => (
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
                 <p className="text-xs text-gray-500 mb-2">Job titles must be describe one position.</p>
-                <input type="text" placeholder="e.g. Software Engineer" className="w-full border-gray-300 rounded-lg shadow-sm" />
+                <input 
+                  type="text" 
+                  name="title"
+                  value={jobData.title}
+                  onChange={handleInputChange}
+                  placeholder="e.g. Software Engineer" 
+                  className="w-full border-gray-300 rounded-lg shadow-sm" 
+                />
                 <p className="text-xs text-gray-500 mt-1 text-right">At least 80 characters</p>
             </div>
             <div>
@@ -48,7 +56,15 @@ const JobInformation = () => (
                 <div className="space-y-2">
                     {['Full-Time', 'Part-Time', 'Remote', 'Internship', 'Contract'].map(type => (
                         <div key={type} className="flex items-center">
-                            <input type="checkbox" id={type} className="h-4 w-4 text-blue-600 border-gray-300 rounded" />
+                            <input 
+                              type="checkbox" 
+                              id={type} 
+                              name="employmentType"
+                              value={type}
+                              checked={jobData.employmentType.includes(type)}
+                              onChange={handleInputChange}
+                              className="h-4 w-4 text-blue-600 border-gray-300 rounded" 
+                            />
                             <label htmlFor={type} className="ml-2 block text-sm text-gray-900">{type}</label>
                         </div>
                     ))}
@@ -59,9 +75,21 @@ const JobInformation = () => (
                 <p className="text-xs text-gray-500 mb-2">Please specify the estimated salary range for the role. *You can leave this blank.</p>
                 <div className="flex items-center gap-4">
                     <span>$</span>
-                    <input type="text" defaultValue="5,000" className="w-full border-gray-300 rounded-lg shadow-sm" />
+                    <input 
+                      type="number" 
+                      name="salaryMin"
+                      value={jobData.salaryMin}
+                      onChange={handleInputChange}
+                      className="w-full border-gray-300 rounded-lg shadow-sm" 
+                    />
                     <span>to</span>
-                    <input type="text" defaultValue="22,000" className="w-full border-gray-300 rounded-lg shadow-sm" />
+                    <input 
+                      type="number" 
+                      name="salaryMax"
+                      value={jobData.salaryMax}
+                      onChange={handleInputChange}
+                      className="w-full border-gray-300 rounded-lg shadow-sm" 
+                    />
                 </div>
                 {/* Placeholder for range slider */}
                 <div className="relative h-5 mt-2">
@@ -74,26 +102,24 @@ const JobInformation = () => (
              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Categories</label>
                 <p className="text-xs text-gray-500 mb-2">You can select multiple job categories.</p>
-                <select className="w-full border-gray-300 rounded-lg shadow-sm">
+                <select 
+                  name="category"
+                  value={jobData.category}
+                  onChange={handleInputChange}
+                  className="w-full border-gray-300 rounded-lg shadow-sm"
+                >
                     <option>Select Job Categories</option>
+                    {/* These should be fetched from an API */}
+                    <option>Design</option>
+                    <option>Development</option>
+                    <option>Marketing</option>
                 </select>
             </div>
             <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Required Skills</label>
                  <p className="text-xs text-gray-500 mb-2">Add required skills for the job.</p>
                  <div className="flex flex-wrap items-center gap-2 p-2 border rounded-lg">
-                     <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                         <span>Graphic Design</span>
-                         <button>x</button>
-                     </div>
-                      <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                         <span>Communication</span>
-                         <button>x</button>
-                     </div>
-                      <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                         <span>Illustrator</span>
-                         <button>x</button>
-                     </div>
+                     {/* Skills rendering and adding logic will be handled here */}
                      <button className="text-blue-500 ml-2">+ Add Skills</button>
                  </div>
             </div>
@@ -101,7 +127,7 @@ const JobInformation = () => (
     </div>
 );
 
-const JobDescription = () => (
+const JobDescription = ({ jobData, handleInputChange }: { jobData: any, handleInputChange: (e: any) => void }) => (
     <div className="bg-white p-8 rounded-lg border">
         <h2 className="text-lg font-semibold mb-2">Details</h2>
         <p className="text-gray-500 mb-6">Add the description of the job, responsibilities, who you are, and nice-to-haves.</p>
@@ -110,25 +136,53 @@ const JobDescription = () => (
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Job Descriptions</label>
                 <p className="text-xs text-gray-500 mb-2">Job titles must be describe one position</p>
-                <textarea rows={5} className="w-full border-gray-300 rounded-lg shadow-sm" placeholder="Enter job description"></textarea>
+                <textarea 
+                  rows={5} 
+                  name="description"
+                  value={jobData.description}
+                  onChange={handleInputChange}
+                  className="w-full border-gray-300 rounded-lg shadow-sm" 
+                  placeholder="Enter job description"
+                ></textarea>
                 <p className="text-xs text-gray-500 mt-1 text-right">Maximum 500 characters</p>
             </div>
              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Responsibilities</label>
                 <p className="text-xs text-gray-500 mb-2">Outline the core responsibilities of the position</p>
-                <textarea rows={5} className="w-full border-gray-300 rounded-lg shadow-sm" placeholder="Enter responsibilities"></textarea>
+                <textarea 
+                  rows={5} 
+                  name="responsibilities"
+                  value={jobData.responsibilities}
+                  onChange={handleInputChange}
+                  className="w-full border-gray-300 rounded-lg shadow-sm" 
+                  placeholder="Enter responsibilities"
+                ></textarea>
                 <p className="text-xs text-gray-500 mt-1 text-right">Maximum 500 characters</p>
             </div>
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Who You Are</label>
                 <p className="text-xs text-gray-500 mb-2">Add your preferred candidates qualifications</p>
-                <textarea rows={5} className="w-full border-gray-300 rounded-lg shadow-sm" placeholder="Enter qualifications"></textarea>
+                <textarea 
+                  rows={5} 
+                  name="whoYouAre"
+                  value={jobData.whoYouAre}
+                  onChange={handleInputChange}
+                  className="w-full border-gray-300 rounded-lg shadow-sm" 
+                  placeholder="Enter qualifications"
+                ></textarea>
                 <p className="text-xs text-gray-500 mt-1 text-right">Maximum 500 characters</p>
             </div>
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nice-To-Haves</label>
                 <p className="text-xs text-gray-500 mb-2">Add nice-to-have skills and qualifications for the role to encourage a more diverse set of candidates to apply</p>
-                <textarea rows={5} className="w-full border-gray-300 rounded-lg shadow-sm" placeholder="Enter nice-to-haves"></textarea>
+                <textarea 
+                  rows={5} 
+                  name="niceToHaves"
+                  value={jobData.niceToHaves}
+                  onChange={handleInputChange}
+                  className="w-full border-gray-300 rounded-lg shadow-sm" 
+                  placeholder="Enter nice-to-haves"
+                ></textarea>
                 <p className="text-xs text-gray-500 mt-1 text-right">Maximum 500 characters</p>
             </div>
         </div>
@@ -211,19 +265,73 @@ const AiTestGeneration = () => (
 const PostNewJob: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const navigate = useNavigate();
+  const [jobData, setJobData] = useState({
+    title: '',
+    employmentType: [] as string[],
+    salaryMin: 0,
+    salaryMax: 0,
+    category: '',
+    skills: [] as string[],
+    description: '',
+    responsibilities: '',
+    whoYouAre: '',
+    niceToHaves: '',
+    benefits: [] as string[],
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+
+    if (type === 'checkbox') {
+      const { checked } = e.target as HTMLInputElement;
+      setJobData(prev => ({
+        ...prev,
+        employmentType: checked 
+          ? [...prev.employmentType, value]
+          : prev.employmentType.filter(item => item !== value),
+      }));
+    } else {
+      setJobData(prev => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
+  };
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      // Format the data as per API requirements
+      const payload = {
+        ...jobData,
+        // any other transformations needed
+      };
+      await api.post('/jobs', payload);
+      // On success, maybe navigate to the job management page
+      navigate('/hr/job-management');
+    } catch (err) {
+      setSubmitError('Failed to post job. Please check the details and try again.');
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   const renderStep = () => {
     switch (currentStep) {
       case 1:
-        return <JobInformation />;
+        return <JobInformation jobData={jobData} handleInputChange={handleInputChange} />;
       case 2:
-        return <JobDescription />;
+        return <JobDescription jobData={jobData} handleInputChange={handleInputChange} />;
       case 3:
-        return <PerksAndBenefits />;
+        return <PerksAndBenefits />; // To be updated
       case 4:
-        return <AiTestGeneration />;
+        return <AiTestGeneration />; // To be updated
       default:
-        return <JobInformation />;
+        return <JobInformation jobData={jobData} handleInputChange={handleInputChange} />;
     }
   };
 
@@ -245,17 +353,19 @@ const PostNewJob: React.FC = () => {
         >
           Previous
         </button>
+        {submitError && <p className="text-red-500 text-sm">{submitError}</p>}
         <button 
           onClick={() => {
             if (currentStep === 4) {
-              // Handle completion
+              handleSubmit();
             } else {
               setCurrentStep(prev => Math.min(prev + 1, 4));
             }
           }}
-          className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"
+          className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400"
+          disabled={isSubmitting}
         >
-          {currentStep === 4 ? 'Complete' : 'Next Step'}
+          {isSubmitting ? 'Submitting...' : currentStep === 4 ? 'Complete' : 'Next Step'}
         </button>
       </div>
     </div>

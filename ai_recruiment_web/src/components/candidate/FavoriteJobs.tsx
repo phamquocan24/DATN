@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Footer } from './Footer';
 import GroupUnderline from '../../assets/Group.png';
+import api from '../../services/api';
 
 interface Job {
   id: number;
@@ -25,8 +26,11 @@ interface FavoriteJobsProps {
 
 export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [location, setLocation] = useState('Florence, Italy');
-  const [, setSavedJobs] = useState<number[]>([1, 2, 3, 4, 5, 6, 7]);
+  const [location, setLocation] = useState('');
+  const [favoriteJobs, setFavoriteJobs] = useState<Job[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [filters, setFilters] = useState({
     employmentType: [] as string[],
     categories: ['Business', 'Technology'] as string[],
@@ -40,114 +44,36 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
     salaryRange: false
   });
 
-  // Sample favorite jobs data
-  const favoriteJobs: Job[] = [
-    {
-      id: 1,
-      title: 'Social Media Assistant',
-      company: 'Nomad',
-      location: 'Paris, France',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'N',
-      logoColor: 'bg-green-500 text-white',
-      match: 87,
-      applied: 5,
-      capacity: 10,
-      isSaved: true
-    },
-    {
-      id: 2,
-      title: 'Brand Designer',
-      company: 'Dropbox',
-      location: 'San Francisco, USA',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'D',
-      logoColor: 'bg-[#007BFF] text-white',
-      match: 95,
-      applied: 2,
-      capacity: 10,
-      isSaved: true
-    },
-    {
-      id: 3,
-      title: 'Interactive Developer',
-      company: 'Terraform',
-      location: 'Hamburg, Germany',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'T',
-      logoColor: 'bg-[#007BFF] text-white',
-      match: 100,
-      applied: 8,
-      capacity: 12,
-      isSaved: true
-    },
-    {
-      id: 4,
-      title: 'Email Marketing',
-      company: 'Revolut',
-      location: 'Madrid, Spain',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'R',
-      logoColor: 'bg-black text-white',
-      match: 90,
-      applied: 0,
-      capacity: 10,
-      isSaved: true
-    },
-    {
-      id: 5,
-      title: 'Lead Engineer',
-      company: 'Canva',
-      location: 'Ankara, Turkey',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'C',
-      logoColor: 'bg-teal-500 text-white',
-      match: 77,
-      applied: 5,
-      capacity: 10,
-      isSaved: true
-    },
-    {
-      id: 6,
-      title: 'Product Designer',
-      company: 'ClassPass',
-      location: 'Berlin, Germany',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'C',
-      logoColor: 'bg-[#007BFF] text-white',
-      match: 87,
-      applied: 5,
-      capacity: 10,
-      isSaved: true
-    },
-    {
-      id: 7,
-      title: 'Customer Manager',
-      company: 'Pitch',
-      location: 'Berlin, Germany',
-      type: 'Full Time',
-      tags: ['Marketing', 'Design'],
-      logo: 'P',
-      logoColor: 'bg-black text-white',
-      match: 89,
-      applied: 5,
-      capacity: 10,
-      isSaved: true
+  const fetchFavoriteJobs = async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.get('/jobs/bookmarked');
+      // The API returns jobs, we assume they are all "saved" on this page.
+      const jobsWithSavedStatus = response.data.data.map((job: any) => ({ ...job, isSaved: true }));
+      setFavoriteJobs(jobsWithSavedStatus);
+      setError(null);
+    } catch (err) {
+      setError('Failed to load favorite jobs.');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
     }
-  ];
+  };
 
-  const toggleSavedJob = (jobId: number) => {
-    setSavedJobs(prev => 
-      prev.includes(jobId) 
-        ? prev.filter(id => id !== jobId)
-        : [...prev, jobId]
-    );
+  useEffect(() => {
+    fetchFavoriteJobs();
+  }, []);
+
+  const toggleSavedJob = async (jobId: number) => {
+    // On this page, "toggling" means unbookmarking
+    try {
+      await api.delete(`/jobs/${jobId}/bookmark`);
+      // Refetch the list to show the change
+      fetchFavoriteJobs();
+    } catch (err) {
+      console.error(`Failed to unbookmark job ${jobId}`, err);
+      // Optionally show an error to the user
+    }
   };
 
   const handleFilterChange = (filterType: keyof typeof filters, value: string) => {
@@ -578,9 +504,17 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
                 </div>
 
                 <div className="space-y-4">
-                  {favoriteJobs.map((job) => (
-                    <JobCard key={job.id} job={job} />
-                  ))}
+                  {isLoading ? (
+                    <p>Loading favorite jobs...</p>
+                  ) : error ? (
+                    <p className="text-red-500">{error}</p>
+                  ) : favoriteJobs.length > 0 ? (
+                    favoriteJobs.map((job) => (
+                      <JobCard key={job.id} job={job} />
+                    ))
+                  ) : (
+                    <p>You haven't saved any jobs yet.</p>
+                  )}
                 </div>
               </div>
 

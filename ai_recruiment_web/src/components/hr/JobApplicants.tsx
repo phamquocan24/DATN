@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { FiSearch, FiFilter, FiMoreHorizontal, FiChevronLeft, FiChevronDown, FiUpload } from 'react-icons/fi';
 import JobDetailsTab from './JobDetailsTab'; 
 import AnalyticsTab from './AnalyticsTab'; 
+import api from '../../services/api';
 
 interface Applicant {
   id: number;
@@ -13,19 +14,6 @@ interface Applicant {
   appliedDate: string;
   jobRole: string;
 }
-
-const applicants: Applicant[] = [
-  { id: 1, fullName: 'Jake Gyll', avatar: `https://i.pravatar.cc/40?u=1`, score: '90%', hiringStage: 'In-review', appliedDate: '13 July, 2021', jobRole: 'Designer' },
-  { id: 2, fullName: 'Guy Hawkins', avatar: `https://i.pravatar.cc/40?u=2`, score: '70%', hiringStage: 'In-review', appliedDate: '13 July, 2021', jobRole: 'JavaScript Dev' },
-  { id: 3, fullName: 'Cyndy Lillibridge', avatar: `https://i.pravatar.cc/40?u=3`, score: '65%', hiringStage: 'Shortlisted', appliedDate: '12 July, 2021', jobRole: 'Golang Dev' },
-  { id: 4, fullName: 'Rodolfo Goode', avatar: `https://i.pravatar.cc/40?u=4`, score: '40%', hiringStage: 'Declined', appliedDate: '11 July, 2021', jobRole: 'NET Dev' },
-  { id: 5, fullName: 'Leif Floyd', avatar: `https://i.pravatar.cc/40?u=5`, score: '88%', hiringStage: 'Hired', appliedDate: '11 July, 2021', jobRole: 'Graphic Design' },
-  { id: 6, fullName: 'Jenny Wilson', avatar: `https://i.pravatar.cc/40?u=6`, score: '66%', hiringStage: 'Hired', appliedDate: '9 July, 2021', jobRole: 'Designer' },
-  { id: 7, fullName: 'Jerome Bell', avatar: `https://i.pravatar.cc/40?u=7`, score: '78%', hiringStage: 'Interviewed', appliedDate: '5 July, 2021', jobRole: 'Designer' },
-  { id: 8, fullName: 'Eleanor Pena', avatar: `https://i.pravatar.cc/40?u=8`, score: '20%', hiringStage: 'Declined', appliedDate: '5 July, 2021', jobRole: 'Designer' },
-  { id: 9, fullName: 'Darrell Steward', avatar: `https://i.pravatar.cc/40?u=9`, score: '90%', hiringStage: 'Shortlisted', appliedDate: '3 July, 2021', jobRole: 'Designer' },
-  { id: 10, fullName: 'Floyd Miles', avatar: `https://i.pravatar.cc/40?u=10`, score: '77%', hiringStage: 'Interviewed', appliedDate: '1 July, 2021', jobRole: 'Designer' },
-];
 
 const getHiringStageClass = (stage: Applicant['hiringStage']) => {
   switch (stage) {
@@ -41,7 +29,7 @@ const getHiringStageClass = (stage: Applicant['hiringStage']) => {
 const JobApplicants: React.FC = () => {
   const [activeTab, setActiveTab] = useState('Applicants');
   const [viewMode, setViewMode] = useState<'pipeline' | 'table'>('table');
-  const { id } = useParams<{ id: string }>();
+  const { id: jobId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [isExportOpen, setIsExportOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
@@ -50,6 +38,27 @@ const JobApplicants: React.FC = () => {
   const [isPageSelectOpen, setIsPageSelectOpen] = useState(false);
   const pageOptions = [10, 20, 30];
   const pageSelectRef = useRef<HTMLDivElement>(null);
+  const [applicants, setApplicants] = useState<Applicant[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchApplicants = async () => {
+      if (!jobId) return;
+      setIsLoading(true);
+      try {
+        const response = await api.get(`/applications/job/${jobId}`);
+        setApplicants(response.data.data);
+        setError(null);
+      } catch (err) {
+        setError('Failed to load applicants.');
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchApplicants();
+  }, [jobId]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -110,7 +119,11 @@ const JobApplicants: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {applicants.map((applicant) => (
+                {isLoading ? (
+                  <tr><td colSpan={7} className="text-center p-4">Loading applicants...</td></tr>
+                ) : error ? (
+                  <tr><td colSpan={7} className="text-center p-4 text-red-500">{error}</td></tr>
+                ) : applicants.map((applicant) => (
                   <tr key={applicant.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => navigate(`/hr/job-applications/${applicant.id}`)}>
                     <td className="p-4"><input type="checkbox" className="rounded border-gray-300" onClick={(e) => e.stopPropagation()} /></td>
                     <td className="px-4 py-2">

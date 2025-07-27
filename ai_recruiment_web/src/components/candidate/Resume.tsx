@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Footer } from './Footer';
 import GroupUnderline from '../../assets/Group.png';
 import { EnhanceResumeModal } from './EnhanceResumeModal';
+import api from '../../services/api';
 
 interface Resume {
   id: number;
@@ -19,60 +20,31 @@ export const Resume: React.FC = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isEnhanceModalOpen, setIsEnhanceModalOpen] = useState(false);
   const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
+  
+  const [resumes, setResumes] = useState<Resume[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
 
-  const resumes: Resume[] = [
-    {
-      id: 1,
-      company: 'Nomad',
-      jobCount: 3,
-      description: 'Nomad is located in Paris, France. Nomad has generated $728.8M in sales (USD).',
-      matchScore: 80,
-      avatar: '👩‍💼'
-    },
-    {
-      id: 2,
-      company: 'Discord',
-      jobCount: 3,
-      description: "We'd love to work with someone like you. We care about creating a delightful experience.",
-      matchScore: 90,
-      avatar: '👩‍💼'
-    },
-    {
-      id: 3,
-      company: 'Maze',
-      jobCount: 3,
-      description: "We're a passionate bunch working from all over the world to build the future of rapid testing together.",
-      matchScore: 78,
-      avatar: '👩‍💼'
-    },
-    {
-      id: 4,
-      company: 'Udacity',
-      jobCount: 3,
-      description: 'Udacity is a new type of online university that teaches the actual programming skills.',
-      matchScore: 90,
-      avatar: '👩‍💼',
-      hasEnhanced: true
-    },
-    {
-      id: 5,
-      company: 'Webflow',
-      jobCount: 3,
-      description: 'Webflow is the first design and hosting platform built from the ground up for the mobile age.',
-      matchScore: 50,
-      avatar: '👩‍💼',
-      hasEnhanced: true
-    },
-    {
-      id: 6,
-      company: 'Foundation',
-      jobCount: 3,
-      description: 'Foundation helps creators mint and auction their digital artworks as NFTs on the Ethereum blockchain.',
-      matchScore: 25,
-      avatar: '👩‍💼',
-      hasEnhanced: true
+  const fetchResumes = async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.get('/cvs');
+      setResumes(response.data.data);
+      setError(null);
+    } catch (err) {
+      setError('Failed to load resumes.');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
     }
-  ];
+  };
+
+  useEffect(() => {
+    fetchResumes();
+  }, []);
 
   const handleOpenEnhanceModal = (resume: Resume) => {
     setSelectedResume(resume);
@@ -84,12 +56,43 @@ export const Resume: React.FC = () => {
     setSelectedResume(null);
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const processAndUploadFile = async (file: File) => {
     if (file && file.type === 'application/pdf' && file.size <= 5 * 1024 * 1024) {
       setUploadedFile(file);
+      setUploadError(null);
+      setUploadSuccess(false);
+      setIsUploading(true);
+      
+      const formData = new FormData();
+      formData.append('cv', file);
+
+      try {
+        await api.post('/cvs/upload', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        setUploadSuccess(true);
+        // Refetch resumes to show the new one
+        await fetchResumes(); 
+      } catch (err) {
+        setUploadError('File upload failed. Please try again.');
+        console.error('Upload error:', err);
+      } finally {
+        setIsUploading(false);
+      }
+
     } else {
-      alert('Please select a PDF file under 5MB');
+      setUploadError('Please select a PDF file under 5MB');
+      setUploadedFile(null);
+    }
+  };
+
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      processAndUploadFile(file);
     }
   };
 
@@ -100,10 +103,8 @@ export const Resume: React.FC = () => {
   const handleDrop = (event: React.DragEvent) => {
     event.preventDefault();
     const file = event.dataTransfer.files[0];
-    if (file && file.type === 'application/pdf' && file.size <= 5 * 1024 * 1024) {
-      setUploadedFile(file);
-    } else {
-      alert('Please select a PDF file under 5MB');
+    if (file) {
+      processAndUploadFile(file);
     }
   };
 
@@ -232,7 +233,7 @@ export const Resume: React.FC = () => {
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {resumes.map((resume) => (
+              {isLoading ? <p>Loading resumes...</p> : error ? <p className="text-red-500">{error}</p> : resumes.map((resume) => (
                 <ResumeCard key={resume.id} resume={resume} />
               ))}
             </div>
@@ -259,13 +260,29 @@ export const Resume: React.FC = () => {
                 </svg>
               </div>
               
-              {uploadedFile ? (
+              {isUploading ? (
+                <div>
+                  <p className="text-gray-600 font-medium mb-2">Uploading...</p>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div className="bg-[#007BFF] h-2.5 rounded-full animate-pulse"></div>
+                  </div>
+                </div>
+              ) : uploadSuccess ? (
                 <div>
                   <p className="text-green-600 font-medium mb-2">
                     File uploaded successfully!
                   </p>
                   <p className="text-gray-600 text-sm">
-                    {uploadedFile.name} ({(uploadedFile.size / 1024 / 1024).toFixed(2)} MB)
+                    {uploadedFile?.name}
+                  </p>
+                </div>
+              ) : uploadError ? (
+                 <div>
+                  <p className="text-red-500 font-medium mb-2">
+                    {uploadError}
+                  </p>
+                  <p className="text-gray-500 text-sm">
+                    Please try again.
                   </p>
                 </div>
               ) : (

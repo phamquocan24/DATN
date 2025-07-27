@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiFilter, FiMoreHorizontal, FiChevronDown } from 'react-icons/fi';
 import calendarIcon from '../../assets/scheme.png';
+import api from '../../services/api';
 
 interface Job {
   id: number;
@@ -17,11 +18,34 @@ interface Job {
 const JobManagement: React.FC = () => {
   const [jobsPerPage, setJobsPerPage] = useState(10);
   const [isPageSelectOpen, setIsPageSelectOpen] = useState(false);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const pageOptions = [10, 20, 30];
   const pageSelectRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState('2021-07-25');
   const dateInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const fetchJobs = async () => {
+      setIsLoading(true);
+      try {
+        const response = await api.get('/jobs/my-jobs');
+        setJobs(response.data.data);
+        setError(null);
+      } catch (err) {
+        setError('Failed to load your jobs.');
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchJobs();
+  }, []);
+
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -35,16 +59,6 @@ const JobManagement: React.FC = () => {
     };
   }, [pageSelectRef]);
   
-  const jobs: Job[] = [
-    { id: 1, role: 'Social Media Assistant', status: 'Live', datePosted: '20 May 2020', dueDate: '24 May 2020', jobType: 'Fulltime', applicants: 19, needs: '4 / 11' },
-    { id: 2, role: 'Senior Designer', status: 'Live', datePosted: '16 May 2020', dueDate: '24 May 2020', jobType: 'Fulltime', applicants: 1234, needs: '0 / 20' },
-    { id: 3, role: 'Visual Designer', status: 'Live', datePosted: '15 May 2020', dueDate: '24 May 2020', jobType: 'Freelance', applicants: 2435, needs: '1 / 5' },
-    { id: 4, role: 'Data Sience', status: 'Closed', datePosted: '13 May 2020', dueDate: '24 May 2020', jobType: 'Freelance', applicants: 6234, needs: '10 / 10' },
-    { id: 5, role: 'Kotlin Developer', status: 'Closed', datePosted: '12 May 2020', dueDate: '24 May 2020', jobType: 'Fulltime', applicants: 12, needs: '20 / 20' },
-    { id: 6, role: 'React Developer', status: 'Closed', datePosted: '11 May 2020', dueDate: '24 May 2020', jobType: 'Fulltime', applicants: 14, needs: '10 / 10' },
-    { id: 7, role: 'Kotlin Developer', status: 'Closed', datePosted: '12 May 2020', dueDate: '24 May 2020', jobType: 'Fulltime', applicants: 12, needs: '20 / 20' },
-  ];
-
   return (
     <div className="p-0 bg-white text-left">
       <div className="flex items-center justify-between mb-6">
@@ -96,7 +110,11 @@ const JobManagement: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {jobs.map((job) => (
+            {isLoading ? (
+              <tr><td colSpan={8} className="text-center p-4">Loading jobs...</td></tr>
+            ) : error ? (
+              <tr><td colSpan={8} className="text-center p-4 text-red-500">{error}</td></tr>
+            ) : jobs.map((job) => (
               <tr key={job.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => navigate(`/hr/job-management/${job.id}`)}>
                 <td className="px-4 py-4 font-medium">{job.role}</td>
                 <td className="px-4 py-4">

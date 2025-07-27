@@ -11,11 +11,14 @@ interface HeaderProps {
   currentPage: CurrentPage;
   onAuthOpen: (mode: 'login' | 'signup') => void;
   onHomeClick: () => void;
+  currentUser: any | null; // Add currentUser prop
+  onLogout: () => void; // Add onLogout prop
 }
 
-export const Header: React.FC<HeaderProps> = ({ onPageChange, currentPage, onAuthOpen, onHomeClick }) => {
+export const Header: React.FC<HeaderProps> = ({ onPageChange, currentPage, onAuthOpen, onHomeClick, currentUser, onLogout }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(true);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   const toggleNotifications = () => {
     setShowNotifications(!showNotifications);
@@ -168,24 +171,83 @@ export const Header: React.FC<HeaderProps> = ({ onPageChange, currentPage, onAut
                 />
               </div>
 
-              {/* Auth buttons */}
-              <button 
-                onClick={() => onAuthOpen('login')}
-                className="text-[#007BFF] font-medium hover:text-[#007BFF]"
-              >
-                Login
-              </button>
-              <button 
-                onClick={() => onAuthOpen('signup')}
-                className="bg-[#007BFF] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#0056b3] transition-colors"
-              >
-                Sign Up
-              </button>
+              {/* Conditional Auth/Profile Section */}
+              {currentUser ? (
+                // --- Logged In View ---
+                <div className="relative">
+                  <button 
+                    onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                    className="flex items-center space-x-2"
+                  >
+                    <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+                      {/* Placeholder for user avatar */}
+                      <img 
+                        src={currentUser.avatar || UserIcon} 
+                        alt={currentUser.name} 
+                        className="w-full h-full object-cover" 
+                      />
+                    </div>
+                    <span className="hidden sm:inline font-medium text-gray-700 text-sm">{currentUser.name}</span>
+                    <svg className={`w-4 h-4 text-gray-600 transition-transform ${isProfileMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
 
-              {/* Profile avatar */}
-              <div className="flex items-center justify-center">
+                  {/* Profile Dropdown */}
+                  {isProfileMenuOpen && (
+                    <div 
+                      className="absolute top-full right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-20"
+                      onMouseLeave={() => setIsProfileMenuOpen(false)}
+                    >
+                      <div className="py-2">
+                        <div className="px-4 py-2 border-b">
+                          <p className="text-sm font-semibold text-gray-800 truncate">{currentUser.name}</p>
+                          <p className="text-xs text-gray-500 truncate">{currentUser.email}</p>
+                        </div>
+                        <button
+                          onClick={() => { onPageChange('profile'); setIsProfileMenuOpen(false); }}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          My Profile
+                        </button>
+                        <button
+                          onClick={() => { onPageChange('settings'); setIsProfileMenuOpen(false); }}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          Settings
+                        </button>
+                        <button
+                          onClick={() => { onLogout(); setIsProfileMenuOpen(false); }}
+                          className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                        >
+                          Logout
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // --- Logged Out View ---
+                <>
+                  <button 
+                    onClick={() => onAuthOpen('login')}
+                    className="text-[#007BFF] font-medium hover:text-[#007BFF]"
+                  >
+                    Login
+                  </button>
+                  <button 
+                    onClick={() => onAuthOpen('signup')}
+                    className="bg-[#007BFF] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#0056b3] transition-colors"
+                  >
+                    Sign Up
+                  </button>
+                </>
+              )}
+
+              {/* Profile avatar - this can be removed or repurposed */}
+              {/* <div className="flex items-center justify-center">
                 <img src={UserIcon} alt="User" className="w-6 h-6" />
-              </div>
+              </div> */}
             </div>
           </div>
         </header>

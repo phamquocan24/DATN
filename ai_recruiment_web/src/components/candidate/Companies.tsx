@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Footer } from './Footer';
 import { CTA } from './CTA';
 import GroupUnderline from '../../assets/Group.png';
 import { FiArrowRight, FiArrowLeft } from 'react-icons/fi';
+import api from '../../services/api';
 
 interface Company {
   id: number;
@@ -22,12 +23,67 @@ interface CompaniesProps {
 
 export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [location, setLocation] = useState('Florence, Italy');
-  const [activeCategory, setActiveCategory] = useState('Design');
-  const [favoriteCompanies, setFavoriteCompanies] = useState<number[]>([1]);
+  const [location, setLocation] = useState('');
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [favoriteCompanies, setFavoriteCompanies] = useState<number[]>([]);
+
+  // State for API data
+  const [recommendedCompanies, setRecommendedCompanies] = useState<Company[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [companiesByCategory, setCompaniesByCategory] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState({
+    recommended: true,
+    categories: true,
+    categoryCompanies: false,
+  });
+  const [error, setError] = useState<string | null>(null);
+
+
+  // Fetch initial data (recommended companies and categories)
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        setIsLoading(prev => ({ ...prev, recommended: true, categories: true }));
+        const [recoResponse, catsResponse] = await Promise.all([
+          api.get('/companies/featured'),
+          api.get('/jobs/categories') // Assuming this endpoint gives company categories
+        ]);
+        setRecommendedCompanies(recoResponse.data.data);
+        setCategories(catsResponse.data.data);
+        if (catsResponse.data.data.length > 0) {
+          setActiveCategory(catsResponse.data.data[0].name); // Set first category as active
+        }
+      } catch (err) {
+        setError('Failed to load initial company data.');
+        console.error(err);
+      } finally {
+        setIsLoading(prev => ({ ...prev, recommended: false, categories: false }));
+      }
+    };
+    fetchInitialData();
+  }, []);
+
+  // Fetch companies when active category changes
+  useEffect(() => {
+    if (!activeCategory) return;
+
+    const fetchCompaniesForCategory = async () => {
+      setIsLoading(prev => ({ ...prev, categoryCompanies: true }));
+      try {
+        const response = await api.get(`/companies?category=${activeCategory}`);
+        setCompaniesByCategory(response.data.data);
+      } catch (err) {
+        console.error(`Failed to load companies for category ${activeCategory}`, err);
+      } finally {
+        setIsLoading(prev => ({ ...prev, categoryCompanies: false }));
+      }
+    };
+
+    fetchCompaniesForCategory();
+  }, [activeCategory]);
 
   // Recommended Companies
-  const recommendedCompanies: Company[] = [
+  const recommendedCompanies_mock: Company[] = [
     {
       id: 1,
       name: 'Nomad',
@@ -92,7 +148,7 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
   ];
 
   // Companies by category
-  const categories = [
+  const categories_mock = [
     { name: 'Design', count: 24, active: true },
     { name: 'Fintech', count: 12, active: false },
     { name: 'Hosting', count: 8, active: false },
@@ -103,7 +159,7 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
     { name: 'Crypto', count: 7, active: false },
   ];
 
-  const designCompanies = [
+  const designCompanies_mock = [
     { name: 'Pentagram', logo: 'P', logoColor: 'bg-red-500 text-white', jobs: 3 },
     { name: 'Wolff Olins', logo: 'WO', logoColor: 'bg-black text-white', jobs: 4 },
     { name: 'Clay', logo: 'C', logoColor: 'bg-black text-white', jobs: 3 },
@@ -347,7 +403,7 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {recommendedCompanies.map((company) => (
+              {isLoading.recommended ? <p>Loading companies...</p> : recommendedCompanies.map((company) => (
                 <CompanyCard key={company.id} company={company} />
               ))}
             </div>
@@ -382,11 +438,15 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
             
             {/* Category Cards */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
-                    {displayedCategories.map((category) => (
+                    {isLoading.categories ? <p>Loading categories...</p> : displayedCategories.map((category) => (
                     <div
                         key={category.name}
                         onClick={() => setActiveCategory(category.name)}
-                        className="p-6 rounded-xl border border-gray-200 transition-all duration-300 group cursor-pointer relative hover:shadow-lg hover:-translate-y-1 text-[#007BFF] hover:bg-[#007BFF] hover:text-white"
+                        className={`p-6 rounded-xl border transition-all duration-300 group cursor-pointer relative hover:shadow-lg hover:-translate-y-1 ${
+                            activeCategory === category.name 
+                            ? 'bg-[#007BFF] text-white border-[#007BFF]'
+                            : 'border-gray-200 text-[#007BFF] hover:bg-[#007BFF] hover:text-white'
+                        }`}
                     >
                         <div className="w-auto flex items-center justify-start mb-4">
                             {getCategoryIcon(category.name)}
@@ -422,7 +482,7 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
 
                 {/* Companies Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-                    {designCompanies.map((company, index) => (
+                    {isLoading.categoryCompanies ? <p>Loading...</p> : companiesByCategory.map((company, index) => (
                     <SmallCompanyCard key={index} company={company} />
                     ))}
                 </div>

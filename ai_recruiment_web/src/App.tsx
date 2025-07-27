@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Header, 
   Hero, 
@@ -44,10 +44,14 @@ import {
 import HrRoutes from './components/hr/HrRoutes';
 
 import './App.css';
+import api from './services/api';
 
 type CurrentPage = 'home' | 'find-jobs' | 'find-jobs-dashboard' | 'agent-ai' | 'favorite-jobs' | 'companies' | 'find-companies' | 'browse-companies' | 'job-detail' | 'company-profile' | 'resume' | 'profile' | 'dashboard' | 'my-applications' | 'test-management' | 'settings' | 'help-center';
 
 const App = () => {
+  // --- Authentication State ---
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   // Add authentication state management here
   const isAdmin = true; // This should be replaced with actual auth logic
 
@@ -65,6 +69,27 @@ const App = () => {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
 
+  // --- Effect to fetch user profile if token exists ---
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (token) {
+        try {
+          // Set token for all subsequent api requests
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          const response = await api.get('/users/profile');
+          setCurrentUser(response.data.data);
+        } catch (error) {
+          console.error("Failed to fetch user profile", error);
+          // Token might be invalid/expired
+          handleLogout();
+        }
+      }
+    };
+
+    fetchUserProfile();
+  }, [token]);
+
+
   const handlePageChange = (page: CurrentPage) => {
     setCurrentPage(page);
   };
@@ -72,6 +97,22 @@ const App = () => {
   const handleAuthOpen = (mode: 'login' | 'signup') => {
     setAuthMode(mode);
     setIsAuthModalOpen(true);
+  };
+
+  const handleAuthSuccess = (user: any, authToken: string) => {
+    setToken(authToken);
+    setCurrentUser(user);
+    localStorage.setItem('token', authToken);
+    api.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+  };
+
+  const handleLogout = () => {
+    setToken(null);
+    setCurrentUser(null);
+    localStorage.removeItem('token');
+    delete api.defaults.headers.common['Authorization'];
+    // Redirect to home or login page
+    setCurrentPage('home');
   };
 
   const handleJobClick = (jobId: string) => {
@@ -419,6 +460,8 @@ const App = () => {
               currentPage={currentPage} 
               onAuthOpen={handleAuthOpen}
               onHomeClick={handleBackClick}
+              currentUser={currentUser}
+              onLogout={handleLogout}
             />
             {renderPage()}
             {(currentPage === 'home' || 
@@ -427,7 +470,12 @@ const App = () => {
               currentPage === 'my-applications' || 
               currentPage === 'test-management' ||
               currentPage === 'job-detail') && <Footer />}
-            <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} initialMode={authMode} />
+            <AuthModal 
+              isOpen={isAuthModalOpen} 
+              onClose={() => setIsAuthModalOpen(false)} 
+              initialMode={authMode}
+              onAuthSuccess={handleAuthSuccess}
+            />
             <ChatBot />
           </div>
         } />

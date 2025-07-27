@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import TestTaking from './TestTaking';
 import TestSuccess from './TestSuccess';
 import TestClosed from './TestClosed';
 import DashboardSidebar from './DashboardSidebar';
+import api from '../../services/api';
 
 interface TestApplication {
   id: number;
@@ -41,58 +42,27 @@ const TestManagement: React.FC<TestManagementProps> = ({
   const [currentView, setCurrentView] = useState<'list' | 'taking' | 'success' | 'closed'>('list');
   const [selectedTest, setSelectedTest] = useState<TestApplication | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [testApplications, setTestApplications] = useState<TestApplication[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const fetchTests = async () => {
+      setIsLoading(true);
+      try {
+        const response = await api.get('/tests/my-tests');
+        setTestApplications(response.data.data);
+        setError(null);
+      } catch (err) {
+        setError('Failed to load tests.');
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-
-  const testApplications: TestApplication[] = [
-    {
-      id: 1,
-      company: 'Nomad',
-      role: 'Frontend Developer Assessment',
-      dateApplied: '24 July 2021',
-      status: 'Opening',
-      logo: 'N',
-      logoColor: 'bg-green-500 text-white'
-    },
-    {
-      id: 2,
-      company: 'Udacity',
-      role: 'React Developer Test',
-      dateApplied: '20 July 2021',
-      status: 'Opening',
-      logo: 'U',
-      logoColor: 'bg-blue-500 text-white'
-    },
-    {
-      id: 3,
-      company: 'Packer',
-      role: 'Full Stack Assessment',
-      dateApplied: '16 July 2021',
-      status: 'Closed',
-      logo: 'P',
-      logoColor: 'bg-red-500 text-white'
-    },
-    {
-      id: 4,
-      company: 'Divvy',
-      role: 'UI/UX Designer Test',
-      dateApplied: '14 July 2021',
-      status: 'Opening',
-      logo: 'D',
-      logoColor: 'bg-gray-800 text-white'
-    },
-    {
-      id: 5,
-      company: 'DigitalOcean',
-      role: 'Backend Engineer Assessment',
-      dateApplied: '10 July 2021',
-      status: 'Closed',
-      logo: 'DO',
-      logoColor: 'bg-blue-600 text-white'
-    }
-  ];
-
-
+    fetchTests();
+  }, []);
 
   const handleTestClick = (test: TestApplication) => {
     setSelectedTest(test);
@@ -277,7 +247,11 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {testApplications.map((test, index) => (
+                {isLoading ? (
+                  <tr><td colSpan={6} className="text-center p-4">Loading tests...</td></tr>
+                ) : error ? (
+                  <tr><td colSpan={6} className="text-center p-4 text-red-500">{error}</td></tr>
+                ) : testApplications.map((test, index) => (
                   <tr key={test.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {index + 1}

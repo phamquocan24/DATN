@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Avatar from '../../assets/Avatar17.png';
 import FindJobsDashboard from './FindJobsDashboard';
 import DashboardSidebar from './DashboardSidebar';
+import api from '../../services/api';
 
 interface ProfileProps {
   onHomeClick?: () => void;
@@ -27,6 +28,28 @@ const Profile: React.FC<ProfileProps> = ({
   onHelpCenterClick
 }) => {
   const [activeTab, setActiveTab] = useState('public-profile');
+  const [profileData, setProfileData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setIsLoading(true);
+        const response = await api.get('/users/profile');
+        setProfileData(response.data.data);
+        setError(null);
+      } catch (err) {
+        setError('Failed to load profile data.');
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
 
   const handleGoToProfile = () => {
     setActiveTab('public-profile');
@@ -45,6 +68,41 @@ const Profile: React.FC<ProfileProps> = ({
         onBrowseCompaniesClick={onBrowseCompaniesClick}
       />
     );
+  }
+
+  if (isLoading) {
+    return (
+        <div className="flex-1 p-8 flex items-center justify-center">
+          <div className="text-center">
+            <svg className="animate-spin -ml-1 mr-3 h-10 w-10 text-[#007BFF] mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p className="text-lg font-medium text-gray-600">Loading Profile...</p>
+          </div>
+        </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex-1 p-8 flex items-center justify-center">
+        <div className="text-center p-6 bg-red-50 rounded-lg shadow-sm">
+          <p className="text-lg font-medium text-red-600">{error}</p>
+          <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profileData) {
+    return (
+      <div className="flex-1 p-8 flex items-center justify-center">
+        <p>No profile data available.</p>
+      </div>
+    )
   }
 
   return (
@@ -96,7 +154,7 @@ const Profile: React.FC<ProfileProps> = ({
                 {/* Avatar positioned at the border */}
                 <div className="absolute -top-12 left-6">
                   <img 
-                    src={Avatar} 
+                    src={profileData.avatarUrl || Avatar} 
                     alt="Profile" 
                     className="w-24 h-24 rounded-full border-4 border-white shadow-lg"
                   />
@@ -106,20 +164,22 @@ const Profile: React.FC<ProfileProps> = ({
                 <div className="pt-16 px-6 pb-6 h-full text-left">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h2 className="text-3xl font-bold text-gray-900 mb-2">Jake Gyll</h2>
-                      <p className="text-gray-600 text-lg mb-2">Product Designer at <span className="text-[#007BFF] font-medium">Twitter</span></p>
+                      <h2 className="text-3xl font-bold text-gray-900 mb-2">{profileData.name}</h2>
+                      <p className="text-gray-600 text-lg mb-2">
+                        {profileData.headline || 'No headline provided'}
+                      </p>
                       <p className="text-gray-500 flex items-center mb-6">
                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
-                        Manchester, UK
+                        {profileData.location || 'Location not set'}
                       </p>
                       
                       {/* Badge */}
-                      <span className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-green-100 text-green-700 border border-green-200">
-                        <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                        OPEN FOR OPPORTUNITIES
+                      <span className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium ${profileData.isOpenForOpportunities ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-yellow-100 text-yellow-700 border border-yellow-200'}`}>
+                        <span className={`w-2 h-2 rounded-full mr-2 ${profileData.isOpenForOpportunities ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
+                        {profileData.isOpenForOpportunities ? 'OPEN FOR OPPORTUNITIES' : 'NOT OPEN FOR OPPORTUNITIES'}
                       </span>
                     </div>
                     
@@ -143,9 +203,7 @@ const Profile: React.FC<ProfileProps> = ({
                 </button>
               </div>
               <p className="text-gray-600 leading-relaxed">
-                I'm a product designer + filmmaker currently working remotely at Twitter from 
-                beautiful Manchester, United Kingdom. I'm passionate about designing digital 
-                products that have a positive impact on the world.
+                {profileData.about || 'No about section provided. Click edit to add one.'}
               </p>
               <p className="text-gray-600 leading-relaxed mt-4">
                 For 10 years, I've specialised in interface, experience & interaction design as well as 
@@ -175,7 +233,7 @@ const Profile: React.FC<ProfileProps> = ({
                   </svg>
                   <div>
                     <p className="text-sm text-gray-500">Date of birth:</p>
-                    <p className="font-medium">1999-06-12</p>
+                    <p className="font-medium">{profileData.dateOfBirth || 'Not set'}</p>
                   </div>
                 </div>
                 
@@ -185,7 +243,7 @@ const Profile: React.FC<ProfileProps> = ({
                   </svg>
                   <div>
                     <p className="text-sm text-gray-500">Email</p>
-                    <p className="font-medium">jakegyll@email.com</p>
+                    <p className="font-medium">{profileData.email}</p>
                   </div>
                 </div>
                 
@@ -195,7 +253,7 @@ const Profile: React.FC<ProfileProps> = ({
                   </svg>
                   <div>
                     <p className="text-sm text-gray-500">Phone</p>
-                    <p className="font-medium">+44 1245 572 135</p>
+                    <p className="font-medium">{profileData.phone || 'Not set'}</p>
                   </div>
                 </div>
                 
@@ -205,7 +263,7 @@ const Profile: React.FC<ProfileProps> = ({
                   </svg>
                   <div>
                     <p className="text-sm text-gray-500">Languages</p>
-                    <p className="font-medium">English, French</p>
+                    <p className="font-medium">{(profileData.languages && profileData.languages.join(', ')) || 'Not set'}</p>
                   </div>
                 </div>
               </div>
@@ -223,35 +281,17 @@ const Profile: React.FC<ProfileProps> = ({
               </div>
               
               <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg flex items-center justify-center">
-                    <span className="text-white text-sm">📷</span>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Instagram</p>
-                    <p className="text-[#007BFF] text-sm">instagram.com/jakegyll</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-[#007BFF] rounded-lg flex items-center justify-center">
-                    <span className="text-white text-sm">🐦</span>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Twitter</p>
-                    <p className="text-[#007BFF] text-sm">twitter.com/jakegyll</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center">
-                    <span className="text-white text-sm">🌐</span>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Website</p>
-                    <p className="text-[#007BFF] text-sm">www.jakegyll.com</p>
-                  </div>
-                </div>
+                {profileData.socialLinks && Object.entries(profileData.socialLinks).map(([platform, link]) => (
+                    <div className="flex items-center space-x-3" key={platform}>
+                      <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">
+                        <span className="text-black text-sm">{platform.substring(0,2)}</span>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 capitalize">{platform}</p>
+                        <a href={link as string} target="_blank" rel="noopener noreferrer" className="text-[#007BFF] text-sm break-all">{link as string}</a>
+                      </div>
+                    </div>
+                ))}
               </div>
             </div>
           </div>
@@ -271,57 +311,35 @@ const Profile: React.FC<ProfileProps> = ({
             </div>
             
             <div className="space-y-6">
-              <div className="flex space-x-4">
-                <div className="w-12 h-12 bg-[#007BFF] rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-semibold text-gray-900">Product Designer</h4>
-                    <button className="text-[#007BFF]">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
+              {profileData.experiences && profileData.experiences.map((exp: any, index: number) => (
+                <div className="flex space-x-4" key={index}>
+                  <div className="w-12 h-12 bg-[#007BFF] rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+                    </svg>
                   </div>
-                  <p className="text-[#007BFF] font-medium">Twitter • Full Time • Jun 2019 - Present (1y 1m)</p>
-                  <p className="text-gray-500 text-sm">Manchester, UK</p>
-                  <p className="text-gray-600 mt-2">
-                    Created and executed social media plan for 10 brands utilizing multiple 
-                    features and content types to increase brand outreach, engagement, 
-                    and leads.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex space-x-4">
-                <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">G</span>
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-semibold text-gray-900">Growth Marketing Designer</h4>
-                    <button className="text-[#007BFF]">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold text-gray-900">{exp.title}</h4>
+                      <button className="text-[#007BFF]">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    </div>
+                    <p className="text-[#007BFF] font-medium">{exp.company} • {exp.employmentType} • {exp.startDate} - {exp.endDate || 'Present'}</p>
+                    <p className="text-gray-500 text-sm">{exp.location}</p>
+                    <p className="text-gray-600 mt-2">
+                      {exp.description}
+                    </p>
                   </div>
-                  <p className="text-[#007BFF] font-medium">GoDaddy • Full Time • Jun 2011 - May 2019 (8y)</p>
-                  <p className="text-gray-500 text-sm">Manchester, UK</p>
-                  <p className="text-gray-600 mt-2">
-                    Developed digital marketing strategies, activation plans, proposals, 
-                    contests and promotions for client initiatives
-                  </p>
                 </div>
-              </div>
+              ))}
             </div>
 
-            <button className="text-[#007BFF] font-medium mt-4 hover:text-[#007BFF]">
+            {/* <button className="text-[#007BFF] font-medium mt-4 hover:text-[#007BFF]">
               Show 3 more experiences
-            </button>
+            </button> */}
           </div>
 
           {/* Education */}
@@ -336,51 +354,33 @@ const Profile: React.FC<ProfileProps> = ({
             </div>
             
             <div className="space-y-6">
-              <div className="flex space-x-4">
-                <div className="w-12 h-12 bg-red-700 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-xs">H</span>
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-semibold text-gray-900">Harvard University</h4>
-                    <button className="text-[#007BFF]">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
+              {profileData.educations && profileData.educations.map((edu: any, index: number) => (
+                <div className="flex space-x-4" key={index}>
+                  <div className="w-12 h-12 bg-red-700 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold text-xs">{edu.school.charAt(0)}</span>
                   </div>
-                  <p className="text-gray-600 font-medium">Postgraduate degree, Applied Psychology</p>
-                  <p className="text-gray-500 text-sm">2010 - 2012</p>
-                  <p className="text-gray-600 mt-2">
-                    As an Applied Psychologist in the field of Consumer and Society, I am 
-                    specialized in creating business opportunities by observing, analysing, 
-                    researching and changing behaviour.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex space-x-4">
-                <div className="w-12 h-12 bg-[#001f3f] rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-xs">T</span>
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-semibold text-gray-900">University of Toronto</h4>
-                    <button className="text-[#007BFF]">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold text-gray-900">{edu.school}</h4>
+                      <button className="text-[#007BFF]">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    </div>
+                    <p className="text-gray-600 font-medium">{edu.degree}</p>
+                    <p className="text-gray-500 text-sm">{edu.startDate} - {edu.endDate}</p>
+                    <p className="text-gray-600 mt-2">
+                      {edu.description}
+                    </p>
                   </div>
-                  <p className="text-gray-600 font-medium">Bachelor of Arts, Visual Communication</p>
-                  <p className="text-gray-500 text-sm">2005 - 2009</p>
                 </div>
-              </div>
+              ))}
             </div>
 
-            <button className="text-[#007BFF] font-medium mt-4 hover:text-[#007BFF]">
+            {/* <button className="text-[#007BFF] font-medium mt-4 hover:text-[#007BFF]">
               Show 2 more educations
-            </button>
+            </button> */}
           </div>
 
           {/* Skills */}
@@ -402,7 +402,7 @@ const Profile: React.FC<ProfileProps> = ({
             </div>
             
             <div className="flex flex-wrap gap-3">
-              {['Communication', 'Analytics', 'Facebook Ads', 'Content Planning', 'Community Manager'].map((skill) => (
+              {profileData.skills && profileData.skills.map((skill: string) => (
                 <span key={skill} className="px-4 py-2 bg-[#007BFF]/10 text-[#007BFF] rounded-full text-sm font-medium">
                   {skill}
                 </span>
@@ -422,17 +422,14 @@ const Profile: React.FC<ProfileProps> = ({
             </div>
             
             <div className="grid grid-cols-4 gap-6">
-              {[
-                { title: 'Clinically - clinic & health care website', image: '🏥' },
-                { title: 'Grworthy - SaaS Analytics & Sales Website', image: '📊' },
-                { title: 'Planna - Project Management App', image: '📱' },
-                { title: 'Tunoio - furniture sale app', image: '🪑' }
-              ].map((portfolio, index) => (
+              {profileData.portfolios && profileData.portfolios.map((portfolio: any, index: number) => (
                 <div key={index} className="text-left">
-                  <div className="h-28 bg-gradient-to-br from-purple-100 to-[#007BFF]/10 rounded-lg flex items-center justify-center text-3xl mb-3 hover:shadow-md transition-shadow">
-                    {portfolio.image}
-                  </div>
-                  <h4 className="font-medium text-gray-900 text-sm leading-tight">{portfolio.title}</h4>
+                  <a href={portfolio.url} target="_blank" rel="noopener noreferrer" className="block">
+                    <div className="h-28 bg-gradient-to-br from-purple-100 to-[#007BFF]/10 rounded-lg flex items-center justify-center text-3xl mb-3 hover:shadow-md transition-shadow">
+                      <img src={portfolio.imageUrl} alt={portfolio.title} className="w-full h-full object-cover rounded-lg" />
+                    </div>
+                    <h4 className="font-medium text-gray-900 text-sm leading-tight">{portfolio.title}</h4>
+                  </a>
                 </div>
               ))}
             </div>

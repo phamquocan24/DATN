@@ -2,14 +2,16 @@ import React, { useState, useEffect } from 'react';
 import Logo from '../../assets/Logo.png';
 import Man2 from '../../assets/man2.png';
 import Avatar17 from '../../assets/Avatar17.png';
+import api from '../../services/api'; // Import the api instance
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialMode: 'login' | 'signup';
+  onAuthSuccess: (user: any, token: string) => void; // Add a callback for successful authentication
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode, onAuthSuccess }) => {
   const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
   const [userType, setUserType] = useState<'job-seeker' | 'company'>('job-seeker');
   const [showPassword, setShowPassword] = useState(false);
@@ -19,6 +21,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
     password: '',
     rememberMe: false
   });
+  const [error, setError] = useState<string | null>(null); // State for error messages
+  const [isLoading, setIsLoading] = useState(false); // State for loading indicator
 
   // Cập nhật mode khi initialMode thay đổi
   useEffect(() => {
@@ -30,6 +34,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
       password: '',
       rememberMe: false
     });
+    setError(null); // Clear errors when mode changes
   }, [initialMode]);
 
   // Reset form khi modal đóng
@@ -42,6 +47,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
         rememberMe: false
       });
       setShowPassword(false);
+      setError(null); // Clear errors when modal closes
     }
   }, [isOpen]);
 
@@ -53,11 +59,41 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission logic here
-    console.log('Form submitted:', { mode, userType, formData });
-    onClose();
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      let response;
+      if (mode === 'signup') {
+        // The API expects 'name' for registration
+        response = await api.post('/auth/register', { 
+          name: formData.fullName, 
+          email: formData.email, 
+          password: formData.password 
+        });
+      } else {
+        response = await api.post('/auth/login', { 
+          email: formData.email, 
+          password: formData.password 
+        });
+      }
+
+      // Assuming the API returns user data and a token
+      const { user, token } = response.data.data;
+      
+      onAuthSuccess(user, token);
+      onClose();
+
+    } catch (err: any) {
+      // Handle API errors
+      const errorMessage = err.response?.data?.message || `An error occurred during ${mode}.`;
+      setError(errorMessage);
+      console.error(`Error during ${mode}:`, err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleAuth = () => {
@@ -264,26 +300,44 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
               </div>
 
               {mode === 'login' && (
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="rememberMe"
-                    name="rememberMe"
-                    checked={formData.rememberMe}
-                    onChange={handleInputChange}
-                    className="w-3 h-3 text-[#007BFF] border-gray-300 rounded focus:ring-[#007BFF]"
-                  />
-                  <label htmlFor="rememberMe" className="ml-2 text-xs text-gray-700">
-                    Remember me
-                  </label>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="rememberMe"
+                      name="rememberMe"
+                      checked={formData.rememberMe}
+                      onChange={handleInputChange}
+                      className="w-3 h-3 text-[#007BFF] border-gray-300 rounded focus:ring-[#007BFF]"
+                    />
+                    <label htmlFor="rememberMe" className="ml-2 text-xs text-gray-700">
+                      Remember me
+                    </label>
+                  </div>
+                  <a href="#" className="text-xs text-[#007BFF] hover:underline">Forgot password?</a>
+                </div>
+              )}
+
+              {/* Error Message */}
+              {error && (
+                <div className="text-red-500 text-xs text-center py-1 bg-red-50 rounded-md">
+                  {error}
                 </div>
               )}
 
               <button
                 type="submit"
-                className="w-full bg-[#007BFF] text-white py-1.5 rounded-lg font-medium hover:bg-[#0056b3] transition-colors text-sm"
+                disabled={isLoading}
+                className="w-full bg-[#007BFF] text-white py-1.5 rounded-lg font-medium hover:bg-[#0056b3] transition-colors text-sm disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
               >
-                {mode === 'signup' ? 'Continue' : 'Login'}
+                {isLoading ? (
+                  <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  mode === 'signup' ? 'Continue' : 'Login'
+                )}
               </button>
             </form>
 

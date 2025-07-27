@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Avatar from '../../assets/Avatar17.png';
 import DashboardIcon from '../../assets/dashboard.png';
 import AIIcon from '../../assets/ai.png';
@@ -9,6 +9,7 @@ import CompanyIcon from '../../assets/company.png';
 import AccountIcon from '../../assets/account1.png';
 import SettingsIcon from '../../assets/settings.png';
 import FeedbackIcon from '../../assets/feedback.png';
+import { checkApiHealth } from '../../services/api';
 
 interface DashboardSidebarProps {
   activeTab: string;
@@ -39,6 +40,16 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   showLogout = false,
   onLogoutClick
 }) => {
+  const [isApiOnline, setIsApiOnline] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      const status = await checkApiHealth();
+      setIsApiOnline(status);
+    };
+    checkStatus();
+  }, []);
+
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
     { id: 'agent-ai', label: 'Agent AI', icon: AIIcon },
@@ -136,6 +147,25 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
               <p className="font-medium text-sm">Jake Gyll</p>
               <p className="text-gray-500 text-xs">jakegyll@email.com</p>
             </div>
+          </div>
+          {/* API Status Indicator */}
+          <div className="mt-4 text-left">
+            {isApiOnline === null ? (
+              <div className="flex items-center space-x-2 text-xs text-gray-400">
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+                <span>Checking API Status...</span>
+              </div>
+            ) : isApiOnline ? (
+              <div className="flex items-center space-x-2 text-xs text-green-600">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span>API Online</span>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2 text-xs text-red-600">
+                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                <span>API Offline</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import JobDetail from './JobDetail';
 import DashboardSidebar from './DashboardSidebar';
+import api from '../../services/api';
 
 interface Application {
   id: number;
@@ -78,59 +79,31 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
   const [showFilters, setShowFilters] = useState(false);
   const [currentView, setCurrentView] = useState<'list' | 'detail'>('list');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Store selected application to access its status
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
 
 
+  useEffect(() => {
+    const fetchApplications = async () => {
+      setIsLoading(true);
+      try {
+        const response = await api.get('/applications');
+        setApplications(response.data.data);
+        setError(null);
+      } catch (err) {
+        setError('Failed to load applications.');
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const applications: Application[] = [
-    {
-      id: 1,
-      company: 'Nomad',
-      role: 'Social Media Assistant',
-      dateApplied: '24 July 2021',
-      status: 'In Review',
-      logo: 'N',
-      logoColor: 'bg-green-500 text-white'
-    },
-    {
-      id: 2,
-      company: 'Udacity',
-      role: 'Social Media Assistant',
-      dateApplied: '20 July 2021',
-      status: 'Hired',
-      logo: 'U',
-      logoColor: 'bg-blue-500 text-white'
-    },
-    {
-      id: 3,
-      company: 'Packer',
-      role: 'Social Media Assistant',
-      dateApplied: '16 July 2021',
-      status: 'Mini-test',
-      logo: 'P',
-      logoColor: 'bg-red-500 text-white'
-    },
-    {
-      id: 4,
-      company: 'Divvy',
-      role: 'Social Media Assistant',
-      dateApplied: '14 July 2021',
-      status: 'Interviewing',
-      logo: 'D',
-      logoColor: 'bg-gray-800 text-white'
-    },
-    {
-      id: 5,
-      company: 'DigitalOcean',
-      role: 'Social Media Assistant',
-      dateApplied: '10 July 2021',
-      status: 'Rejected',
-      logo: 'DO',
-      logoColor: 'bg-blue-600 text-white'
-    }
-  ];
+    fetchApplications();
+  }, []);
 
   // Convert Application to Job format for JobDetail
   const convertApplicationToJob = (application: Application): Job => {
@@ -332,7 +305,13 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {applications.map((application, index) => (
+                    {isLoading ? (
+                      <tr><td colSpan={6} className="text-center p-4">Loading...</td></tr>
+                    ) : error ? (
+                      <tr><td colSpan={6} className="text-center p-4 text-red-500">{error}</td></tr>
+                    ) : applications
+                        .filter(app => selectedStatusTab === 'all' || app.status.toLowerCase().replace(' ', '-') === selectedStatusTab)
+                        .map((application, index) => (
                       <tr 
                         key={application.id} 
                         className="hover:bg-gray-50 cursor-pointer transition-colors"
