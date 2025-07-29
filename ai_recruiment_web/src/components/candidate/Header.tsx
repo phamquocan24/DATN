@@ -9,7 +9,7 @@ type CurrentPage = 'home' | 'find-jobs' | 'find-jobs-dashboard' | 'agent-ai' | '
 interface HeaderProps {
   onPageChange: (page: CurrentPage) => void;
   currentPage: CurrentPage;
-  onAuthOpen: (mode: 'login' | 'signup') => void;
+  onAuthOpen: (mode: 'login' | 'signup' | 'forgot-password') => void;
   onHomeClick: () => void;
   currentUser: any | null; // Add currentUser prop
   onLogout: () => void; // Add onLogout prop

@@ -1,6 +1,35 @@
-import React from 'react';
+import React, { useState } from 'react';
+import api from '../../services/api';
 
 const LoginDetailsSettings: React.FC = () => {
+    const [passwordData, setPasswordData] = useState({
+        oldPassword: '',
+        newPassword: '',
+    });
+    const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setPasswordData({ ...passwordData, [e.target.name]: e.target.value });
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+        setSuccess(null);
+        setIsLoading(true);
+        try {
+            await api.post('/api/v1/user/change-password', passwordData);
+            setSuccess('Password changed successfully!');
+            setPasswordData({ oldPassword: '', newPassword: '' }); // Clear fields
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Failed to change password.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
   return (
     <div className="space-y-8 text-[14px]">
       {/* Basic Information */}
@@ -39,30 +68,36 @@ const LoginDetailsSettings: React.FC = () => {
 
       {/* New Password Section */}
       <div className="border-b border-gray-200 pb-6">
-        <div className="grid grid-cols-3 gap-6">
-          {/* Label column */}
-          <div>
-            <h3 className="font-medium text-gray-900 mb-2 text-left">New Password</h3>
-            <p className="text-gray-500 text-left">Manage your password to<br />make sure it is safe</p>
-          </div>
+        <form onSubmit={handleSubmit}>
+            <div className="grid grid-cols-3 gap-6">
+            {/* Label column */}
+            <div>
+                <h3 className="font-medium text-gray-900 mb-2 text-left">New Password</h3>
+                <p className="text-gray-500 text-left">Manage your password to<br />make sure it is safe</p>
+            </div>
 
-          {/* Form column */}
-          <div className="col-span-2 space-y-4">
-            <div>
-              <label className="block font-medium text-gray-700 mb-1 text-left">Old Password</label>
-              <input type="password" placeholder="Enter your old password" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007BFF]" />
-              <p className="text-xs text-gray-500 mt-1 text-left">Minimum 8 characters</p>
+            {/* Form column */}
+            <div className="col-span-2 space-y-4">
+                <div>
+                <label className="block font-medium text-gray-700 mb-1 text-left">Old Password</label>
+                <input type="password" name="oldPassword" value={passwordData.oldPassword} onChange={handleChange} placeholder="Enter your old password" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007BFF]" required/>
+                <p className="text-xs text-gray-500 mt-1 text-left">Minimum 8 characters</p>
+                </div>
+                <div>
+                <label className="block font-medium text-gray-700 mb-1 text-left">New Password</label>
+                <input type="password" name="newPassword" value={passwordData.newPassword} onChange={handleChange} placeholder="Enter your new password" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007BFF]" required/>
+                <p className="text-xs text-gray-500 mt-1 text-left">Minimum 8 characters</p>
+                </div>
+                {error && <div className="text-red-500 text-left text-sm">{error}</div>}
+                {success && <div className="text-green-500 text-left text-sm">{success}</div>}
+                <div className="flex justify-start">
+                <button type="submit" disabled={isLoading} className="px-6 py-2 bg-[#007BFF] text-white rounded-md font-medium hover:bg-[#0056b3] disabled:bg-gray-400">
+                    {isLoading ? 'Changing...' : 'Change Password'}
+                </button>
+                </div>
             </div>
-            <div>
-              <label className="block font-medium text-gray-700 mb-1 text-left">New Password</label>
-              <input type="password" placeholder="Enter your new password" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007BFF]" />
-              <p className="text-xs text-gray-500 mt-1 text-left">Minimum 8 characters</p>
             </div>
-            <div className="flex justify-start">
-              <button className="px-6 py-2 bg-[#007BFF] text-white rounded-md font-medium hover:bg-[#0056b3]">Change Password</button>
-            </div>
-          </div>
-        </div>
+        </form>
       </div>
 
       {/* Close Account */}

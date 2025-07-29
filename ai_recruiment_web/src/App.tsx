@@ -53,7 +53,7 @@ const App = () => {
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   // Add authentication state management here
-  const isAdmin = true; // This should be replaced with actual auth logic
+  const [isAdmin, setIsAdmin] = useState(false); // Default to false
 
   // Protected Route component
   const ProtectedAdminRoute = ({ children }: { children: React.ReactNode }) => {
@@ -65,7 +65,7 @@ const App = () => {
 
   const [currentPage, setCurrentPage] = useState<CurrentPage>('home');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgot-password'>('login');
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
 
@@ -76,8 +76,11 @@ const App = () => {
         try {
           // Set token for all subsequent api requests
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-          const response = await api.get('/users/profile');
-          setCurrentUser(response.data.data);
+          const response = await api.get('/api/v1/auth/me'); // Corrected endpoint
+          const user = response.data.data;
+          setCurrentUser(user);
+          // Assuming admin role is determined by a property on the user object
+          setIsAdmin(user?.role === 'admin'); 
         } catch (error) {
           console.error("Failed to fetch user profile", error);
           // Token might be invalid/expired
@@ -94,7 +97,7 @@ const App = () => {
     setCurrentPage(page);
   };
 
-  const handleAuthOpen = (mode: 'login' | 'signup') => {
+  const handleAuthOpen = (mode: 'login' | 'signup' | 'forgot-password') => {
     setAuthMode(mode);
     setIsAuthModalOpen(true);
   };
@@ -327,7 +330,7 @@ const App = () => {
           <>
             <Hero />
             <CompanyLogos />
-            <Categories onFindJobsClick={handleFindJobsClick} />
+            <Categories onFindJobsClick={handleFindJobsClick}/>
             <CTA onSignUpClick={() => handleAuthOpen('signup')} />
             <JobList onJobClick={handleJobClick} onFindJobsClick={handleFindJobsClick} />
             <CTA onSignUpClick={() => handleAuthOpen('signup')} />

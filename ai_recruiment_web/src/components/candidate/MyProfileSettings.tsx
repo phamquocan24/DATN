@@ -1,9 +1,73 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '../../services/api';
 import Avatar from '../../assets/Avatar17.png';
 
 const MyProfileSettings: React.FC = () => {
+  const [formData, setFormData] = useState({
+    fullName: '',
+    phone: '',
+    email: '',
+    birthDate: '',
+    gender: '',
+    accountType: 'job-seeker',
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const response = await api.get('/api/v1/user/profile');
+        const profile = response.data.data;
+        setFormData({
+          fullName: profile.name || '',
+          phone: profile.phone || '',
+          email: profile.email || '',
+          birthDate: profile.birthDate ? profile.birthDate.split('T')[0] : '',
+          gender: profile.gender || '',
+          accountType: profile.accountType || 'job-seeker',
+        });
+      } catch (err) {
+        setError('Failed to load profile data.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setIsLoading(true);
+    try {
+      await api.put('/api/v1/user/profile', {
+        name: formData.fullName,
+        phone: formData.phone,
+        email: formData.email,
+        birth_date: formData.birthDate,
+        gender: formData.gender,
+      });
+      setSuccess('Profile updated successfully!');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to update profile.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  if (isLoading) {
+    return <div>Loading profile...</div>;
+  }
+
   return (
-    <div className="space-y-8 text-[14px]">
+    <form onSubmit={handleSubmit} className="space-y-8 text-[14px]">
       {/* Basic Information Heading */}
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-3 border-b border-gray-200">
@@ -52,18 +116,18 @@ const MyProfileSettings: React.FC = () => {
               <label className="block font-medium text-gray-700 mb-1 text-left">
                 Full Name <span className="text-red-500">*</span>
               </label>
-              <input type="text" defaultValue="Jake Gyll" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007BFF]" />
+              <input type="text" name="fullName" value={formData.fullName} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007BFF]" />
             </div>
 
             {/* Phone + Email */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block font-medium text-gray-700 mb-1 text-left">Phone Number <span className="text-red-500">*</span></label>
-                <input type="tel" defaultValue="+44 1245 572 135" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007BFF]" />
+                <input type="tel" name="phone" value={formData.phone} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007BFF]" />
               </div>
               <div>
                 <label className="block font-medium text-gray-700 mb-1 text-left">Email <span className="text-red-500">*</span></label>
-                <input type="email" defaultValue="Jakegyll@gmail.com" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007BFF]" />
+                <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007BFF]" />
               </div>
             </div>
 
@@ -71,14 +135,15 @@ const MyProfileSettings: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block font-medium text-gray-700 mb-1 text-left">Date of Birth <span className="text-red-500">*</span></label>
-                <input type="date" defaultValue="1997-08-09" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007BFF]" />
+                <input type="date" name="birthDate" value={formData.birthDate} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007BFF]" />
               </div>
               <div className="relative">
                 <label className="block font-medium text-gray-700 mb-1 text-left">Gender <span className="text-red-500">*</span></label>
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007BFF] appearance-none pr-8">
-                  <option>Male</option>
-                  <option>Female</option>
-                  <option>Other</option>
+                <select name="gender" value={formData.gender} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007BFF] appearance-none pr-8">
+                  <option value="">Select Gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
                 </select>
                 <svg className="absolute right-3 top-9 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -114,12 +179,17 @@ const MyProfileSettings: React.FC = () => {
           </div>
         </div>
       </div>
+      
+      {error && <div className="text-red-500 text-center">{error}</div>}
+      {success && <div className="text-green-500 text-center">{success}</div>}
 
       {/* Save button */}
       <div className="flex justify-end pt-4">
-        <button className="px-6 py-2 bg-[#007BFF] text-white rounded-md font-medium hover:bg-[#0056b3]">Save Profile</button>
+        <button type="submit" disabled={isLoading} className="px-6 py-2 bg-[#007BFF] text-white rounded-md font-medium hover:bg-[#0056b3] disabled:bg-gray-400">
+            {isLoading ? 'Saving...' : 'Save Profile'}
+        </button>
       </div>
-    </div>
+    </form>
   );
 };
 

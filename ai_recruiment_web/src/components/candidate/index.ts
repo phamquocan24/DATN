@@ -31,4 +31,5 @@ export { default as MyProfileSettings } from './MyProfileSettings';
 export { default as LoginDetailsSettings } from './LoginDetailsSettings';
 export { default as NotificationsSettings } from './NotificationsSettings';
 export { default as DashboardSidebar } from './DashboardSidebar';
-export { default as HelpCenter } from './HelpCenter'; 
+export { default as HelpCenter } from './HelpCenter';
+export { default as EnhanceResume } from './EnhanceResume'; 

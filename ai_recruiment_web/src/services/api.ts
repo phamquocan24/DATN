@@ -2,7 +2,7 @@ import axios, {AxiosError} from 'axios';
 import {ErrorResponse} from "react-router-dom";
 
 const apiClient = axios.create({
-  baseURL: 'https://topcv.click/api-docs/#/api/v1',
+  baseURL: 'https://topcv.click/',
   timeout: 10000,
   withCredentials: false,
 });
