@@ -1,0 +1,677 @@
+import React, { useState, useEffect } from 'react';
+import JobDetail from './JobDetail';
+import DashboardSidebar from './DashboardSidebar';
+import candidateApi from '../../services/candidateApi';
+
+interface Job {
+  id: number;
+  title: string;
+  company: string;
+  location: string;
+  type: string;
+  tags: string[];
+  logo: string;
+  logoColor: string;
+  match: number;
+  applied: number;
+  capacity: number;
+  salary?: string;
+  isNew?: boolean;
+  isSaved?: boolean;
+}
+
+const mockJobDetails = {
+  description: "Stripe is looking for Social Media Marketing expert to help manage our online networks. You will be responsible for monitoring our social media channels, creating content, finding effective ways to engage the community and incentivize others to engage on our channels.",
+  requirements: [
+    "Community engagement to ensure that is supported and actively represented online",
+    "Focus on social media content development and publication",
+    "Marketing and strategy support",
+    "Stay on top of trends on social media platforms, and suggest content ideas to the team",
+    "Engage with online communities"
+  ],
+  whoYouAre: [
+    "You get energy from people and building the ideal work environment",
+    "You have a sense for beautiful spaces and office experiences",
+    "You are a confident office manager, ready for added responsibilities",
+    "You're detail-oriented and creative",
+    "You're a growth marketer and know how to run campaigns"
+  ],
+  niceToHaves: [
+    "Fluent in English",
+    "Project management skills",
+    "Copy editing skills"
+  ]
+};
+
+interface FindJobsDashboardProps {
+  onProfileClick?: () => void;
+  onHomeClick?: () => void;
+  onDashboardClick?: () => void;
+  onAgentAIClick?: () => void;
+  onMyApplicationsClick?: () => void;
+  onTestManagementClick?: () => void;
+  onBrowseCompaniesClick?: () => void;
+  onSettingsClick?: () => void;
+  onHelpCenterClick?: () => void;
+}
+
+export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
+  onProfileClick,
+  onHomeClick,
+  onDashboardClick,
+  onAgentAIClick,
+  onMyApplicationsClick,
+  onTestManagementClick,
+  onBrowseCompaniesClick,
+  onSettingsClick,
+  onHelpCenterClick
+}) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [location, setLocation] = useState('Florence, Italy');
+  const [savedJobs, setSavedJobs] = useState<number[]>([]);
+  const [filters, setFilters] = useState({
+    employmentType: [] as string[],
+    categories: ['Business', 'Technology'] as string[],
+    jobLevel: ['Director'] as string[],
+    salaryRange: ['$3000 or above'] as string[]
+  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [activeTab, setActiveTab] = useState('find-jobs');
+  const [isFilterVisible, setIsFilterVisible] = useState(false); // Default hidden
+  const [currentView, setCurrentView] = useState<'list' | 'detail'>('list');
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Collapsible filter sections state
+  const [collapsedSections, setCollapsedSections] = useState({
+    employmentType: false,
+    categories: false,
+    jobLevel: false,
+    salaryRange: false
+  });
+
+
+
+  // Fetch jobs data
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const searchParams = {
+          query: searchQuery,
+          location: location,
+          type: filters.employmentType,
+          categories: filters.categories,
+          page: currentPage
+        };
+        
+        const jobsData = searchQuery ? 
+          await candidateApi.searchJobs(searchParams) : 
+          await candidateApi.getAllJobs();
+        
+        // Handle different API response structures with better error handling
+        let jobsArray = [];
+        if (Array.isArray(jobsData)) {
+          jobsArray = jobsData;
+        } else if (jobsData?.data && Array.isArray(jobsData.data)) {
+          jobsArray = jobsData.data;
+        } else if (jobsData?.jobs && Array.isArray(jobsData.jobs)) {
+          jobsArray = jobsData.jobs;
+        } else {
+          console.warn('Unexpected API response structure for jobs:', jobsData);
+          jobsArray = [];
+        }
+        
+        // Transform API data to match component interface
+        const formattedJobs = jobsArray.map((job: any, index: number) => ({
+          id: job.id || job._id,
+          title: job.title,
+          company: job.company?.name || 'Company',
+          location: job.location || 'Location',
+          type: job.type || 'Full Time',
+          tags: [
+            ...(job.skills?.slice(0, 2) || ['Business']),
+            `Match: ${job.matchScore || Math.floor(Math.random() * 40) + 40}%`
+          ],
+          logo: job.company?.name?.charAt(0) || 'C',
+          logoColor: `bg-${['blue', 'green', 'purple', 'red', 'teal'][index % 5]}-500 text-white`,
+          match: job.matchScore || Math.floor(Math.random() * 40) + 40,
+          applied: job.applicationsCount || 0,
+          capacity: job.openPositions || 1,
+          salary: job.salary,
+          description: job.description || mockJobDetails.description,
+          requirements: job.requirements || mockJobDetails.requirements,
+          whoYouAre: job.qualifications || mockJobDetails.whoYouAre,
+          niceToHaves: job.niceToHave || mockJobDetails.niceToHaves
+        }));
+        
+        setJobs(formattedJobs);
+      } catch (err) {
+        console.error('Error fetching jobs:', err);
+        setError('Failed to load jobs');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJobs();
+  }, [searchQuery, location, filters, currentPage]);
+
+  const handleApplyToJob = async (jobId: number) => {
+    try {
+      await candidateApi.createApplication({
+        jobId: jobId,
+        coverLetter: 'Application submitted through job search'
+      });
+      alert('Application submitted successfully!');
+    } catch (err) {
+      console.error('Error applying to job:', err);
+      alert('Failed to submit application');
+    }
+  };
+
+  const toggleSavedJob = (jobId: number) => {
+    setSavedJobs(prev => 
+      prev.includes(jobId) 
+        ? prev.filter(id => id !== jobId)
+        : [...prev, jobId]
+    );
+  };
+
+  const handleFilterChange = (filterType: keyof typeof filters, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterType]: prev[filterType].includes(value)
+        ? prev[filterType].filter(item => item !== value)
+        : [...prev[filterType], value]
+    }));
+  };
+
+  const toggleSection = (section: keyof typeof collapsedSections) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+
+
+  const handleJobClick = (job: Job) => {
+    setSelectedJob(job);
+    setCurrentView('detail');
+  };
+
+  const handleBackToList = () => {
+    setCurrentView('list');
+    setSelectedJob(null);
+  };
+
+
+
+
+
+  const FilterCheckbox = ({ 
+    label, 
+    count, 
+    checked, 
+    onChange 
+  }: { 
+    label: string; 
+    count?: number; 
+    checked: boolean; 
+    onChange: () => void; 
+  }) => (
+    <div className="flex items-center space-x-3 py-1.5">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        className="w-4 h-4 text-[#007BFF] border-gray-300 rounded focus:ring-[#007BFF] focus:ring-2"
+      />
+      <label className="text-gray-700 text-sm flex-1">
+        {label} {count && <span className="text-gray-500">({count})</span>}
+      </label>
+    </div>
+  );
+
+  const FilterSection = ({ 
+    title, 
+    sectionKey, 
+    children 
+  }: { 
+    title: string; 
+    sectionKey: keyof typeof collapsedSections; 
+    children: React.ReactNode; 
+  }) => (
+    <div className="border-b border-gray-200 pb-6">
+      <button
+        onClick={() => toggleSection(sectionKey)}
+        className="w-full flex items-center justify-between mb-4 focus:outline-none"
+      >
+        <h3 className="font-semibold text-gray-900 text-sm">{title}</h3>
+        <svg 
+          className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
+            collapsedSections[sectionKey] ? 'rotate-180' : ''
+          }`} 
+          fill="none" 
+          stroke="currentColor" 
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      <div className={`overflow-hidden transition-all duration-200 ${
+        collapsedSections[sectionKey] ? 'max-h-0' : 'max-h-96'
+      }`}>
+        <div className="space-y-1">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+
+  const JobCard = ({ job }: { job: Job }) => (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow text-left">
+      <div className="flex items-start justify-between">
+        <div 
+          className="flex items-start space-x-4 flex-1 cursor-pointer"
+          onClick={() => handleJobClick(job)}
+        >
+          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${job.logoColor} text-lg font-semibold`}>
+            {job.logo}
+          </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-gray-900 text-lg mb-1 hover:text-[#007BFF] transition-colors">{job.title}</h3>
+            <p className="text-gray-600 mb-3">{job.company} • {job.location}</p>
+            
+            <div className="flex flex-wrap gap-2 mb-4">
+              <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                {job.type}
+              </span>
+              {job.tags.map((tag, index) => (
+                <span 
+                  key={index} 
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    tag.includes('Match:') 
+                      ? `bg-orange-100 text-orange-700` 
+                      : 'bg-blue-100 text-blue-700'
+                  }`}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+            
+            <div className="text-sm text-gray-500">
+              {job.applied} applied of {job.capacity} capacity
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-3 ml-4">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleSavedJob(job.id);
+            }}
+            className={`p-2 rounded-lg transition-colors ${
+              savedJobs.includes(job.id) 
+                ? 'text-red-500 hover:bg-red-50' 
+                : 'text-gray-400 hover:bg-gray-100'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+            </svg>
+          </button>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleApplyToJob(job.id);
+            }}
+            className="px-6 py-2 bg-[#007BFF] text-white rounded-lg hover:bg-[#0056b3] transition-colors font-medium"
+          >
+            Apply
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Sidebar */}
+      <DashboardSidebar 
+        activeTab={activeTab}
+        onDashboardClick={onDashboardClick}
+        onAgentAIClick={onAgentAIClick}
+        onMyApplicationsClick={onMyApplicationsClick}
+        onTestManagementClick={onTestManagementClick}
+        onFindJobsClick={() => setActiveTab('find-jobs')}
+        onBrowseCompaniesClick={onBrowseCompaniesClick}
+        onProfileClick={onProfileClick}
+        onSettingsClick={onSettingsClick}
+        onHelpCenterClick={onHelpCenterClick}
+      />
+
+      {/* Main Content */}
+      <div className="flex-1 flex">
+        {currentView === 'detail' && selectedJob ? (
+          <div className="flex-1 p-8">
+            <JobDetail 
+              job={selectedJob} 
+              onBack={handleBackToList}
+            />
+          </div>
+        ) : (
+          <>
+            {/* Filters Sidebar */}
+            <div className={`${isFilterVisible ? 'w-80' : 'w-0'} transition-all duration-300 overflow-hidden bg-white shadow-sm border-r border-gray-200`}>
+              <div className="w-80 p-6 overflow-y-auto">
+                <div className="space-y-6">
+                  {/* Type of Employment */}
+                  <FilterSection title="Type of Employment" sectionKey="employmentType">
+                    <FilterCheckbox
+                      label="Full-time"
+                      count={3}
+                      checked={filters.employmentType.includes('Full-time')}
+                      onChange={() => handleFilterChange('employmentType', 'Full-time')}
+                    />
+                    <FilterCheckbox
+                      label="Part-Time"
+                      count={5}
+                      checked={filters.employmentType.includes('Part-Time')}
+                      onChange={() => handleFilterChange('employmentType', 'Part-Time')}
+                    />
+                    <FilterCheckbox
+                      label="Remote"
+                      count={2}
+                      checked={filters.employmentType.includes('Remote')}
+                      onChange={() => handleFilterChange('employmentType', 'Remote')}
+                    />
+                    <FilterCheckbox
+                      label="Internship"
+                      count={24}
+                      checked={filters.employmentType.includes('Internship')}
+                      onChange={() => handleFilterChange('employmentType', 'Internship')}
+                    />
+                    <FilterCheckbox
+                      label="Contract"
+                      count={3}
+                      checked={filters.employmentType.includes('Contract')}
+                      onChange={() => handleFilterChange('employmentType', 'Contract')}
+                    />
+                  </FilterSection>
+
+                  {/* Categories */}
+                  <FilterSection title="Categories" sectionKey="categories">
+                    <FilterCheckbox
+                      label="Design"
+                      count={24}
+                      checked={filters.categories.includes('Design')}
+                      onChange={() => handleFilterChange('categories', 'Design')}
+                    />
+                    <FilterCheckbox
+                      label="Sales"
+                      count={3}
+                      checked={filters.categories.includes('Sales')}
+                      onChange={() => handleFilterChange('categories', 'Sales')}
+                    />
+                    <FilterCheckbox
+                      label="Marketing"
+                      count={3}
+                      checked={filters.categories.includes('Marketing')}
+                      onChange={() => handleFilterChange('categories', 'Marketing')}
+                    />
+                    <FilterCheckbox
+                      label="Business"
+                      count={3}
+                      checked={filters.categories.includes('Business')}
+                      onChange={() => handleFilterChange('categories', 'Business')}
+                    />
+                    <FilterCheckbox
+                      label="Human Resource"
+                      count={6}
+                      checked={filters.categories.includes('Human Resource')}
+                      onChange={() => handleFilterChange('categories', 'Human Resource')}
+                    />
+                    <FilterCheckbox
+                      label="Finance"
+                      count={4}
+                      checked={filters.categories.includes('Finance')}
+                      onChange={() => handleFilterChange('categories', 'Finance')}
+                    />
+                    <FilterCheckbox
+                      label="Engineering"
+                      count={4}
+                      checked={filters.categories.includes('Engineering')}
+                      onChange={() => handleFilterChange('categories', 'Engineering')}
+                    />
+                    <FilterCheckbox
+                      label="Technology"
+                      count={5}
+                      checked={filters.categories.includes('Technology')}
+                      onChange={() => handleFilterChange('categories', 'Technology')}
+                    />
+                  </FilterSection>
+
+                  {/* Job Level */}
+                  <FilterSection title="Job Level" sectionKey="jobLevel">
+                    <FilterCheckbox
+                      label="Entry Level"
+                      count={57}
+                      checked={filters.jobLevel.includes('Entry Level')}
+                      onChange={() => handleFilterChange('jobLevel', 'Entry Level')}
+                    />
+                    <FilterCheckbox
+                      label="Mid Level"
+                      count={3}
+                      checked={filters.jobLevel.includes('Mid Level')}
+                      onChange={() => handleFilterChange('jobLevel', 'Mid Level')}
+                    />
+                    <FilterCheckbox
+                      label="Senior Level"
+                      count={5}
+                      checked={filters.jobLevel.includes('Senior Level')}
+                      onChange={() => handleFilterChange('jobLevel', 'Senior Level')}
+                    />
+                    <FilterCheckbox
+                      label="Director"
+                      count={12}
+                      checked={filters.jobLevel.includes('Director')}
+                      onChange={() => handleFilterChange('jobLevel', 'Director')}
+                    />
+                    <FilterCheckbox
+                      label="VP or Above"
+                      count={8}
+                      checked={filters.jobLevel.includes('VP or Above')}
+                      onChange={() => handleFilterChange('jobLevel', 'VP or Above')}
+                    />
+                  </FilterSection>
+
+                  {/* Salary Range */}
+                  <FilterSection title="Salary Range" sectionKey="salaryRange">
+                    <FilterCheckbox
+                      label="$700 - $1000"
+                      count={4}
+                      checked={filters.salaryRange.includes('$700 - $1000')}
+                      onChange={() => handleFilterChange('salaryRange', '$700 - $1000')}
+                    />
+                    <FilterCheckbox
+                      label="$100 - $1500"
+                      count={6}
+                      checked={filters.salaryRange.includes('$100 - $1500')}
+                      onChange={() => handleFilterChange('salaryRange', '$100 - $1500')}
+                    />
+                    <FilterCheckbox
+                      label="$1500 - $2000"
+                      count={10}
+                      checked={filters.salaryRange.includes('$1500 - $2000')}
+                      onChange={() => handleFilterChange('salaryRange', '$1500 - $2000')}
+                    />
+                    <FilterCheckbox
+                      label="$3000 or above"
+                      count={4}
+                      checked={filters.salaryRange.includes('$3000 or above')}
+                      onChange={() => handleFilterChange('salaryRange', '$3000 or above')}
+                    />
+                  </FilterSection>
+                </div>
+              </div>
+            </div>
+
+            {/* Job Listings */}
+            <div className="flex-1 p-8">
+              {/* Header - moved above search bar */}
+              <div className="flex justify-between items-center mb-8">
+                <h1 className="text-2xl font-bold text-gray-900">Find Jobs</h1>
+                                                     <button 
+             onClick={onHomeClick}
+             className="px-4 py-2 text-[#007BFF] hover:text-white font-medium border border-[#007BFF] rounded-lg hover:bg-[#007BFF] transition-colors"
+           >
+             Back to homepage
+           </button>
+              </div>
+
+          {/* Search Bar */}
+          <div className="flex space-x-4 mb-6">
+            <div className="flex-1 relative">
+              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Job title or keyword"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#007BFF] focus:border-transparent"
+              />
+            </div>
+            <div className="w-80 relative">
+              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              </svg>
+              <select
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#007BFF] focus:border-transparent appearance-none"
+              >
+                <option value="Florence, Italy">Florence, Italy</option>
+                <option value="Paris, France">Paris, France</option>
+                <option value="Berlin, Germany">Berlin, Germany</option>
+                <option value="Madrid, Spain">Madrid, Spain</option>
+              </select>
+              <svg className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+            <button className="px-8 py-3 bg-[#007BFF] text-white rounded-lg hover:bg-[#0056b3] transition-colors font-medium">
+              Search
+            </button>
+          </div>
+
+          {/* Popular searches */}
+          <div className="mb-6 text-left">
+            <span className="text-gray-500 text-sm">Popular: </span>
+            <span className="text-[#007BFF] text-sm">UI Designer, UX Researcher, Android, Admin</span>
+          </div>
+
+          {/* Results header */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-4">
+              <h2 className="text-lg font-semibold text-gray-900">All Jobs</h2>
+              <span className="text-gray-500 text-sm">Showing 73 results</span>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-500">Sort by:</span>
+              <select className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#007BFF] focus:border-transparent">
+                <option>Most relevant</option>
+                <option>Newest</option>
+                <option>Salary: High to Low</option>
+                <option>Salary: Low to High</option>
+              </select>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setIsFilterVisible(!isFilterVisible)}
+                  className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  title={isFilterVisible ? 'Hide Filters' : 'Show Filters'}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                </button>
+                <div className="flex border border-gray-300 rounded-lg">
+                  <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-l-lg">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                    </svg>
+                  </button>
+                  <button className="p-2 text-[#007BFF] bg-blue-50 border-l border-gray-300 rounded-r-lg">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l3-3 3 3v13M9 19h6M9 19l-3-3h3v-2h6v2h3l-3 3" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Job Cards */}
+          <div className="space-y-4 mb-8">
+            {jobs.map((job) => (
+              <JobCard key={job.id} job={job} />
+            ))}
+          </div>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-center space-x-2">
+                <button 
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                {[1, 2, 3, 4, 5].map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-10 h-10 rounded-lg font-medium ${
+                      currentPage === page
+                        ? 'bg-[#007BFF] text-white'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <span className="text-gray-500">...</span>
+                <button
+                  onClick={() => setCurrentPage(33)}
+                  className="w-10 h-10 rounded-lg font-medium text-gray-700 hover:bg-gray-100"
+                >
+                  33
+                </button>
+                <button 
+                  onClick={() => setCurrentPage(prev => Math.min(33, prev + 1))}
+                  className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default FindJobsDashboard;

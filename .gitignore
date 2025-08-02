@@ -1,0 +1,385 @@
+# CV Recruitment System - GitIgnore Configuration
+
+# ===================================
+# Dependencies and Node Modules
+# ===================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.npm
+.yarn-integrity
+
+# ===================================
+# Environment Variables & Secrets
+# ===================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.staging
+database.env
+firebase-config.js
+config/secrets.js
+
+# ===================================
+# Database
+# ===================================
+*.db
+*.sqlite
+*.sqlite3
+/database/data/
+/database/backups/
+/database/dumps/
+
+# ===================================
+# Logs
+# ===================================
+logs/
+*.log
+/services/business-service/logs/
+/services/ai-service/logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# ===================================
+# Runtime data
+# ===================================
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# ===================================
+# Coverage directory used by tools like istanbul
+# ===================================
+lib-cov
+coverage/
+*.lcov
+.nyc_output
+
+# ===================================
+# Grunt intermediate storage
+# ===================================
+.grunt
+
+# ===================================
+# Bower dependency directory
+# ===================================
+bower_components
+
+# ===================================
+# Node.js repl history
+# ===================================
+.node_repl_history
+
+# ===================================
+# Output of 'npm pack'
+# ===================================
+*.tgz
+
+# ===================================
+# Yarn Integrity file
+# ===================================
+.yarn-integrity
+
+# ===================================
+# Build outputs
+# ===================================
+build/
+dist/
+out/
+/services/*/build/
+/services/*/dist/
+
+# ===================================
+# Docker
+# ===================================
+.docker/
+docker-compose.override.yml
+.dockerignore
+
+# ===================================
+# IDE and Editor files
+# ===================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ===================================
+# Temporary files
+# ===================================
+*.tmp
+*.temp
+tmp/
+temp/
+
+# ===================================
+# Test coverage
+# ===================================
+coverage/
+.nyc_output/
+junit.xml
+
+# ===================================
+# Package lock files (choose one)
+# ===================================
+# Uncomment the one you want to ignore
+# package-lock.json
+# yarn.lock
+
+# ===================================
+# File uploads and user content
+# ===================================
+uploads/
+/public/uploads/
+/services/business-service/uploads/
+/frontend/public/uploads/
+
+# ===================================
+# SSL certificates
+# ===================================
+*.key
+*.pem
+*.crt
+*.cert
+ssl/
+certificates/
+
+# ===================================
+# Backup files
+# ===================================
+*.backup
+*.bak
+*.old
+
+# ===================================
+# Python (for AI service)
+# ===================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# ===================================
+# Python virtual environments
+# ===================================
+/services/ai-service/venv/
+/services/ai-service/.venv/
+/services/ai-service/__pycache__/
+
+# ===================================
+# Jupyter Notebook
+# ===================================
+.ipynb_checkpoints
+
+# ===================================
+# pyenv
+# ===================================
+.python-version
+
+# ===================================
+# Operating System
+# ===================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# ===================================
+# Project specific
+# ===================================
+# Generated documentation
+/docs/generated/
+
+# Test files
+/test-results/
+/test-reports/
+
+# Cache directories
+.cache/
+.parcel-cache/
+
+# Next.js build output (if using Next.js)
+.next/
+
+# Nuxt.js build output (if using Nuxt.js)
+.nuxt/
+
+# Static site generators
+.gatsby/
+public/
+
+# ESLint cache
+.eslintcache
+
+# Prettier cache
+.prettiercache
+
+# Stylelint cache
+.stylelintcache
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+.env.test
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# Serverless directories
+.serverless/
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# ===================================
+# Firebase
+# ===================================
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+
+# ===================================
+# Miscellaneous
+# ===================================
+*.error
+error.log
+combined.log
+access.log
+
+# ===================================
+# Development tools
+# ===================================
+.nyc_output
+.sass-cache/
+connect.lock
+typings/
+
+# ===================================
+# Monitoring and Analytics
+# ===================================
+newrelic.js
+newrelic_agent.log
+
+# ===================================
+# Documentation and Setup Files
+# ===================================
+# Documentation directories
+docs/
+documentation/
+doc/
+guides/
+
+# README and guide files
+README.md
+GITLAB-DEVELOPMENT-GUIDE.md
+GITLAB-DEPLOYMENT-GUIDE.md
+*-GUIDE.md
+*-README.md
+*-SUMMARY.md
+*-IMPLEMENTATION-SUMMARY.md
+CHANGELOG.md
+CONTRIBUTING.md
+LICENSE.md
+
+# Setup and installation scripts
+setup.sh
+setup.ps1
+install.sh
+install.ps1
+install-*.sh
+install-*.ps1
+fix-system-setup.sh
+start-*.sh
+stop-*.sh
+check-*.sh
+setup-*.sh
+setup-*.ps1
+
+# All script files
+*.ps1
+*.bat
+*.cmd
+*.sh
+
+# Database setup files
+database.env
+setup-database.sh
+setup-database.ps1
+
+# Docker files in root (keep service-specific ones)
+docker-compose.yml
+docker-compose.override.yml
+Dockerfile
+
+# Scripts directories
+scripts/
+bin/
+tools/
+utilities/
+helpers/
+
+# Configuration templates
+*.example
+*.template
+*.sample
+
+# Local Docker override
+docker-compose.override.yml
+
+# IDE specific
+.cursor/
+
+# Typescript build info
+*.tsbuildinfo
