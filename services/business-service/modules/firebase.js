@@ -5,6 +5,9 @@ const admin = require('firebase-admin');
 const User = require('../models/User');
 const winston = require('winston');
 
+// Create User model instance
+const userModel = new User();
+
 const router = express.Router();
 
 // Setup logger
@@ -159,7 +162,7 @@ async function verifyFirebaseToken(idToken) {
 async function syncFirebaseUser(firebaseUser, additionalInfo = {}) {
   try {
     // Check if user exists by Firebase UID
-    let user = await User.findOne({ firebase_uid: firebaseUser.uid });
+    let user = await userModel.findOne({ firebase_uid: firebaseUser.uid });
     
     if (user) {
       // Update existing user if needed
@@ -182,7 +185,7 @@ async function syncFirebaseUser(firebaseUser, additionalInfo = {}) {
       }
       
       if (Object.keys(updateData).length > 0) {
-        user = await User.update(user.user_id, updateData);
+        user = await userModel.update(user.user_id, updateData);
       }
       
       return {
@@ -193,16 +196,16 @@ async function syncFirebaseUser(firebaseUser, additionalInfo = {}) {
     }
     
     // Check if user exists by email
-    user = await User.findOne({ email: firebaseUser.email });
+    user = await userModel.findOne({ email: firebaseUser.email });
     
     if (user) {
       // Link Firebase account to existing user
-      await User.update(user.user_id, {
+      await userModel.update(user.user_id, {
         firebase_uid: firebaseUser.uid,
         is_email_verified: firebaseUser.emailVerified
       });
       
-      user = await User.findById(user.user_id);
+      user = await userModel.findById(user.user_id);
       
       return {
         success: true,
@@ -224,7 +227,7 @@ async function syncFirebaseUser(firebaseUser, additionalInfo = {}) {
       phone: additionalInfo.phone || firebaseUser.phoneNumber
     };
     
-    user = await User.createUser(userData);
+    user = await userModel.createUser(userData);
     
     return {
       success: true,
@@ -586,6 +589,10 @@ router.post('/verify-token', authLimiter, async (req, res) => {
       });
     }
     
+    // Generate JWT tokens
+    const { generateTokens } = require('./auth');
+    const tokens = generateTokens(syncResult.user);
+
     logger.info('Firebase token verified successfully', {
       user_id: syncResult.user.user_id,
       email: syncResult.user.email,
@@ -606,6 +613,7 @@ router.post('/verify-token', authLimiter, async (req, res) => {
           is_email_verified: syncResult.user.is_email_verified,
           created_at: syncResult.user.created_at
         },
+        ...tokens,
         firebase: {
           uid: tokenResult.user.uid,
           provider: tokenResult.user.provider,
@@ -660,10 +668,29 @@ router.post('/social-auth', authLimiter, async (req, res) => {
     }
     
     // Validate provider matches token provider
-    if (tokenResult.user.provider !== provider) {
+    // Firebase providers come in format like 'google.com', 'facebook.com', etc.
+    // Frontend sends simplified format like 'google', 'facebook', etc.
+    const tokenProvider = tokenResult.user.provider;
+    const expectedProvider = provider;
+    
+    // Create mapping for provider validation
+    const providerMap = {
+      'google': ['google.com', 'google'],
+      'facebook': ['facebook.com', 'facebook'],
+      'github': ['github.com', 'github'],
+      'twitter': ['twitter.com', 'twitter']
+    };
+    
+    const validProviders = providerMap[expectedProvider] || [expectedProvider];
+    if (!validProviders.includes(tokenProvider)) {
+      logger.warn('Provider mismatch', {
+        expectedProvider,
+        tokenProvider,
+        validProviders
+      });
       return res.status(400).json({
         success: false,
-        error: 'Provider mismatch',
+        error: `Provider mismatch. Expected: ${expectedProvider}, Got: ${tokenProvider}`,
         code: 'PROVIDER_MISMATCH'
       });
     }
@@ -753,7 +780,7 @@ router.post('/link-account', authLimiter, async (req, res) => {
     }
     
     // Check if Firebase account is already linked
-    const existingFirebaseUser = await User.findOne({ firebase_uid: tokenResult.user.uid });
+    const existingFirebaseUser = await userModel.findOne({ firebase_uid: tokenResult.user.uid });
     
     if (existingFirebaseUser) {
       return res.status(400).json({
@@ -764,7 +791,7 @@ router.post('/link-account', authLimiter, async (req, res) => {
     }
     
     // Find user by email
-    const user = await User.findOne({ email: tokenResult.user.email });
+    const user = await userModel.findOne({ email: tokenResult.user.email });
     
     if (!user) {
       return res.status(404).json({
@@ -775,7 +802,7 @@ router.post('/link-account', authLimiter, async (req, res) => {
     }
     
     // Link Firebase account
-    const updatedUser = await User.update(user.user_id, {
+    const updatedUser = await userModel.update(user.user_id, {
       firebase_uid: tokenResult.user.uid,
       auth_provider: provider,
       is_email_verified: tokenResult.user.emailVerified
@@ -827,7 +854,7 @@ router.delete('/unlink-account/:user_id', async (req, res) => {
     
     const { user_id } = req.params;
     
-    if (!User.db.isValidUUID(user_id)) {
+    if (!userModel.db.isValidUUID(user_id)) {
       return res.status(400).json({
         success: false,
         error: 'Invalid user ID format',
@@ -836,7 +863,7 @@ router.delete('/unlink-account/:user_id', async (req, res) => {
     }
     
     // Find user
-    const user = await User.findById(user_id);
+    const user = await userModel.findById(user_id);
     
     if (!user) {
       return res.status(404).json({
@@ -855,7 +882,7 @@ router.delete('/unlink-account/:user_id', async (req, res) => {
     }
     
     // Unlink Firebase account
-    await User.update(user_id, {
+    await userModel.update(user_id, {
       firebase_uid: null,
       auth_provider: null
     });
@@ -886,7 +913,7 @@ router.get('/linked-accounts/:user_id', async (req, res) => {
   try {
     const { user_id } = req.params;
     
-    if (!User.db.isValidUUID(user_id)) {
+    if (!userModel.db.isValidUUID(user_id)) {
       return res.status(400).json({
         success: false,
         error: 'Invalid user ID format',
@@ -894,7 +921,7 @@ router.get('/linked-accounts/:user_id', async (req, res) => {
       });
     }
     
-    const user = await User.findById(user_id);
+    const user = await userModel.findById(user_id);
     
     if (!user) {
       return res.status(404).json({
@@ -958,7 +985,7 @@ router.post('/custom-claims/:user_id', async (req, res) => {
     const { user_id } = req.params;
     const { claims } = req.body;
     
-    if (!User.db.isValidUUID(user_id)) {
+    if (!userModel.db.isValidUUID(user_id)) {
       return res.status(400).json({
         success: false,
         error: 'Invalid user ID format',
@@ -966,7 +993,7 @@ router.post('/custom-claims/:user_id', async (req, res) => {
       });
     }
     
-    const user = await User.findById(user_id);
+    const user = await userModel.findById(user_id);
     
     if (!user) {
       return res.status(404).json({

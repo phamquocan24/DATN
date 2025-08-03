@@ -25,7 +25,7 @@ export const firebaseApi = {
     const response = await apiClient.post('/firebase/social-auth', { 
       provider, 
       idToken, 
-      userData 
+      user_info: userData 
     });
     return response.data;
   },

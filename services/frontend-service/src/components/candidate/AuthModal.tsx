@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Eye, EyeOff } from 'lucide-react';
 import authService from '../../services/authService';
+import firebaseService from '../../services/firebase';
+import firebaseApi from '../../services/firebaseApi';
 import OTPVerifyModal from './OTPVerifyModal';
 import { OTPType } from '../../services/otpApi';
 
@@ -95,9 +97,56 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onAuthSucc
     }));
   };
 
-  const handleGoogleAuth = () => {
-    // Handle Google authentication
-    console.log('Google auth clicked');
+  const handleGoogleAuth = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      // Sign in with Google Firebase
+      const firebaseResult = await firebaseService.signInWithGoogle();
+      
+      if (!firebaseResult.success) {
+        throw new Error(firebaseResult.error || 'Google authentication failed');
+      }
+      
+      // Call backend social-auth endpoint
+      const authResult = await firebaseApi.socialAuth(
+        'google',
+        firebaseResult.idToken,
+        {
+          full_name: firebaseResult.user.displayName,
+          profile_image_url: firebaseResult.user.photoURL
+        }
+      );
+      
+      if (authResult.success && authResult.data) {
+        const { user, access_token, refresh_token } = authResult.data;
+        
+        // Store tokens
+        if (access_token) {
+          localStorage.setItem('token', access_token);
+        }
+        if (refresh_token) {
+          localStorage.setItem('refreshToken', refresh_token);
+        }
+        
+        // Call success callback
+        onAuthSuccess(user, access_token);
+        
+        setSuccess('Google authentication successful!');
+        setTimeout(() => {
+          onClose();
+        }, 1000);
+      } else {
+        throw new Error(authResult.error || 'Authentication failed');
+      }
+      
+    } catch (error: any) {
+      console.error('Google auth error:', error);
+      setError(error.message || 'Google authentication failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const switchMode = (newMode: 'login' | 'signup' | 'forgot-password') => {

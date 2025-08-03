@@ -46,6 +46,7 @@ import HrRoutes from './components/hr/HrRoutes';
 import './App.css';
 import api from './services/api';
 import authService from './services/authService';
+import firebaseService from './services/firebase';
 
 type CurrentPage = 'home' | 'find-jobs' | 'find-jobs-dashboard' | 'agent-ai' | 'favorite-jobs' | 'companies' | 'find-companies' | 'browse-companies' | 'job-detail' | 'company-profile' | 'resume' | 'profile' | 'dashboard' | 'my-applications' | 'test-management' | 'settings' | 'help-center';
 
@@ -112,6 +113,20 @@ const MainContent = () => {
       setCurrentPage(page);
     }
   }, [location.pathname]);
+
+  // Initialize Firebase
+  useEffect(() => {
+    const initFirebase = async () => {
+      try {
+        await firebaseService.initializeFirebase();
+        console.log('Firebase initialized successfully');
+      } catch (error) {
+        console.error('Firebase initialization failed:', error);
+      }
+    };
+    
+    initFirebase();
+  }, []);
 
   // --- Effect to fetch user profile if token exists ---
   useEffect(() => {

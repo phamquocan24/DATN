@@ -8,6 +8,7 @@ export { default as apiClient } from './api';
 export { default as otpApi } from './otpApi';
 export { default as companyApi } from './companyApi';
 export { default as firebaseApi } from './firebaseApi';
+export { default as firebaseService } from './firebase';
 export { default as settingsApi } from './settingsApi';
 export { default as messageApi } from './messageApi';
 export { default as feedbackApi } from './feedbackApi';
