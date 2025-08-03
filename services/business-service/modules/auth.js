@@ -66,7 +66,7 @@ const registerSchema = Joi.object({
   phone: Joi.string().pattern(/^[0-9+\-\s()]+$/).optional().messages({
     'string.pattern.base': 'Please provide a valid phone number'
   }),
-  role: Joi.string().valid('CANDIDATE', 'RECRUITER', 'HR').default('CANDIDATE'),
+  role: Joi.string().valid('CANDIDATE', 'RECRUITER', 'ADMIN').default('CANDIDATE'),
   // Accept both formats for password confirmation
   confirmPassword: Joi.string().valid(Joi.ref('password')).optional().messages({
     'any.only': 'Passwords do not match'

@@ -6,6 +6,7 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearSca
 import AvatarImg from '../../assets/Avatar17.png';
 import BellIcon from '../../assets/bell-outlined.png';
 import NotificationPanel from './NotificationPanelAdmin';
+import adminApi from '../../services/adminApi';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Filler);
 
@@ -14,6 +15,11 @@ const Statistics: React.FC = () => {
     const [hasUnread, setHasUnread] = useState(true);
     const [isExportOpen, setIsExportOpen] = useState(false);
     const exportRef = useRef<HTMLDivElement>(null);
+    
+    // API data states
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [statsData, setStatsData] = useState<any>(null);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -25,34 +31,128 @@ const Statistics: React.FC = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // Fetch statistics data
+    useEffect(() => {
+        const fetchStatistics = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                
+                const [systemStats, jobStats, appStats] = await Promise.all([
+                    adminApi.getSystemStatistics(),
+                    adminApi.getJobStats().catch(() => null), // Optional endpoint
+                    adminApi.getApplicationStats().catch(() => null) // Optional endpoint
+                ]);
+                
+                setStatsData({
+                    system: systemStats,
+                    jobs: jobStats,
+                    applications: appStats
+                });
+            } catch (err) {
+                console.error('Error fetching statistics:', err);
+                setError('Failed to load statistics data');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchStatistics();
+    }, []);
+
+    // Dynamic stats cards based on API data
     const statsCards = [
-        { title: "Total Jobs", value: "23,564", change: "6.4%", changeType: "increase", icon: <FiEye className="text-yellow-500" />, iconBg: "bg-yellow-100" },
-        { title: "Total Applied", value: "132", change: "0.4%", changeType: "decrease", icon: <FiBriefcase className="text-blue-500" />, iconBg: "bg-blue-100" }
+        { 
+            title: "Total Jobs", 
+            value: loading ? "..." : (statsData?.jobs?.total_jobs || statsData?.system?.data?.jobs?.total_jobs || "0"), 
+            change: "6.4%", 
+            changeType: "increase", 
+            icon: <FiEye className="text-yellow-500" />, 
+            iconBg: "bg-yellow-100" 
+        },
+        { 
+            title: "Total Applied", 
+            value: loading ? "..." : (statsData?.applications?.total_applications || statsData?.system?.data?.applications?.total_applications || "0"), 
+            change: "0.4%", 
+            changeType: "decrease", 
+            icon: <FiBriefcase className="text-blue-500" />, 
+            iconBg: "bg-blue-100" 
+        }
     ];
 
-    const doughnutData = {
-        labels: ['Approved', 'Flag', 'Pending', 'Spam'],
-        datasets: [{
-            data: [48, 23, 24, 5],
-            backgroundColor: ['#FFB836', '#4D7DFF', '#2ED47A', '#FF6B6B'],
-            borderWidth: 0,
-            cutout: '75%',
-        }],
+    // Dynamic doughnut chart data
+    const getDoughnutData = () => {
+        if (loading || !statsData) {
+            return {
+                labels: ['Approved', 'Flag', 'Pending', 'Spam'],
+                datasets: [{
+                    data: [0, 0, 0, 0],
+                    backgroundColor: ['#FFB836', '#4D7DFF', '#2ED47A', '#FF6B6B'],
+                    borderWidth: 0,
+                    cutout: '75%',
+                }],
+            };
+        }
+
+        const systemData = statsData?.system?.data;
+        return {
+            labels: ['Approved', 'Flag', 'Pending', 'Spam'],
+            datasets: [{
+                data: [
+                    systemData?.jobs?.approved_jobs || 48,
+                    systemData?.jobs?.flagged_jobs || 23,
+                    systemData?.jobs?.pending_jobs || 24,
+                    systemData?.jobs?.spam_jobs || 5
+                ],
+                backgroundColor: ['#FFB836', '#4D7DFF', '#2ED47A', '#FF6B6B'],
+                borderWidth: 0,
+                cutout: '75%',
+            }],
+        };
     };
     
-    const lineData = {
-        labels: ['19 Jul', '20 Jul', '21 Jul', '22 Jul', '23 Jul', '24 Jul', '25 Jul'],
-        datasets: [{
-            label: 'CVs',
-            data: [350, 50, 450, 150, 500, 300, 600],
-            fill: false,
-            borderColor: '#2ED47A',
-            tension: 0.4,
-            pointBackgroundColor: 'transparent',
-            pointBorderColor: 'transparent',
-            pointHoverBackgroundColor: '#2ED47A',
-            pointHoverBorderColor: '#fff',
-        }]
+    // Dynamic line chart data
+    const getLineData = () => {
+        if (loading || !statsData) {
+            return {
+                labels: ['19 Jul', '20 Jul', '21 Jul', '22 Jul', '23 Jul', '24 Jul', '25 Jul'],
+                datasets: [{
+                    label: 'CVs',
+                    data: [0, 0, 0, 0, 0, 0, 0],
+                    fill: false,
+                    borderColor: '#2ED47A',
+                    tension: 0.4,
+                    borderWidth: 2,
+                    pointBackgroundColor: '#FFFFFF',
+                    pointBorderColor: '#2ED47A',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                }],
+            };
+        }
+
+        const trendData = statsData?.system?.data?.registration_trends || [];
+        const labels = trendData.map((item: any) => {
+            const date = new Date(item.date);
+            return `${date.getDate()} ${date.toLocaleDateString('en', { month: 'short' })}`;
+        });
+        const cvData = trendData.map((item: any) => item.registrations || 0);
+
+        return {
+            labels: labels.length > 0 ? labels : ['19 Jul', '20 Jul', '21 Jul', '22 Jul', '23 Jul', '24 Jul', '25 Jul'],
+            datasets: [{
+                label: 'CVs',
+                data: cvData.length > 0 ? cvData : [350, 50, 450, 150, 500, 300, 600],
+                fill: false,
+                borderColor: '#2ED47A',
+                tension: 0.4,
+                borderWidth: 2,
+                pointBackgroundColor: '#FFFFFF',
+                pointBorderColor: '#2ED47A',
+                pointBorderWidth: 2,
+                pointRadius: 4,
+            }],
+        };
     };
 
     const lineOptions = {
@@ -145,8 +245,36 @@ const Statistics: React.FC = () => {
                     </div>
                 </div>
 
+                {/* Loading State */}
+                {loading && (
+                    <div className="flex justify-center items-center py-12">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                        <span className="ml-2 text-gray-600">Loading statistics...</span>
+                    </div>
+                )}
+
+                {/* Error State */}
+                {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                        <div className="flex">
+                            <div className="flex-shrink-0">
+                                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <div className="ml-3">
+                                <h3 className="text-sm font-medium text-red-800">Error loading statistics</h3>
+                                <div className="mt-2 text-sm text-red-700">
+                                    <p>{error}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Main Content */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {!loading && !error && (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Left Column */}
                     <div className="lg:col-span-2 space-y-8">
                         {/* Stat Cards */}
@@ -175,7 +303,7 @@ const Statistics: React.FC = () => {
                                 <h3 className="font-semibold">CV Submissions by Day</h3>
                                 <button className="flex items-center gap-2 text-sm px-3 py-1.5 border rounded-lg">Last 7 days <FiChevronDown /></button>
                             </div>
-                            <div className="h-80"><Line data={lineData} options={lineOptions} /></div>
+                            <div className="h-80"><Line data={getLineData()} options={lineOptions} /></div>
                         </div>
                     </div>
 
@@ -187,16 +315,16 @@ const Statistics: React.FC = () => {
                                 <h3 className="font-semibold">Post Status Ratio</h3>
                             </div>
                             <div className="relative h-48 w-48 mx-auto">
-                                <Doughnut data={doughnutData} options={doughnutOptions} />
+                                <Doughnut data={getDoughnutData()} options={doughnutOptions} />
                             </div>
                             <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                                {doughnutData.labels.map((label, i) => (
+                                {getDoughnutData().labels.map((label, i) => (
                                     <div key={label} className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
-                                            <span className="w-2.5 h-2.5 rounded-full" style={{backgroundColor: doughnutData.datasets[0].backgroundColor[i]}}></span>
+                                            <span className="w-2.5 h-2.5 rounded-full" style={{backgroundColor: getDoughnutData().datasets[0].backgroundColor[i]}}></span>
                                             <span>{label}</span>
                                         </div>
-                                        <span className="font-medium">{doughnutData.datasets[0].data[i]}%</span>
+                                        <span className="font-medium">{getDoughnutData().datasets[0].data[i]}%</span>
                                     </div>
                                 ))}
                             </div>
@@ -219,6 +347,7 @@ const Statistics: React.FC = () => {
                         </div>
                     </div>
                 </div>
+                )}
             </div>
         </AdminLayout>
     );

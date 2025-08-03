@@ -1,36 +1,98 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
+import adminApi from '../../services/adminApi';
 
 const CandidateManagement: React.FC = () => {
-  const candidateProfile = {
-    fullName: 'Jerome Bell',
-    rating: 4.0,
-    position: 'Product Designer',
-    appliedJobs: {
-      title: 'Product Development',
-      department: 'Marketing',
-      type: 'Full-Time',
-      timeAgo: '2 days ago'
-    },
-    personalInfo: {
-      gender: 'Male',
-      dateOfBirth: 'March 23, 1995',
-      age: '26 y.o',
-      language: 'English, French, Bahasa',
-      address: '4517 Washington Ave.',
-      location: 'Manchester, Kentucky 39495'
-    },
-    professionalInfo: {
-      aboutMe: "I'm a product designer + filmmaker currently working remotely at Twitter from beautiful Manchester, United Kingdom. I'm passionate about designing digital products that have a positive impact on the world.",
-      experience: "For 10 years, I've specialised in interface, experience & interaction design as well as working in user research and product strategy for product agencies, big tech companies & start-ups.",
-      currentJob: {
-        title: 'Product Designer',
-        years: '4 Years'
-      },
-      education: 'Bachelors in Engineering',
-      skills: ['Project Management', 'Copywriting', 'English']
-    }
-  };
+  const [candidateProfile, setCandidateProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedTab, setSelectedTab] = useState('profile');
+
+  useEffect(() => {
+    const fetchCandidateData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Get candidate ID from URL params or use a default for demo
+        const candidateId = window.location.pathname.split('/').pop() || 'demo-id';
+        
+        // Try to get user data from admin API
+        const userData = await adminApi.getUserById(candidateId).catch(() => null);
+        
+        if (userData) {
+          // Transform API data to component format
+          setCandidateProfile({
+            fullName: userData.data?.full_name || userData.data?.name || 'Unknown User',
+            rating: 4.0, // Default rating
+            position: userData.data?.position || 'Not specified',
+            appliedJobs: {
+              title: 'Product Development',
+              department: 'Marketing',
+              type: 'Full-Time',
+              timeAgo: '2 days ago'
+            },
+            personalInfo: {
+              gender: userData.data?.gender || 'Not specified',
+              dateOfBirth: userData.data?.date_of_birth || 'Not specified',
+              age: userData.data?.age || 'Not specified',
+              language: userData.data?.languages || 'Not specified',
+              address: userData.data?.address || 'Not specified',
+              location: userData.data?.location || 'Not specified'
+            },
+            professionalInfo: {
+              aboutMe: userData.data?.about_me || "No description provided",
+              experience: userData.data?.experience || "No experience details provided",
+              currentJob: {
+                title: userData.data?.current_position || 'Not specified',
+                years: userData.data?.experience_years || 'Not specified'
+              },
+              education: userData.data?.education || 'Not specified',
+              skills: Array.isArray(userData.data?.skills) ? userData.data.skills : ['No skills listed']
+            }
+          });
+        } else {
+          // Fallback to mock data if API fails
+          setCandidateProfile({
+            fullName: 'Jerome Bell',
+            rating: 4.0,
+            position: 'Product Designer',
+            appliedJobs: {
+              title: 'Product Development',
+              department: 'Marketing',
+              type: 'Full-Time',
+              timeAgo: '2 days ago'
+            },
+            personalInfo: {
+              gender: 'Male',
+              dateOfBirth: 'March 23, 1995',
+              age: '26 y.o',
+              language: 'English, French, Bahasa',
+              address: '4517 Washington Ave.',
+              location: 'Manchester, Kentucky 39495'
+            },
+            professionalInfo: {
+              aboutMe: "I'm a product designer + filmmaker currently working remotely at Twitter from beautiful Manchester, United Kingdom. I'm passionate about designing digital products that have a positive impact on the world.",
+              experience: "For 10 years, I've specialised in interface, experience & interaction design as well as working in user research and product strategy for product agencies, big tech companies & start-ups.",
+              currentJob: {
+                title: 'Product Designer',
+                years: '4 Years'
+              },
+              education: 'Bachelors in Engineering',
+              skills: ['Project Management', 'Copywriting', 'English']
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching candidate data:', err);
+        setError('Failed to load candidate data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCandidateData();
+  }, []);
 
   const tabs = [
     { id: 'profile', label: 'Applicant Profile' },
@@ -38,6 +100,61 @@ const CandidateManagement: React.FC = () => {
     { id: 'hiring', label: 'Hiring Progress' },
     { id: 'interview', label: 'Interview Schedule' }
   ];
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="p-8">
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <span className="ml-2 text-gray-600">Loading candidate data...</span>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminLayout>
+        <div className="p-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">Error loading candidate</h3>
+                <div className="mt-2 text-sm text-red-700">
+                  <p>{error}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (!candidateProfile) {
+    return (
+      <AdminLayout>
+        <div className="p-8">
+          <div className="text-center py-12">
+            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No candidate found</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              The requested candidate could not be found.
+            </p>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>

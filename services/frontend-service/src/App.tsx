@@ -91,12 +91,36 @@ const MainContent = () => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   // Add authentication state management here
   const [isAdmin, setIsAdmin] = useState(false); // Default to false
+  const [isHr, setIsHr] = useState(false); // Default to false
 
-  // Protected Route component
+  // Protected Route components
   const ProtectedAdminRoute = ({ children }: { children: React.ReactNode }) => {
-    if (!isAdmin) {
-      return <Navigate to="/login" replace />;
+    // If we have a token but no currentUser yet, we're still loading
+    if (token && !currentUser) {
+      return <div>Loading...</div>;
     }
+    
+    // Check currentUser directly to avoid timing issues
+    const userRole = currentUser?.role;
+    if (!currentUser || userRole !== 'ADMIN') {
+      return <Navigate to="/" replace />;
+    }
+    
+    return <>{children}</>;
+  };
+
+  const ProtectedHrRoute = ({ children }: { children: React.ReactNode }) => {
+    // If we have a token but no currentUser yet, we're still loading
+    if (token && !currentUser) {
+      return <div>Loading...</div>;
+    }
+    
+    // Check currentUser directly to avoid timing issues  
+    const userRole = currentUser?.role;
+    if (!currentUser || userRole !== 'RECRUITER') {
+      return <Navigate to="/" replace />;
+    }
+    
     return <>{children}</>;
   };
 
@@ -131,14 +155,17 @@ const MainContent = () => {
   // --- Effect to fetch user profile if token exists ---
   useEffect(() => {
     const fetchUserProfile = async () => {
-      if (token) {
+      // Only fetch if we have token but no currentUser (avoid conflict with handleAuthSuccess)
+      if (token && !currentUser) {
         try {
           // Set token for all subsequent api requests
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
           const user = await authService.getCurrentUser();
           setCurrentUser(user);
-          // Assuming admin role is determined by a property on the user object
-          setIsAdmin(user?.role === 'admin'); 
+          // Set user roles based on backend format (ADMIN, CANDIDATE, RECRUITER)
+          const userRole = user?.role as string;
+          setIsAdmin(userRole === 'ADMIN');
+          setIsHr(userRole === 'RECRUITER'); 
         } catch (error) {
           console.error("Failed to fetch user profile", error);
           // Token might be invalid/expired
@@ -149,6 +176,8 @@ const MainContent = () => {
 
     fetchUserProfile();
   }, [token]);
+
+
 
 
   const handlePageChange = (page: CurrentPage) => {
@@ -169,21 +198,41 @@ const MainContent = () => {
     setCurrentUser(user);
     localStorage.setItem('token', authToken);
     api.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+    
+    // Set user roles based on backend format (ADMIN, CANDIDATE, RECRUITER)
+    const userRole = user?.role as string;
+    setIsAdmin(userRole === 'ADMIN');
+    setIsHr(userRole === 'RECRUITER');
+    
     setIsAuthModalOpen(false); // Close auth modal on success
+    
+    // Auto redirect based on user role
+    if (userRole === 'ADMIN') {
+      navigate('/admin');
+    } else if (userRole === 'RECRUITER') {
+      navigate('/hr');
+    }
+    // CANDIDATE users stay on current page or go to dashboard if needed
   };
 
-  const handleLogout = async () => {
-    try {
-      await authService.logout();
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      setToken(null);
-      setCurrentUser(null);
-      delete api.defaults.headers.common['Authorization'];
-      navigate('/');
-      setCurrentPage('home');
-    }
+  const handleLogout = () => {
+    // Clear local state and storage immediately
+    setToken(null);
+    setCurrentUser(null);
+    setIsAdmin(false);
+    setIsHr(false);
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    delete api.defaults.headers.common['Authorization'];
+    
+    // Call logout API in background (don't wait for it)
+    authService.logout().catch(error => {
+      console.error('Logout API error:', error);
+    });
+    
+    navigate('/');
+    setCurrentPage('home');
   };
 
   const handleJobClick = (jobId: string) => {
@@ -544,7 +593,7 @@ const MainContent = () => {
       />
 
       {/* HR Routes */}
-      <Route path="/hr/*" element={<HrRoutes />} />
+      <Route path="/hr/*" element={<ProtectedHrRoute><HrRoutes /></ProtectedHrRoute>} />
 
       {/* Candidate facing pages */}
       <Route path="/*" element={renderCandidateLayout()} />

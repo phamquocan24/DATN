@@ -5,6 +5,8 @@ import { FaInstagram, FaThumbtack } from 'react-icons/fa';
 import { BiWorld } from 'react-icons/bi';
 import DashboardSidebar from './DashboardSidebar';
 import { IoLocationSharp } from "react-icons/io5";
+import authService from '../../services/authService';
+import api from '../../services/api';
 
 interface CandidateDetails {
   id: number;
@@ -44,6 +46,25 @@ const ApplicantDetail: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'profile' | 'resume' | 'progress' | 'schedule'>('profile');
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+
+  const handleLogoutClick = () => {
+    // Clear auth data immediately
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    delete api.defaults.headers.common['Authorization'];
+    
+    // Call logout API in background (don't wait for it)
+    authService.logout().catch(error => {
+      console.error('Logout API error:', error);
+    });
+    
+    // Redirect to home immediately
+    navigate('/');
+    
+    // Reload page to reset all app state
+    window.location.reload();
+  };
 
   // Mock data - replace with actual API call
   const candidateDetails: CandidateDetails = {
@@ -106,7 +127,7 @@ const ApplicantDetail: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-white">
       <div className="w-64 bg-white shadow-lg min-h-screen border-l border-r-0 border-gray-200 sticky top-0 z-10 flex flex-col overflow-y-auto">
-        <DashboardSidebar activeTab="applicants" hasUnreadMessages={false} onNavigate={() => {}} />
+        <DashboardSidebar activeTab="applicants" hasUnreadMessages={false} onNavigate={() => {}} onLogoutClick={handleLogoutClick} />
       </div>
       <div className="flex-1 flex flex-col overflow-visible bg-white">
         <main className="flex-1 p-8">

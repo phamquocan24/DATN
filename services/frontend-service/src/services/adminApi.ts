@@ -13,8 +13,8 @@ export const adminApi = {
     return response.data;
   },
 
-  updateUserStatus: async (userId: string, status: string) => {
-    const response = await apiClient.put(`/admin/users/${userId}/status`, { status });
+  updateUserStatus: async (userId: string, is_active: boolean, reason?: string) => {
+    const response = await apiClient.put(`/admin/users/${userId}/status`, { is_active, reason });
     return response.data;
   },
 
@@ -35,7 +35,7 @@ export const adminApi = {
   },
 
   getUserStatistics: async () => {
-    const response = await apiClient.get('/user/admin/statistics');
+    const response = await apiClient.get('/admin/statistics');
     return response.data;
   },
 
@@ -101,7 +101,7 @@ export const adminApi = {
 
   // Export Functions
   exportUsers: async () => {
-    const response = await apiClient.get('/admin/users/export');
+    const response = await apiClient.get('/admin/export/users');
     return response.data;
   },
 
@@ -112,7 +112,7 @@ export const adminApi = {
 
   // Bulk Actions
   performBulkActions: async (actions: any) => {
-    const response = await apiClient.post('/admin/users/bulk-action', actions);
+    const response = await apiClient.post('/admin/bulk-actions', actions);
     return response.data;
   },
 
@@ -151,6 +151,18 @@ export const adminApi = {
 
   deleteQuestion: async (questionId: string) => {
     const response = await apiClient.delete(`/tests/questions/${questionId}`);
+    return response.data;
+  },
+
+  // Feedback Management (placeholder - adjust based on actual backend endpoints)
+  getAllFeedback: async () => {
+    // This might need to be adjusted based on actual feedback endpoints
+    const response = await apiClient.get('/feedback').catch(() => ({ data: [] }));
+    return response.data;
+  },
+
+  getFeedbackStats: async () => {
+    const response = await apiClient.get('/feedback/stats').catch(() => ({ data: {} }));
     return response.data;
   }
 };

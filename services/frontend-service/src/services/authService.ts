@@ -4,7 +4,7 @@ import { isTokenValid } from './tokenUtils';
 export interface User {
   id: string;
   email: string;
-  role: 'admin' | 'hr' | 'candidate';
+  role: 'ADMIN' | 'CANDIDATE' | 'RECRUITER';
   name: string;
   profile?: any;
 }

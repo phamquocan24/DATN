@@ -95,6 +95,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onAuthSucc
     }
   }, [isOpen]);
 
+  // Update formData.role when userType changes
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      role: userType === 'candidate' ? 'candidate' : 'hr'
+    }));
+  }, [userType]);
+
   if (!isOpen) return null;
 
   const resetForm = () => {
@@ -179,6 +187,25 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onAuthSucc
       if (authResult.success && authResult.data) {
         const { user, access_token, refresh_token } = authResult.data;
         
+        if (!access_token) {
+          throw new Error('Authentication failed: No token received');
+        }
+
+        // Validate user role against selected user type
+        const userRole = user.role;
+        
+        if (userType === 'candidate') {
+          // Job Seeker: Only allow CANDIDATE and ADMIN
+          if (userRole !== 'CANDIDATE' && userRole !== 'ADMIN') {
+            throw new Error('This account is not for job seekers. Please use the Company tab.');
+          }
+        } else if (userType === 'hr') {
+          // Company: Only allow RECRUITER and ADMIN
+          if (userRole !== 'RECRUITER' && userRole !== 'ADMIN') {
+            throw new Error('This account is not for companies. Please use the Job Seeker tab.');
+          }
+        }
+        
         // Store tokens
         if (access_token) {
           localStorage.setItem('token', access_token);
@@ -221,14 +248,35 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onAuthSucc
       if (currentMode === 'login') {
         const response = await authService.login(formData.email, formData.password);
         if (response.success && response.data) {
+          const { user } = response.data;
           const token = response.data.access_token;
-          if (token) {
-            onAuthSuccess(response.data.user, token);
-            resetForm();
-            onClose();
-          } else {
+          
+          if (!token) {
             setError('Authentication failed: No token received');
+            return;
           }
+
+          // Validate user role against selected user type
+          const userRole = user.role;
+          
+          if (userType === 'candidate') {
+            // Job Seeker: Only allow CANDIDATE and ADMIN
+            if (userRole !== 'CANDIDATE' && userRole !== 'ADMIN') {
+              setError('This account is not for job seekers. Please use the Company tab.');
+              return;
+            }
+          } else if (userType === 'hr') {
+            // Company: Only allow RECRUITER and ADMIN
+            if (userRole !== 'RECRUITER' && userRole !== 'ADMIN') {
+              setError('This account is not for companies. Please use the Job Seeker tab.');
+              return;
+            }
+          }
+
+          // Login successful with correct role
+          onAuthSuccess(user, token);
+          resetForm();
+          onClose();
         }
       } 
       else if (currentMode === 'signup') {
@@ -242,7 +290,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onAuthSucc
           password: formData.password,
           confirmPassword: formData.confirmPassword,
           full_name: formData.fullName,
-          role: userType === 'candidate' ? 'candidate' : 'hr'
+          role: userType === 'candidate' ? 'CANDIDATE' : 'RECRUITER'
         };
 
         const response = await authService.register(userData);

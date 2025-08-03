@@ -5,6 +5,7 @@ import AvatarImg from '../../assets/Avatar17.png';
 import BellIcon from '../../assets/bell-outlined.png';
 import NotificationPanel from './NotificationPanelAdmin';
 import SchemeIcon from '../../assets/scheme.png';
+import adminApi from '../../services/adminApi';
 
 interface FeedbackItem {
   id: number;
@@ -25,16 +26,64 @@ const FeedbackIssues: React.FC = () => {
     const [isPageSelectOpen, setIsPageSelectOpen] = useState(false);
     const pageSelectRef = useRef<HTMLDivElement>(null);
     const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
+    
+    // API data states
+    const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    const feedbacks: FeedbackItem[] = [
-        { id: 1, time: '15:50PM 2025-06-08', status: 'Pending', contents: 'Login error', user: 'HR', type: 'Issue' },
-        { id: 2, time: '15:50PM 2025-06-08', status: 'Resolved', contents: 'User-friendly and easy to use', user: 'Candidate', type: 'Feedback' },
-        { id: 3, time: '15:50PM 2025-06-08', status: 'Resolved', contents: 'Too many operational processes', user: 'Candidate', type: 'Issue' },
-        { id: 4, time: '15:50PM 2025-06-08', status: 'Resolved', contents: 'Difficult to use', user: 'HR', type: 'Issue' },
-        { id: 5, time: '15:50PM 2025-06-08', status: 'Pending', contents: 'Convenient', user: 'Candidate', type: 'Feedback' },
-        { id: 6, time: '15:50PM 2025-06-08', status: 'Pending', contents: 'User-friendly', user: 'Candidate', type: 'Feedback' },
-        { id: 7, time: '15:50PM 2025-06-08', status: 'Pending', contents: 'Easy to use', user: 'HR', type: 'Issue' },
-    ];
+    // Fetch feedback data
+    useEffect(() => {
+        const fetchFeedbackData = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                
+                const feedbackData = await adminApi.getAllFeedback();
+                
+                if (Array.isArray(feedbackData)) {
+                    // Transform API data to component format
+                    const transformedFeedback = feedbackData.map((item: any, index: number) => ({
+                        id: item.id || index + 1,
+                        time: item.created_at ? new Date(item.created_at).toLocaleString() : '15:50PM 2025-06-08',
+                        status: item.status === 'resolved' ? 'Resolved' as const : 'Pending' as const,
+                        contents: item.content || item.message || 'No content',
+                        user: item.user_type === 'hr' ? 'HR' as const : 'Candidate' as const,
+                        type: item.type === 'feedback' ? 'Feedback' as const : 'Issue' as const
+                    }));
+                    setFeedbacks(transformedFeedback);
+                } else {
+                    // Fallback to mock data if API fails or returns unexpected format
+                    setFeedbacks([
+                        { id: 1, time: '15:50PM 2025-06-08', status: 'Pending', contents: 'Login error', user: 'HR', type: 'Issue' },
+                        { id: 2, time: '15:50PM 2025-06-08', status: 'Resolved', contents: 'User-friendly and easy to use', user: 'Candidate', type: 'Feedback' },
+                        { id: 3, time: '15:50PM 2025-06-08', status: 'Resolved', contents: 'Too many operational processes', user: 'Candidate', type: 'Issue' },
+                        { id: 4, time: '15:50PM 2025-06-08', status: 'Resolved', contents: 'Difficult to use', user: 'HR', type: 'Issue' },
+                        { id: 5, time: '15:50PM 2025-06-08', status: 'Pending', contents: 'Convenient', user: 'Candidate', type: 'Feedback' },
+                        { id: 6, time: '15:50PM 2025-06-08', status: 'Pending', contents: 'User-friendly', user: 'Candidate', type: 'Feedback' },
+                        { id: 7, time: '15:50PM 2025-06-08', status: 'Pending', contents: 'Easy to use', user: 'HR', type: 'Issue' },
+                    ]);
+                }
+            } catch (err) {
+                console.error('Error fetching feedback data:', err);
+                setError('Failed to load feedback data');
+                // Fallback to mock data on error
+                setFeedbacks([
+                    { id: 1, time: '15:50PM 2025-06-08', status: 'Pending', contents: 'Login error', user: 'HR', type: 'Issue' },
+                    { id: 2, time: '15:50PM 2025-06-08', status: 'Resolved', contents: 'User-friendly and easy to use', user: 'Candidate', type: 'Feedback' },
+                    { id: 3, time: '15:50PM 2025-06-08', status: 'Resolved', contents: 'Too many operational processes', user: 'Candidate', type: 'Issue' },
+                    { id: 4, time: '15:50PM 2025-06-08', status: 'Resolved', contents: 'Difficult to use', user: 'HR', type: 'Issue' },
+                    { id: 5, time: '15:50PM 2025-06-08', status: 'Pending', contents: 'Convenient', user: 'Candidate', type: 'Feedback' },
+                    { id: 6, time: '15:50PM 2025-06-08', status: 'Pending', contents: 'User-friendly', user: 'Candidate', type: 'Feedback' },
+                    { id: 7, time: '15:50PM 2025-06-08', status: 'Pending', contents: 'Easy to use', user: 'HR', type: 'Issue' },
+                ]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchFeedbackData();
+    }, []);
 
     const openDatePicker = () => {
         dateInputRef.current?.showPicker?.();
