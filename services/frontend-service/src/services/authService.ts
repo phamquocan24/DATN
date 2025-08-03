@@ -198,10 +198,14 @@ class AuthService {
     }
   }
 
-  // Reset password
-  async resetPassword(token: string, password: string): Promise<{ success: boolean; message: string }> {
+  // Reset password  
+  async resetPassword(token: string, newPassword: string, confirmPassword: string): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await apiClient.post('/auth/reset-password', { token, password });
+      const response = await apiClient.post('/auth/reset-password', { 
+        token, 
+        new_password: newPassword,
+        confirm_password: confirmPassword 
+      });
       return response.data;
     } catch (error: any) {
       console.error('Reset password error:', error);

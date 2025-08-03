@@ -402,8 +402,6 @@ Liên hệ: support@topcv.click
    * @returns {Object} - HTML and text templates
    */
   getPasswordResetTemplate(resetToken, fullName) {
-    const resetUrl = `https://topcv.click/reset-password?token=${resetToken}`;
-    
     const html = `
     <!DOCTYPE html>
     <html>
@@ -415,7 +413,8 @@ Liên hệ: support@topcv.click
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
             .header { background: #dc3545; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }
             .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-            .reset-button { display: inline-block; background: #dc3545; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
+            .token-box { background: white; border: 3px solid #dc3545; padding: 20px; text-align: center; border-radius: 10px; margin: 20px 0; }
+            .token-code { font-size: 32px; font-weight: bold; color: #dc3545; letter-spacing: 8px; font-family: monospace; }
             .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
             .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
         </style>
@@ -430,22 +429,27 @@ Liên hệ: support@topcv.click
                 <h2>Xin chào ${fullName}!</h2>
                 <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản TopCV của bạn.</p>
                 
-                <div style="text-align: center;">
-                    <a href="${resetUrl}" class="reset-button">Đặt lại mật khẩu</a>
+                <p><strong>Mã xác thực đặt lại mật khẩu của bạn là:</strong></p>
+                
+                <div class="token-box">
+                    <div class="token-code">${resetToken}</div>
                 </div>
+                
+                <p style="text-align: center; margin: 15px 0;">
+                    Vui lòng nhập mã này vào form đặt lại mật khẩu trên website.
+                </p>
                 
                 <div class="warning">
                     <strong>⚠️ Lưu ý bảo mật:</strong>
                     <ul>
-                        <li>Link này sẽ hết hạn sau <strong>1 giờ</strong></li>
-                        <li>Chỉ sử dụng link này một lần duy nhất</li>
+                        <li>Mã này sẽ hết hạn sau <strong>15 phút</strong></li>
+                        <li>Chỉ sử dụng mã này một lần duy nhất</li>
                         <li>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này</li>
-                        <li>Không chia sẻ link này với bất kỳ ai</li>
+                        <li>Không chia sẻ mã này với bất kỳ ai</li>
                     </ul>
                 </div>
                 
-                <p>Nếu nút không hoạt động, bạn có thể copy link sau vào trình duyệt:</p>
-                <p style="word-break: break-all; background: #f0f0f0; padding: 10px; border-radius: 5px;">${resetUrl}</p>
+                <p>Nếu bạn gặp khó khăn, vui lòng liên hệ đội hỗ trợ của chúng tôi.</p>
             </div>
             <div class="footer">
                 <p>© 2025 TopCV Recruitment System. All rights reserved.</p>
@@ -462,14 +466,15 @@ Xin chào ${fullName}!
 
 Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản TopCV của bạn.
 
-Để đặt lại mật khẩu, vui lòng truy cập link sau:
-${resetUrl}
+Mã xác thực đặt lại mật khẩu của bạn là: ${resetToken}
+
+Vui lòng nhập mã này vào form đặt lại mật khẩu trên website.
 
 Lưu ý bảo mật:
-- Link này sẽ hết hạn sau 1 giờ
-- Chỉ sử dụng link này một lần duy nhất
+- Mã này sẽ hết hạn sau 15 phút
+- Chỉ sử dụng mã này một lần duy nhất
 - Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này
-- Không chia sẻ link này với bất kỳ ai
+- Không chia sẻ mã này với bất kỳ ai
 
 © 2025 TopCV Recruitment System
 `;

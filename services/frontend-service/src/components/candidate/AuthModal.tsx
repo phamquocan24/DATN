@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import authService from '../../services/authService';
 import firebaseService from '../../services/firebase';
 import firebaseApi from '../../services/firebaseApi';
@@ -23,13 +23,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onAuthSucc
   const [userType, setUserType] = useState<'candidate' | 'hr'>('candidate');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
+  const [otpInputs, setOtpInputs] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showOTPModal, setShowOTPModal] = useState(false);
-  const [otpEmail, setOtpEmail] = useState('');
-  const [otpType, setOtpType] = useState<OTPType>('EMAIL_VERIFICATION');
-  const [pendingUserData, setPendingUserData] = useState<any>(null);
+  const [otpEmail] = useState('');
+  const [otpType] = useState<OTPType>('EMAIL_VERIFICATION');
+  const [pendingUserData] = useState<any>(null);
+  const [forgotPasswordStep, setForgotPasswordStep] = useState<'email' | 'token'>('email');
 
   const [formData, setFormData] = useState({
     email: '',
@@ -37,7 +41,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onAuthSucc
     confirmPassword: '',
     fullName: '',
     role: 'candidate' as 'candidate' | 'hr',
-    rememberMe: false
+    rememberMe: false,
+    resetToken: '',
+    newPassword: '',
+    confirmNewPassword: ''
   });
 
   // Cập nhật mode khi prop mode thay đổi
@@ -50,10 +57,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onAuthSucc
       confirmPassword: '',
       fullName: '',
       role: 'candidate',
-      rememberMe: false
+      rememberMe: false,
+      resetToken: '',
+      newPassword: '',
+      confirmNewPassword: ''
     });
     setError('');
     setSuccess('');
+    setForgotPasswordStep('email');
+    setShowNewPassword(false);
+    setShowConfirmNewPassword(false);
+    setOtpInputs(['', '', '', '', '', '']);
   }, [mode]);
 
   // Reset form khi modal đóng
@@ -65,12 +79,19 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onAuthSucc
         confirmPassword: '',
         fullName: '',
         role: 'candidate',
-        rememberMe: false
+        rememberMe: false,
+        resetToken: '',
+        newPassword: '',
+        confirmNewPassword: ''
       });
       setShowPassword(false);
       setShowConfirmPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmNewPassword(false);
       setError('');
       setSuccess('');
+      setForgotPasswordStep('email');
+      setOtpInputs(['', '', '', '', '', '']);
     }
   }, [isOpen]);
 
@@ -83,10 +104,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onAuthSucc
       confirmPassword: '',
       fullName: '',
       role: 'candidate',
-      rememberMe: false
+      rememberMe: false,
+      resetToken: '',
+      newPassword: '',
+      confirmNewPassword: ''
     });
     setError('');
     setSuccess('');
+    setForgotPasswordStep('email');
+    setShowNewPassword(false);
+    setShowConfirmNewPassword(false);
+    setOtpInputs(['', '', '', '', '', '']);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -97,6 +125,35 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onAuthSucc
     }));
   };
 
+  const handleOTPChange = (index: number, value: string) => {
+    if (value.length > 1) return; // Only allow single digit
+    
+    const newOtpInputs = [...otpInputs];
+    newOtpInputs[index] = value;
+    setOtpInputs(newOtpInputs);
+    
+    // Update form data with combined OTP
+    const combinedOTP = newOtpInputs.join('');
+    setFormData(prev => ({
+      ...prev,
+      resetToken: combinedOTP
+    }));
+
+    // Auto focus next input
+    if (value && index < 5) {
+      const nextInput = document.getElementById(`otp-${index + 1}`);
+      nextInput?.focus();
+    }
+  };
+
+  const handleOTPKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Handle backspace to go to previous input
+    if (e.key === 'Backspace' && !otpInputs[index] && index > 0) {
+      const prevInput = document.getElementById(`otp-${index - 1}`);
+      prevInput?.focus();
+    }
+  };
+
   const handleGoogleAuth = async () => {
     try {
       setLoading(true);
@@ -105,18 +162,18 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onAuthSucc
       // Sign in with Google Firebase
       const firebaseResult = await firebaseService.signInWithGoogle();
       
-      if (!firebaseResult.success) {
-        throw new Error(firebaseResult.error || 'Google authentication failed');
+      if (!firebaseResult.success || !firebaseResult.idToken) {
+        throw new Error(firebaseResult.error || 'Google authentication failed - no token received');
       }
       
       // Call backend social-auth endpoint
       const authResult = await firebaseApi.socialAuth(
         'google',
         firebaseResult.idToken,
-        {
+        firebaseResult.user ? {
           full_name: firebaseResult.user.displayName,
           profile_image_url: firebaseResult.user.photoURL
-        }
+        } : undefined
       );
       
       if (authResult.success && authResult.data) {
@@ -201,9 +258,32 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onAuthSucc
         }
       } 
       else if (currentMode === 'forgot-password') {
-        const response = await authService.forgotPassword(formData.email);
-        if (response.success) {
-          setSuccess('Password reset email sent! Please check your inbox.');
+        if (forgotPasswordStep === 'email') {
+          // Step 1: Send reset email
+          const response = await authService.forgotPassword(formData.email);
+          if (response.success) {
+            setSuccess('Verification code sent! Please check your email inbox.');
+            setForgotPasswordStep('token');
+          }
+        } else {
+          // Step 2: Reset password with token
+          if (formData.newPassword !== formData.confirmNewPassword) {
+            setError('Password confirmation does not match');
+            return;
+          }
+          
+          const response = await authService.resetPassword(
+            formData.resetToken,
+            formData.newPassword,
+            formData.confirmNewPassword
+          );
+          
+          if (response.success) {
+            setSuccess('Password reset successful! You can now login with your new password.');
+            setTimeout(() => {
+              switchMode('login');
+            }, 2000);
+          }
         }
       }
     } catch (err: any) {
@@ -214,54 +294,179 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onAuthSucc
     }
   };
 
-  const renderForgotPasswordForm = () => (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-md mx-auto">
-       <h2 className="text-lg font-bold text-gray-900 mb-4 text-left">Forgot Password</h2>
-        <p className="text-sm text-gray-600 mb-4 text-left">
-            Enter your email address and we'll send you a link to reset your password.
-        </p>
-      <div>
-        <label htmlFor="email" className="block text-xs font-bold text-gray-700 mb-1 text-left">
-          Email Address
-        </label>
-        <input
-          type="email"
-          id="email"
-          name="email"
-          value={formData.email}
-          onChange={handleInputChange}
-          placeholder="Enter your email address"
-          className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#007BFF] focus:border-transparent text-sm"
-          required
-        />
-      </div>
-      {success && (
-        <div className="text-green-600 text-xs text-center py-2 bg-green-50 rounded-md">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="text-red-500 text-xs text-center py-1 bg-red-50 rounded-md">
-          {error}
-        </div>
-      )}
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-[#007BFF] text-white py-1.5 rounded-lg font-medium hover:bg-[#0056b3] transition-colors text-sm disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
-      >
-        {loading ? 'Sending...' : 'Send Reset Link'}
-      </button>
-       <div className="mt-4 text-center">
+  const renderForgotPasswordForm = () => {
+    if (forgotPasswordStep === 'email') {
+      // Step 1: Enter email
+      return (
+        <form onSubmit={handleSubmit} className="space-y-4 max-w-md mx-auto">
+          <h2 className="text-lg font-bold text-gray-900 mb-4 text-left">Forgot Password</h2>
+          <p className="text-sm text-gray-600 mb-4 text-left">
+            Enter your email address and we'll send you a 6-digit verification code.
+          </p>
+          <div>
+            <label htmlFor="email" className="block text-xs font-bold text-gray-700 mb-1 text-left">
+              Email Address
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleInputChange}
+              placeholder="Enter your email address"
+              className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#007BFF] focus:border-transparent text-sm"
+              required
+            />
+          </div>
+          {success && (
+            <div className="text-green-600 text-xs text-center py-2 bg-green-50 rounded-md">
+              {success}
+            </div>
+          )}
+          {error && (
+            <div className="text-red-500 text-xs text-center py-1 bg-red-50 rounded-md">
+              {error}
+            </div>
+          )}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[#007BFF] text-white py-1.5 rounded-lg font-medium hover:bg-[#0056b3] transition-colors text-sm disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
+          >
+            {loading ? 'Sending...' : 'Send Verification Code'}
+          </button>
+          <div className="mt-4 text-center">
             <button
-                onClick={() => switchMode('login')}
-                className="text-[#007BFF] hover:text-[#007BFF] font-medium text-xs"
+              type="button"
+              onClick={() => switchMode('login')}
+              className="text-[#007BFF] hover:text-[#007BFF] font-medium text-xs"
             >
-                Back to Login
+              Back to Login
             </button>
-        </div>
-    </form>
-  );
+          </div>
+        </form>
+      );
+    } else {
+      // Step 2: Enter token and new password
+      return (
+        <form onSubmit={handleSubmit} className="space-y-4 max-w-md mx-auto">
+          <h2 className="text-lg font-bold text-gray-900 mb-4 text-left">Reset Password</h2>
+          <p className="text-sm text-gray-600 mb-4 text-left">
+            Enter the 6-digit code from your email and your new password.
+          </p>
+          
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-2 text-left">
+              Verification Code
+            </label>
+            <div className="flex justify-center gap-2 mb-4">
+              {otpInputs.map((digit, index) => (
+                <input
+                  key={index}
+                  id={`otp-${index}`}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleOTPChange(index, e.target.value.replace(/[^0-9]/g, ''))}
+                  onKeyDown={(e) => handleOTPKeyDown(index, e)}
+                  className="w-12 h-12 text-center text-lg font-semibold border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#007BFF] focus:border-transparent"
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="relative">
+            <label htmlFor="newPassword" className="block text-xs font-bold text-gray-700 mb-1 text-left">
+              New Password
+            </label>
+            <input
+              type={showNewPassword ? "text" : "password"}
+              id="newPassword"
+              name="newPassword"
+              value={formData.newPassword}
+              onChange={handleInputChange}
+              placeholder="Enter new password"
+              className="w-full px-3 py-1.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#007BFF] focus:border-transparent text-sm"
+              minLength={8}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowNewPassword(!showNewPassword)}
+              className="absolute right-3 top-7 text-gray-400 hover:text-gray-600"
+            >
+              {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+
+          <div className="relative">
+            <label htmlFor="confirmNewPassword" className="block text-xs font-bold text-gray-700 mb-1 text-left">
+              Confirm New Password
+            </label>
+            <input
+              type={showConfirmNewPassword ? "text" : "password"}
+              id="confirmNewPassword"
+              name="confirmNewPassword"
+              value={formData.confirmNewPassword}
+              onChange={handleInputChange}
+              placeholder="Confirm new password"
+              className="w-full px-3 py-1.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#007BFF] focus:border-transparent text-sm"
+              minLength={8}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
+              className="absolute right-3 top-7 text-gray-400 hover:text-gray-600"
+            >
+              {showConfirmNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+
+          {success && (
+            <div className="text-green-600 text-xs text-center py-2 bg-green-50 rounded-md">
+              {success}
+            </div>
+          )}
+          {error && (
+            <div className="text-red-500 text-xs text-center py-1 bg-red-50 rounded-md">
+              {error}
+            </div>
+          )}
+          
+          <button
+            type="submit"
+            disabled={loading || otpInputs.some(digit => !digit)}
+            className="w-full bg-[#007BFF] text-white py-1.5 rounded-lg font-medium hover:bg-[#0056b3] transition-colors text-sm disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
+          >
+            {loading ? 'Resetting...' : 'Reset Password'}
+          </button>
+          
+          <div className="mt-4 text-center space-x-4">
+            <button
+              type="button"
+              onClick={() => {
+                setForgotPasswordStep('email');
+                setOtpInputs(['', '', '', '', '', '']);
+              }}
+              className="text-gray-600 hover:text-gray-800 font-medium text-xs"
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode('login')}
+              className="text-[#007BFF] hover:text-[#007BFF] font-medium text-xs"
+            >
+              Login
+            </button>
+          </div>
+        </form>
+      );
+    }
+  };
 
   return (
     <>

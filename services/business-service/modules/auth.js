@@ -842,12 +842,26 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
       'save_password_reset_token'
     );
 
-    // TODO: Send email with reset token
-    // For now, just log it (in production, send via email service)
-    logger.info('Password reset token generated', {
+    // Send password reset email
+    const emailResult = await emailService.sendPasswordResetEmail(
+      user.email,
+      resetToken,
+      user.full_name
+    );
+
+    if (!emailResult.success) {
+      logger.error('Failed to send password reset email:', emailResult.error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to send password reset email',
+        code: 'EMAIL_SEND_ERROR'
+      });
+    }
+
+    logger.info('Password reset token generated and email sent', {
       user_id: user.user_id,
       email: user.email,
-      token: resetToken // Remove this in production
+      messageId: emailResult.messageId
     });
 
     res.json({
