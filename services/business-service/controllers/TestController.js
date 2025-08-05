@@ -1,4 +1,4 @@
-const Test = require('../models/Test');
+const TestModel = require('../models/Test');
 const winston = require('winston');
 const Joi = require('joi');
 const { authenticateToken, requireRole } = require('../modules/auth');
@@ -65,7 +65,7 @@ const getAllTestsSchema = Joi.object({
 
 class TestController {
   constructor() {
-    this.testModel = new Test();
+    this.testModel = new TestModel();
   }
 
   /**
@@ -173,16 +173,17 @@ class TestController {
 
       // Apply filters
       if (search) {
-        whereConditions.push(`(t.test_name ILIKE $${paramIndex} OR t.test_description ILIKE $${paramIndex})`);
+        whereConditions.push(`(t.test_name ILIKE $${paramIndex} OR t.description ILIKE $${paramIndex})`);
         queryParams.push(`%${search}%`);
         paramIndex++;
       }
 
-      if (test_type) {
-        whereConditions.push(`t.test_type = $${paramIndex}`);
-        queryParams.push(test_type);
-        paramIndex++;
-      }
+      // Note: test_type filter disabled - column doesn't exist in current schema
+      // if (test_type) {
+      //   whereConditions.push(`t.test_type = $${paramIndex}`);
+      //   queryParams.push(test_type);
+      //   paramIndex++;
+      // }
 
       if (typeof is_active === 'boolean') {
         whereConditions.push(`t.is_active = $${paramIndex}`);
@@ -200,7 +201,7 @@ class TestController {
         ${whereClause}
       `;
 
-      const countResult = await this.testModel.query(countQuery, queryParams, 'count_all_tests');
+      const countResult = await this.testModel.db.query(countQuery, queryParams, 'count_all_tests');
       const totalTests = parseInt(countResult.rows[0].total);
 
       // Calculate pagination
@@ -213,22 +214,19 @@ class TestController {
           t.test_id,
           t.job_id,
           t.test_name,
-          t.test_description,
-          t.test_type,
-          t.time_limit,
+          t.description,
+
+          t.duration_minutes,
           t.passing_score,
           t.is_active,
-          t.created_by,
           t.created_at,
           t.updated_at,
           j.title,
           j.company_id,
-          c.company_name,
-          u.full_name as created_by_name
+          c.company_name
         FROM job_tests t
         LEFT JOIN jobs j ON t.job_id = j.job_id
         LEFT JOIN companies c ON j.company_id = c.company_id
-        LEFT JOIN users u ON t.created_by = u.user_id
         ${whereClause}
         ORDER BY t.created_at DESC
         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -236,7 +234,7 @@ class TestController {
 
       queryParams.push(limit, offset);
 
-      const testsResult = await this.testModel.query(testsQuery, queryParams, 'get_all_tests');
+      const testsResult = await this.testModel.db.query(testsQuery, queryParams, 'get_all_tests');
 
       const pagination = {
         page,
@@ -1473,7 +1471,7 @@ class TestController {
       
       values.push(limit, offset);
 
-      const result = await this.testModel.query(query, values, 'get_test_results');
+      const result = await this.testModel.db.query(query, values, 'get_test_results');
 
       // Get total count
       const countQuery = `
@@ -1488,7 +1486,7 @@ class TestController {
         countValues.push(status);
       }
 
-      const countResult = await this.testModel.query(countQuery, countValues, 'count_test_results');
+      const countResult = await this.testModel.db.query(countQuery, countValues, 'count_test_results');
       const total = parseInt(countResult.rows[0].total);
 
       res.json({
@@ -1537,7 +1535,7 @@ class TestController {
           WHERE test_id = $1 AND candidate_id = $2
         `;
         
-        const result = await this.testModel.query(assignedQuery, [test.test_id, user.candidate_profile_id], 'check_test_assignment');
+        const result = await this.testModel.db.query(assignedQuery, [test.test_id, user.candidate_profile_id], 'check_test_assignment');
         return parseInt(result.rows[0].count) > 0;
       }
 

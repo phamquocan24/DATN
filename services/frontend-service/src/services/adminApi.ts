@@ -261,9 +261,6 @@ export const adminApi = {
     created_by?: string;
   }) => {
     const response = await apiClient.get('/api/v1/tests', { params });
-    if (response.data && response.data.data) {
-      return response.data.data;
-    }
     return response.data;
   },
 

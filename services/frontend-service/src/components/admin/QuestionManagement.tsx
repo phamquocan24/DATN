@@ -27,6 +27,8 @@ interface QuestionManagementProps {
 const QuestionManagement: React.FC<QuestionManagementProps> = ({ currentUser }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalQuestions, setTotalQuestions] = useState(0);
   const [notifOpen, setNotifOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(true);
   const [selectedDate, setSelectedDate] = useState('2023-07-19');
@@ -56,7 +58,11 @@ const QuestionManagement: React.FC<QuestionManagementProps> = ({ currentUser }) 
         setLoading(true);
         setError(null);
         
-        const testsData = await adminApi.getAllTestsAdmin();
+        const apiResult = await adminApi.getAllTestsAdmin({ page: currentPage, limit: itemsPerPage });
+        const testsData = apiResult?.data || [];
+        const paginationInfo = apiResult?.pagination;
+        setTotalPages(paginationInfo?.totalPages || 1);
+        setTotalQuestions(paginationInfo?.total || testsData.length);
         
         if (Array.isArray(testsData)) {
           // Transform API data to component format
@@ -72,37 +78,19 @@ const QuestionManagement: React.FC<QuestionManagementProps> = ({ currentUser }) 
           }));
           setQuestions(transformedQuestions);
         } else {
-          // Fallback to mock data if API fails
-          setQuestions([
-            { id: 1, position: 'Social Media Assistant', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Basic Programming', status: 'Closed', created: '2025-06-08', due: '2025-06-08' },
-            { id: 2, position: 'Senior Designer', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Situational Handling', status: 'Opening', created: '2025-06-08', due: '2025-06-08' },
-            { id: 3, position: 'Visual Designer', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'OOP Polymorphism', status: 'Opening', created: '2025-06-08', due: '2025-06-08' },
-            { id: 4, position: 'Data Science', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Database Design', status: 'Closed', created: '2025-06-08', due: '2025-06-08' },
-            { id: 5, position: 'Kotlin Developer', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Optimization Algorithms', status: 'Closed', created: '2025-06-08', due: '2025-06-08' },
-            { id: 6, position: 'Data Science', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Data Visualization', status: 'Opening', created: '2025-06-08', due: '2025-06-08' },
-            { id: 7, position: 'React Developer', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Performance Optimization', status: 'Closed', created: '2025-06-08', due: '2025-06-08' },
-          ]);
+          setQuestions([]);
         }
       } catch (err) {
         console.error('Error fetching questions:', err);
         setError('Failed to load questions data');
-        // Fallback to mock data on error
-        setQuestions([
-          { id: 1, position: 'Social Media Assistant', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Basic Programming', status: 'Closed', created: '2025-06-08', due: '2025-06-08' },
-          { id: 2, position: 'Senior Designer', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Situational Handling', status: 'Opening', created: '2025-06-08', due: '2025-06-08' },
-          { id: 3, position: 'Visual Designer', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'OOP Polymorphism', status: 'Opening', created: '2025-06-08', due: '2025-06-08' },
-          { id: 4, position: 'Data Science', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Database Design', status: 'Closed', created: '2025-06-08', due: '2025-06-08' },
-          { id: 5, position: 'Kotlin Developer', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Optimization Algorithms', status: 'Closed', created: '2025-06-08', due: '2025-06-08' },
-          { id: 6, position: 'Data Science', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Data Visualization', status: 'Opening', created: '2025-06-08', due: '2025-06-08' },
-          { id: 7, position: 'React Developer', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Performance Optimization', status: 'Closed', created: '2025-06-08', due: '2025-06-08' },
-        ]);
+        setQuestions([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchQuestions();
-  }, []);
+  }, [currentPage, itemsPerPage]);
 
   const handleQuestionSetClick = (questionSet: QuestionItem) => {
     setSelectedQuestionSet(questionSet);
@@ -169,7 +157,7 @@ const QuestionManagement: React.FC<QuestionManagementProps> = ({ currentUser }) 
             <div className="bg-white rounded-lg border border-gray-200">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
-                  <div className="text-lg font-semibold text-gray-800 text-left">Total Questions: {questions.length}</div>
+                  <div className="text-lg font-semibold text-gray-800 text-left">Total Questions: {totalQuestions}</div>
                   <div className="flex items-center space-x-4">
                     <div className="relative">
                       <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -232,7 +220,7 @@ const QuestionManagement: React.FC<QuestionManagementProps> = ({ currentUser }) 
                     {isPageSelectOpen && (
                       <div className="absolute bottom-full mb-1 w-16 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                         {pageOptions.map((option) => (
-                          <div key={option} onClick={() => { setItemsPerPage(option); setIsPageSelectOpen(false); }} className="px-2 py-0.5 text-center cursor-pointer hover:bg-[#007BFF] hover:text-white">{option}</div>
+                          <div key={option} onClick={() => { setItemsPerPage(option); setCurrentPage(1); setIsPageSelectOpen(false); }} className="px-2 py-0.5 text-center cursor-pointer hover:bg-[#007BFF] hover:text-white">{option}</div>
                         ))}
                       </div>
                     )}
@@ -240,11 +228,33 @@ const QuestionManagement: React.FC<QuestionManagementProps> = ({ currentUser }) 
                   <span className="text-gray-600 whitespace-nowrap">Questions per page</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button className="min-w-[32px] h-8 px-2 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50">&lt;</button>
-                  {[1, 2, 3].map(page => (
-                    <button key={page} className={`min-w-[32px] h-8 px-2 flex items-center justify-center rounded ${currentPage === page ? 'bg-[#007BFF] text-white' : 'border border-transparent text-[#007BFF] hover:bg-blue-50'}`} onClick={() => setCurrentPage(page)}>{page}</button>
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className={`min-w-[32px] h-8 px-2 flex items-center justify-center border rounded ${currentPage === 1 ? 'border-gray-200 text-gray-300 cursor-not-allowed' : 'border-gray-300 hover:bg-gray-50'}`}
+                  >
+                    &lt;
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      className={`min-w-[32px] h-8 px-2 flex items-center justify-center rounded ${
+                        currentPage === page
+                          ? 'bg-[#007BFF] text-white'
+                          : 'border border-transparent text-[#007BFF] hover:bg-blue-50'
+                      }`}
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </button>
                   ))}
-                  <button className="min-w-[32px] h-8 px-2 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50">&gt;</button>
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    className={`min-w-[32px] h-8 px-2 flex items-center justify-center border rounded ${currentPage === totalPages ? 'border-gray-200 text-gray-300 cursor-not-allowed' : 'border-gray-300 hover:bg-gray-50'}`}
+                  >
+                    &gt;
+                  </button>
                 </div>
               </div>
             </div>
