@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
 import adminApi from '../../services/adminApi';
 
-const CandidateManagement: React.FC = () => {
+interface CandidateManagementProps {
+  currentUser?: any;
+}
+
+const CandidateManagement: React.FC<CandidateManagementProps> = ({ currentUser }) => {
   const [candidateProfile, setCandidateProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

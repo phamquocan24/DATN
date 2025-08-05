@@ -6,6 +6,7 @@ import BellIcon from '../../assets/bell-outlined.png';
 import NotificationPanel from './NotificationPanelAdmin';
 import SchemeIcon from '../../assets/scheme.png';
 import adminApi from '../../services/adminApi';
+import AdminHeaderDropdown from './AdminHeaderDropdown';
 
 interface FeedbackItem {
   id: number;
@@ -16,7 +17,11 @@ interface FeedbackItem {
   type: 'Issue' | 'Feedback';
 }
 
-const FeedbackIssues: React.FC = () => {
+interface FeedbackIssuesProps {
+  currentUser?: any;
+}
+
+const FeedbackIssues: React.FC<FeedbackIssuesProps> = ({ currentUser }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [notifOpen, setNotifOpen] = useState(false);
@@ -109,11 +114,7 @@ const FeedbackIssues: React.FC = () => {
         <AdminLayout>
             <div className="p-8 bg-white text-left">
                 <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center space-x-3">
-                        <img src={AvatarImg} alt="Avatar" className="w-10 h-10 rounded-full" />
-                        <div><p className="font-semibold text-gray-800">Maria Kelly</p><p className="text-sm text-gray-500">MariaKelly@email.com</p></div>
-                        <FiChevronDown className="text-gray-400" />
-                    </div>
+                    <AdminHeaderDropdown currentUser={currentUser} />
                     <div className="flex items-center space-x-6 relative">
                         <button onClick={() => setNotifOpen(!notifOpen)} className="relative focus:outline-none"><img src={BellIcon} alt="Notifications" className="w-5 h-5" />{hasUnread && <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />}</button>
                         <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} position="header" onMarkAllAsRead={() => setHasUnread(false)} />

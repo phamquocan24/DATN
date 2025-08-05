@@ -1,5 +1,4 @@
 import React from 'react';
-import Avatar from '../../assets/Avatar17.png';
 import DashboardIcon from '../../assets/dashboard.png';
 import AIIcon from '../../assets/ai.png';
 import DocIcon from '../../assets/document.png';
@@ -22,8 +21,7 @@ interface DashboardSidebarProps {
   onSettingsClick?: () => void;
   onHelpCenterClick?: () => void;
   showLogout?: boolean;
-  onLogoutClick?: () => void; // This is already here, which is great.
-  currentUser?: any; // Add currentUser to props
+  onLogoutClick?: () => void;
 }
 
 const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
@@ -39,7 +37,6 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   onHelpCenterClick,
   showLogout = false,
   onLogoutClick,
-  currentUser, // Destructure currentUser
 }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
@@ -117,39 +114,20 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
           <span>Help Center</span>
         </button>
         
-        {/* User Info */}
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          {/* Logout Button - Only show if showLogout is true */}
-          {showLogout && (
+        {/* Logout Button - Only show if showLogout is true */}
+        {showLogout && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
             <button 
               onClick={onLogoutClick}
-              className="w-full flex items-center space-x-2 text-red-600 hover:text-red-700 py-2 mb-3 text-left"
+              className="w-full flex items-center space-x-2 text-red-600 hover:text-red-700 py-2 text-left"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
               <span className="font-medium">Logout</span>
             </button>
-          )}
-          
-          {currentUser ? (
-            <div className="flex items-center space-x-3 text-left">
-              <img src={currentUser.avatar || Avatar} alt="User" className="w-8 h-8 rounded-full" />
-              <div>
-                <p className="font-medium text-sm">{currentUser.name}</p>
-                <p className="text-gray-500 text-xs">{currentUser.email}</p>
-              </div>
-            </div>
-          ) : (
-             <div className="flex items-center space-x-3 text-left">
-              <img src={Avatar} alt="User" className="w-8 h-8 rounded-full" />
-              <div>
-                <p className="font-medium text-sm">Guest</p>
-                <p className="text-gray-500 text-xs">Not logged in</p>
-              </div>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

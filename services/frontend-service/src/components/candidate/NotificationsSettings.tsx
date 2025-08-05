@@ -1,6 +1,10 @@
 import React from 'react';
 
-const NotificationsSettings: React.FC = () => {
+interface NotificationsSettingsProps {
+  currentUser?: any;
+}
+
+const NotificationsSettings: React.FC<NotificationsSettingsProps> = ({ currentUser }) => {
   return (
     <div className="space-y-8 text-[14px]">
       {/* Basic Information */}

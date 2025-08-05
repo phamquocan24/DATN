@@ -34,7 +34,6 @@ export { default as DashboardSidebar } from './DashboardSidebar';
 export { default as HelpCenter } from './HelpCenter';
 export { default as EnhanceResume } from './EnhanceResume';
 export { default as SkillManagement } from './SkillManagement';
-export { default as ProfileSuggestions } from './ProfileSuggestions';
 export { default as OTPVerifyModal } from './OTPVerifyModal';
 export { default as OTPTestDemo } from './OTPTestDemo';
 export { default as CompanyBrowser } from './CompanyBrowser';

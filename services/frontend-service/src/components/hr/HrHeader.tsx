@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import bellIcon from '../../assets/bell-outlined.png';
 import nomadIcon from '../../assets/Nomad.png';
 import { HrNotificationPanel } from '.';
+import HrHeaderDropdown from './HrHeaderDropdown';
 
 interface HrHeaderProps {
   notifOpen: boolean;
@@ -10,9 +11,10 @@ interface HrHeaderProps {
   toggleNotif: () => void;
   onCloseNotif: () => void;
   onMarkAllAsRead: () => void;
+  currentUser?: any;
 }
 
-const HrHeader: React.FC<HrHeaderProps> = ({ notifOpen, hasUnread, toggleNotif, onCloseNotif, onMarkAllAsRead }) => {
+const HrHeader: React.FC<HrHeaderProps> = ({ notifOpen, hasUnread, toggleNotif, onCloseNotif, onMarkAllAsRead, currentUser }) => {
   const navigate = useNavigate();
 
   return (
@@ -42,6 +44,7 @@ const HrHeader: React.FC<HrHeaderProps> = ({ notifOpen, hasUnread, toggleNotif, 
             <span className="mr-2 text-lg leading-none">+</span>
             Post a job
           </button>
+          <HrHeaderDropdown currentUser={currentUser} />
         </div>
       </header>
     </div>

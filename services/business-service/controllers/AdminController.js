@@ -648,7 +648,7 @@ router.get('/statistics', authenticateToken, requireRole(['ADMIN']), async (req,
     // Get company statistics
     const companyStats = {
       total_companies: await companyModel.count(),
-      active_companies: await companyModel.count({ is_active: true })
+      active_companies: await companyModel.count({ company_status: 'ACTIVE' })
     };
 
     // Get registration trends (last 30 days)

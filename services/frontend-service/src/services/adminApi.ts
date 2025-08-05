@@ -3,8 +3,28 @@ import apiClient from './api';
 // Admin API Service
 export const adminApi = {
   // User Management
-  getAllUsers: async () => {
-    const response = await apiClient.get('/admin/users');
+  getAllUsers: async (params?: {
+    search?: string;
+    role?: string;
+    is_active?: boolean;
+    created_after?: string;
+    created_before?: string;
+    page?: number;
+    limit?: number;
+    order_by?: string;
+    direction?: string;
+  }) => {
+    const cleanParams = Object.fromEntries(
+      Object.entries(params || {}).filter(([, value]) => 
+        value !== '' && value !== null && value !== undefined && value !== 'all'
+      )
+    );
+    
+    const response = await apiClient.get('/admin/users', { params: cleanParams });
+    // Handle different response structures
+    if (response.data && response.data.data) {
+      return response.data.data; // Return the actual users array
+    }
     return response.data;
   },
 
@@ -23,6 +43,14 @@ export const adminApi = {
     return response.data;
   },
 
+  deactivateUser: async (userId: string, reason: string) => {
+    const response = await apiClient.put(`/admin/users/${userId}/status`, {
+      is_active: false,
+      reason: reason
+    });
+    return response.data;
+  },
+
   createUser: async (userData: any) => {
     const response = await apiClient.post('/admin/users', userData);
     return response.data;
@@ -31,22 +59,38 @@ export const adminApi = {
   // Statistics
   getSystemStatistics: async () => {
     const response = await apiClient.get('/admin/statistics');
+    // Handle different response structures
+    if (response.data && response.data.data) {
+      return response.data.data;
+    }
     return response.data;
   },
 
   getUserStatistics: async () => {
-    const response = await apiClient.get('/admin/statistics');
+    const response = await apiClient.get('/admin/user-statistics');
+    // Handle different response structures
+    if (response.data && response.data.data) {
+      return response.data.data;
+    }
     return response.data;
   },
 
   // Job Management  
   getAllJobs: async () => {
     const response = await apiClient.get('/jobs');
+    // Handle different response structures
+    if (response.data && response.data.data) {
+      return response.data.data;
+    }
     return response.data;
   },
 
   getPendingJobs: async () => {
     const response = await apiClient.get('/jobs/pending');
+    // Handle different response structures
+    if (response.data && response.data.data) {
+      return response.data.data;
+    }
     return response.data;
   },
 
@@ -163,6 +207,37 @@ export const adminApi = {
 
   getFeedbackStats: async () => {
     const response = await apiClient.get('/feedback/stats').catch(() => ({ data: {} }));
+    return response.data;
+  },
+
+  // Activity Logs Management
+  getLogs: async (params?: { 
+    page?: number; 
+    limit?: number; 
+    level?: string; 
+    start_date?: string; 
+    end_date?: string 
+  }) => {
+    const cleanParams = Object.fromEntries(
+      Object.entries(params || {}).filter(([, value]) => 
+        value !== '' && value !== null && value !== undefined && value !== 'all'
+      )
+    );
+    
+    const response = await apiClient.get('/admin/logs', { params: cleanParams });
+    // Handle different response structures
+    if (response.data && response.data.data) {
+      return response.data.data;
+    }
+    return response.data;
+  },
+
+  getLogById: async (logId: string) => {
+    const response = await apiClient.get(`/admin/logs/${logId}`);
+    // Handle different response structures
+    if (response.data && response.data.data) {
+      return response.data.data;
+    }
     return response.data;
   }
 };

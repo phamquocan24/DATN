@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FiInstagram, FiTwitter, FiFacebook, FiLinkedin, FiYoutube, FiGrid, FiList } from 'react-icons/fi';
 
-const OverviewSettings = () => (
+const OverviewSettings = ({ currentUser }: { currentUser?: any }) => (
     <div className="bg-white p-8 rounded-lg border">
         <h2 className="text-lg font-semibold mb-2">Basic Information</h2>
         <p className="text-gray-500 mb-6">This is company information that you can update anytime.</p>
@@ -26,12 +26,12 @@ const OverviewSettings = () => (
             </div>
             <div>
                 <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
-                <input type="text" id="companyName" defaultValue="Nomad" className="w-full border-gray-300 rounded-lg shadow-sm" />
+                <input type="text" id="companyName" defaultValue={currentUser?.company_name || "Nomad"} className="w-full border-gray-300 rounded-lg shadow-sm" />
             </div>
             <div></div>
              <div>
                 <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-1">Website</label>
-                <input type="text" id="website" defaultValue="https://www.nomad.com" className="w-full border-gray-300 rounded-lg shadow-sm" />
+                <input type="text" id="website" defaultValue={currentUser?.website || "https://www.nomad.com"} className="w-full border-gray-300 rounded-lg shadow-sm" />
             </div>
             <div></div>
             <div>
@@ -158,19 +158,23 @@ const TeamSettings = () => {
 };
 
 
-const Settings: React.FC = () => {
+interface SettingsProps {
+  currentUser?: any;
+}
+
+const Settings: React.FC<SettingsProps> = ({ currentUser }) => {
   const [activeTab, setActiveTab] = useState('Overview');
 
   const renderContent = () => {
     switch (activeTab) {
       case 'Overview':
-        return <OverviewSettings />;
+        return <OverviewSettings currentUser={currentUser} />;
       case 'Social Links':
         return <SocialLinksSettings />;
       case 'Team':
         return <TeamSettings />;
       default:
-        return <OverviewSettings />;
+        return <OverviewSettings currentUser={currentUser} />;
     }
   };
 

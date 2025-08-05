@@ -1,22 +1,28 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiSearch, FiFilter, FiMoreHorizontal, FiChevronDown } from 'react-icons/fi';
+import { FiSearch, FiMoreHorizontal, FiChevronDown } from 'react-icons/fi';
 import AdminLayout from './AdminLayout';
 import AdminCreateUserForm from './AdminCreateUserForm';
-import AvatarImg from '../../assets/Avatar17.png';
+
 import BellIcon from '../../assets/bell-outlined.png';
 import NotificationPanel from './NotificationPanelAdmin';
 import adminApi from '../../services/adminApi';
+import AdminHeaderDropdown from './AdminHeaderDropdown';
 
 interface AccountItem {
   id: number;
   fullName: string;
   email: string;
   status: 'Active' | 'Locked';
-  type: 'HR' | 'Candidate';
+  type: 'HR' | 'Candidate' | 'Admin';
 }
 
-const AdminAccountsList = () => {
+interface AdminAccountsListProps {
+  currentUser?: any;
+}
+
+const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) => {
+  
   const [viewMode, setViewMode] = useState<'pipeline' | 'table'>('table');
   const [notifOpen, setNotifOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(true);
@@ -29,36 +35,96 @@ const AdminAccountsList = () => {
   // State for custom dropdown
   const [accountsPerPage, setAccountsPerPage] = useState(10);
   const [isPageSelectOpen, setIsPageSelectOpen] = useState(false);
-  const pageOptions = [10, 20, 30];
+  const pageOptions = [10, 20, 50, 100];
   const pageSelectRef = useRef<HTMLDivElement>(null);
+  
+  // Search and filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  // Modal states
+  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<{id: number, email: string} | null>(null);
+  const [deactivationReason, setDeactivationReason] = useState('');
 
   const fetchAccounts = async () => {
     setIsLoading(true);
     try {
-      const usersData = await adminApi.getAllUsers();
+      // Build API parameters
+      const params: any = {
+        page: currentPage,
+        limit: accountsPerPage,
+        order_by: 'created_at',
+        direction: 'DESC'
+      };
+      
+      if (debouncedSearchQuery.trim()) {
+        params.search = debouncedSearchQuery.trim();
+      }
+      
+      if (roleFilter !== 'all') {
+        params.role = roleFilter.toUpperCase();
+      }
+      
+      if (statusFilter !== 'all') {
+        params.is_active = statusFilter === 'active';
+      }
+      
+      console.log('Fetching accounts with params:', params); // Debug log
+      const usersData = await adminApi.getAllUsers(params);
+      console.log('API Response:', usersData); // Debug log
+      
+      // Ensure usersData is an array
+      if (!Array.isArray(usersData)) {
+        console.error('Users data is not an array:', usersData);
+        setError('Invalid data format received.');
+        setAccounts([]);
+        return;
+      }
       
       // Transform API data to match component interface
       const transformedAccounts = usersData.map((user: any) => ({
-        id: user.id || user._id,
-        fullName: user.name || `${user.firstName} ${user.lastName}` || 'Unknown User',
-        email: user.email,
-        status: user.status === 'active' ? 'Active' : 'Locked',
-        type: user.role === 'hr' ? 'HR' : 'Candidate'
+        id: user.user_id || user.id || user._id,
+        fullName: user.full_name || user.name || user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown User',
+        email: user.email || 'No email',
+        status: (user.is_active === false || user.status === 'inactive') ? 'Locked' as const : 'Active' as const,
+        type: (user.role === 'RECRUITER' || user.role === 'HR' || user.role === 'hr') ? 'HR' as const : 
+              (user.role === 'ADMIN') ? 'Admin' as const : 'Candidate' as const
       }));
       
+      console.log('Transformed accounts:', transformedAccounts); // Debug log
       setAccounts(transformedAccounts);
       setError(null);
     } catch (err) {
       setError('Failed to load accounts.');
       console.error('Error fetching accounts:', err);
+      setAccounts([]); // Set empty array on error
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Debounce search query
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   useEffect(() => {
     fetchAccounts();
-  }, []);
+  }, [currentPage, accountsPerPage, debouncedSearchQuery, roleFilter, statusFilter]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery, roleFilter, statusFilter]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -72,22 +138,81 @@ const AdminAccountsList = () => {
     };
   }, [pageSelectRef]);
   
-  const handleDelete = async (e: React.MouseEvent, userId: number) => {
+  const handleDeactivate = (e: React.MouseEvent, userId: number, userEmail: string) => {
     e.stopPropagation(); // Prevent navigation
-    if (window.confirm('Are you sure you want to delete this account?')) {
+    setSelectedUser({ id: userId, email: userEmail });
+    setShowDeactivateModal(true);
+  };
+
+  const confirmDeactivation = async () => {
+    if (!selectedUser || !deactivationReason.trim()) {
+      alert('Reason is required to deactivate an account.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const response = await adminApi.deactivateUser(selectedUser.id.toString(), deactivationReason.trim());
+      
+      console.log('Deactivation response:', response);
+      
+      // Close modal and reset
+      setShowDeactivateModal(false);
+      setSelectedUser(null);
+      setDeactivationReason('');
+      
+      // Refresh the list after deactivation
+      await fetchAccounts();
+      
+      // Show success message with details
+      alert(`✅ SUCCESS\n\nAccount deactivated successfully!\n\nUser: ${selectedUser.email}\nStatus: Inactive\nTime: ${new Date().toLocaleString()}`);
+      
+    } catch (err: any) {
+      console.error(`Failed to deactivate user ${selectedUser.id}`, err);
+      
+      // Better error handling with specific messages
+      const errorMessage = err?.response?.data?.error || err?.response?.data?.message || err.message || 'Unknown error occurred';
+      alert(`❌ DEACTIVATION FAILED\n\nUser: ${selectedUser.email}\nError: ${errorMessage}\n\nPlease try again or contact support.`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const cancelDeactivation = () => {
+    setShowDeactivateModal(false);
+    setSelectedUser(null);
+    setDeactivationReason('');
+  };
+
+  const handleReactivate = async (e: React.MouseEvent, userId: number, userEmail: string) => {
+    e.stopPropagation(); // Prevent navigation
+    
+    if (window.confirm(`🔄 CONFIRM REACTIVATION\n\nAccount: ${userEmail}\n\nThis action will:\n• Enable user login\n• Restore account access\n• Log this action for audit\n\nProceed with reactivation?`)) {
       try {
-        await adminApi.deleteUser(userId.toString());
-        // Refresh the list after deletion
-        fetchAccounts();
-      } catch (err) {
-        console.error(`Failed to delete user ${userId}`, err);
-        // Optionally show an error message to the admin
-        alert('Failed to delete account.');
+        setIsLoading(true);
+        const response = await adminApi.updateUserStatus(userId.toString(), true, 'Account reactivated by admin');
+        
+        console.log('Reactivation response:', response);
+        
+        // Refresh the list after reactivation
+        await fetchAccounts();
+        
+        // Show success message with details
+        alert(`✅ SUCCESS\n\nAccount reactivated successfully!\n\nUser: ${userEmail}\nStatus: Active\nTime: ${new Date().toLocaleString()}`);
+        
+      } catch (err: any) {
+        console.error(`Failed to reactivate user ${userId}`, err);
+        
+        // Better error handling with specific messages
+        const errorMessage = err?.response?.data?.error || err?.response?.data?.message || err.message || 'Unknown error occurred';
+        alert(`❌ REACTIVATION FAILED\n\nUser: ${userEmail}\nError: ${errorMessage}\n\nPlease try again or contact support.`);
+      } finally {
+        setIsLoading(false);
       }
     }
   };
 
-  const handleUserCreated = (newUser: any) => {
+  const handleUserCreated = () => {
     // Refresh the accounts list to include the new user
     fetchAccounts();
   };
@@ -98,16 +223,7 @@ const AdminAccountsList = () => {
       {/* Top Admin Bar */}
       <div className="flex items-center justify-between mb-6">
         {/* User Info */}
-        <div className="flex items-center space-x-3">
-          <img src={AvatarImg} alt="Avatar" className="w-10 h-10 rounded-full" />
-          <div className="text-left">
-            <p className="text-sm font-semibold text-gray-800">Maria Kelly</p>
-            <p className="text-xs text-gray-500">MariaKelly@email.com</p>
-          </div>
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-          </svg>
-        </div>
+        <AdminHeaderDropdown currentUser={currentUser} />
 
         {/* Right actions */}
         <div className="flex items-center space-x-6 relative">
@@ -153,15 +269,34 @@ const AdminAccountsList = () => {
             <input
               type="text"
               placeholder="Search name, email"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
             />
           </div>
 
-          {/* Filter */}
-          <button className="px-4 py-2 border border-gray-300 rounded-lg flex items-center gap-2 hover:bg-gray-50 whitespace-nowrap">
-            <FiFilter className="text-gray-600" />
-            <span>Filter</span>
-          </button>
+          {/* Role Filter */}
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+          >
+            <option value="all">All Roles</option>
+            <option value="candidate">Candidate</option>
+            <option value="recruiter">HR</option>
+            <option value="admin">Admin</option>
+          </select>
+
+          {/* Status Filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+          >
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Locked</option>
+          </select>
 
           {/* View Toggle Wrapper */}
           <div className="flex bg-indigo-50 p-1 rounded-full">
@@ -202,8 +337,10 @@ const AdminAccountsList = () => {
             ) : error ? (
               <tr><td colSpan={6} className="text-center p-4 text-red-500">{error}</td></tr>
             ) : accounts.map((account) => (
-              <tr key={account.id} className="border-b border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors" onClick={() => {
-                const path = account.type === 'Candidate' ? `/admin/candidates/${account.id}` : `/admin/hr/${account.id}`;
+              <tr key={account.id} className={`border-b border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors ${account.status === 'Locked' ? 'bg-red-50 opacity-75' : ''}`} onClick={() => {
+                const path = account.type === 'Candidate' ? `/admin/candidates/${account.id}` : 
+                             account.type === 'Admin' ? `/admin/admins/${account.id}` :
+                             `/admin/hr/${account.id}`;
                 navigate(path);
               }}>
                 <td className="p-4">
@@ -229,6 +366,8 @@ const AdminAccountsList = () => {
                   <span className={`px-3 py-1 rounded-full text-sm ${
                     account.type === 'HR'
                       ? 'bg-yellow-100 text-yellow-600'
+                      : account.type === 'Admin'
+                      ? 'bg-red-100 text-red-600'
                       : 'bg-blue-100 text-blue-600'
                   }`}>
                     {account.type}
@@ -236,13 +375,30 @@ const AdminAccountsList = () => {
                 </td>
                 <td className="px-4 py-4">
                   <div className="flex items-center gap-2">
-                    <button 
-                      onClick={(e) => handleDelete(e, account.id)}
-                      className="px-3 py-1 text-sm border border-red-500 text-red-500 rounded hover:bg-red-50"
-                    >
-                      Delete
-                    </button>
-                    <button className="px-3 py-1 text-sm border border-blue-500 text-blue-500 rounded hover:bg-blue-50" onClick={(e) => {e.stopPropagation(); const path = account.type === 'Candidate' ? `/admin/candidates/${account.id}` : `/admin/hr/${account.id}`; navigate(path);}}>
+                    {account.status === 'Active' ? (
+                      <button 
+                        onClick={(e) => handleDeactivate(e, account.id, account.email)}
+                        className="px-3 py-1 text-sm border border-orange-500 text-orange-500 rounded hover:bg-orange-50"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? 'Processing...' : 'Deactivate'}
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={(e) => handleReactivate(e, account.id, account.email)}
+                        className="px-3 py-1 text-sm border border-green-500 text-green-500 rounded hover:bg-green-50"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? 'Processing...' : 'Reactivate'}
+                      </button>
+                    )}
+                    <button className="px-3 py-1 text-sm border border-blue-500 text-blue-500 rounded hover:bg-blue-50" onClick={(e) => {
+                      e.stopPropagation(); 
+                      const path = account.type === 'Candidate' ? `/admin/candidates/${account.id}` : 
+                                   account.type === 'Admin' ? `/admin/admins/${account.id}` :
+                                   `/admin/hr/${account.id}`; 
+                      navigate(path);
+                    }}>
                       Account Details
                     </button>
                     <button className="p-1 hover:bg-gray-100 rounded">
@@ -317,6 +473,72 @@ const AdminAccountsList = () => {
       onClose={() => setIsCreateUserOpen(false)}
       onUserCreated={handleUserCreated}
     />
+
+    {/* Deactivate User Modal */}
+    {showDeactivateModal && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+          <div className="flex items-center mb-4">
+            <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center mr-3">
+              <span className="text-orange-600 text-lg">⚠️</span>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">Deactivate Account</h3>
+          </div>
+          
+          <div className="mb-4">
+            <p className="text-sm text-gray-600 mb-2">
+              You are about to deactivate the following account:
+            </p>
+            <div className="bg-gray-50 p-3 rounded border">
+              <p className="font-medium text-gray-900">{selectedUser?.email}</p>
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label htmlFor="deactivationReason" className="block text-sm font-medium text-gray-700 mb-2">
+              Reason for deactivation <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              id="deactivationReason"
+              value={deactivationReason}
+              onChange={(e) => setDeactivationReason(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              rows={3}
+              placeholder="Please provide a reason for deactivating this account..."
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="bg-orange-50 border border-orange-200 rounded p-3 mb-4">
+            <p className="text-sm text-orange-800">
+              <strong>This action will:</strong>
+            </p>
+            <ul className="text-sm text-orange-700 mt-1 list-disc list-inside">
+              <li>Disable user login access</li>
+              <li>Restrict account functionality</li>
+              <li>Log this action for audit purposes</li>
+            </ul>
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={cancelDeactivation}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+              disabled={isLoading}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmDeactivation}
+              className="px-4 py-2 text-sm font-medium text-white bg-orange-600 border border-transparent rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLoading || !deactivationReason.trim()}
+            >
+              {isLoading ? 'Deactivating...' : 'Deactivate Account'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </AdminLayout>
   );
 };

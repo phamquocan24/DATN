@@ -1,11 +1,13 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
 import { FiSearch, FiFilter, FiMoreHorizontal, FiChevronDown } from 'react-icons/fi';
-import AvatarImg from '../../assets/Avatar17.png'; 
+ 
 import BellIcon from '../../assets/bell-outlined.png';
 import NotificationPanel from './NotificationPanelAdmin';
 import SchemeIcon from '../../assets/scheme.png';
 import QuestionDetails from './QuestionDetails'; // Import the new component
+import adminApi from '../../services/adminApi';
+import AdminHeaderDropdown from './AdminHeaderDropdown';
 
 interface QuestionItem {
   id: number;
@@ -18,7 +20,11 @@ interface QuestionItem {
   due: string;
 }
 
-const QuestionManagement: React.FC = () => {
+interface QuestionManagementProps {
+  currentUser?: any;
+}
+
+const QuestionManagement: React.FC<QuestionManagementProps> = ({ currentUser }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -26,6 +32,11 @@ const QuestionManagement: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState('2023-07-19');
   const dateInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedQuestionSet, setSelectedQuestionSet] = useState<QuestionItem | null>(null);
+  
+  // API data states
+  const [questions, setQuestions] = useState<QuestionItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
 
   const openDatePicker = () => {
@@ -38,15 +49,60 @@ const QuestionManagement: React.FC = () => {
   const pageSelectRef = useRef<HTMLDivElement>(null);
 
 
-  const questions: QuestionItem[] = [
-    { id: 1, position: 'Social Media Assistant', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Basic Programming', status: 'Closed', created: '2025-06-08', due: '2025-06-08' },
-    { id: 2, position: 'Senior Designer', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Situational Handling', status: 'Opening', created: '2025-06-08', due: '2025-06-08' },
-    { id: 3, position: 'Visual Designer', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'OOP Polymorphism', status: 'Opening', created: '2025-06-08', due: '2025-06-08' },
-    { id: 4, position: 'Data Science', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Database Design', status: 'Closed', created: '2025-06-08', due: '2025-06-08' },
-    { id: 5, position: 'Kotlin Developer', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Optimization Algorithms', status: 'Closed', created: '2025-06-08', due: '2025-06-08' },
-    { id: 6, position: 'Data Science', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Data Visualization', status: 'Opening', created: '2025-06-08', due: '2025-06-08' },
-    { id: 7, position: 'React Developer', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Performance Optimization', status: 'Closed', created: '2025-06-08', due: '2025-06-08' },
-  ];
+  // Fetch questions data
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const testsData = await adminApi.getAllTests();
+        
+        if (Array.isArray(testsData)) {
+          // Transform API data to component format
+          const transformedQuestions = testsData.map((test: any, index: number) => ({
+            id: test.id || index + 1,
+            position: test.position || test.job_title || 'Unknown Position',
+            createdBy: 'HR' as const,
+            fullName: test.created_by_name || test.creator_name || 'HR Manager',
+            contents: test.title || test.name || test.description || 'Test Questions',
+            status: test.status === 'active' ? 'Opening' as const : 'Closed' as const,
+            created: test.created_at ? new Date(test.created_at).toISOString().split('T')[0] : '2025-06-08',
+            due: test.due_date ? new Date(test.due_date).toISOString().split('T')[0] : '2025-06-08'
+          }));
+          setQuestions(transformedQuestions);
+        } else {
+          // Fallback to mock data if API fails
+          setQuestions([
+            { id: 1, position: 'Social Media Assistant', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Basic Programming', status: 'Closed', created: '2025-06-08', due: '2025-06-08' },
+            { id: 2, position: 'Senior Designer', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Situational Handling', status: 'Opening', created: '2025-06-08', due: '2025-06-08' },
+            { id: 3, position: 'Visual Designer', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'OOP Polymorphism', status: 'Opening', created: '2025-06-08', due: '2025-06-08' },
+            { id: 4, position: 'Data Science', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Database Design', status: 'Closed', created: '2025-06-08', due: '2025-06-08' },
+            { id: 5, position: 'Kotlin Developer', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Optimization Algorithms', status: 'Closed', created: '2025-06-08', due: '2025-06-08' },
+            { id: 6, position: 'Data Science', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Data Visualization', status: 'Opening', created: '2025-06-08', due: '2025-06-08' },
+            { id: 7, position: 'React Developer', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Performance Optimization', status: 'Closed', created: '2025-06-08', due: '2025-06-08' },
+          ]);
+        }
+      } catch (err) {
+        console.error('Error fetching questions:', err);
+        setError('Failed to load questions data');
+        // Fallback to mock data on error
+        setQuestions([
+          { id: 1, position: 'Social Media Assistant', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Basic Programming', status: 'Closed', created: '2025-06-08', due: '2025-06-08' },
+          { id: 2, position: 'Senior Designer', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Situational Handling', status: 'Opening', created: '2025-06-08', due: '2025-06-08' },
+          { id: 3, position: 'Visual Designer', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'OOP Polymorphism', status: 'Opening', created: '2025-06-08', due: '2025-06-08' },
+          { id: 4, position: 'Data Science', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Database Design', status: 'Closed', created: '2025-06-08', due: '2025-06-08' },
+          { id: 5, position: 'Kotlin Developer', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Optimization Algorithms', status: 'Closed', created: '2025-06-08', due: '2025-06-08' },
+          { id: 6, position: 'Data Science', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Data Visualization', status: 'Opening', created: '2025-06-08', due: '2025-06-08' },
+          { id: 7, position: 'React Developer', createdBy: 'HR', fullName: 'Jerome Bell', contents: 'Performance Optimization', status: 'Closed', created: '2025-06-08', due: '2025-06-08' },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchQuestions();
+  }, []);
 
   const handleQuestionSetClick = (questionSet: QuestionItem) => {
     setSelectedQuestionSet(questionSet);
@@ -60,15 +116,8 @@ const QuestionManagement: React.FC = () => {
   return (
     <AdminLayout>
       <div className="p-8 bg-white text-left">
-        <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-3">
-                <img src={AvatarImg} alt="Avatar" className="w-10 h-10 rounded-full" />
-                <div className="text-left">
-                  <p className="text-sm font-semibold text-gray-800">Maria Kelly</p>
-                  <p className="text-xs text-gray-500">MariaKelly@email.com</p>
-                </div>
-                <FiChevronDown className="h-4 w-4 text-gray-500" />
-            </div>
+                <div className="flex items-center justify-between mb-6">
+            <AdminHeaderDropdown currentUser={currentUser} />
             <div className="flex items-center space-x-6 relative">
                 <button onClick={() => setNotifOpen(!notifOpen)} className="relative focus:outline-none">
                     <img src={BellIcon} alt="Notifications" className="w-5 h-5" />

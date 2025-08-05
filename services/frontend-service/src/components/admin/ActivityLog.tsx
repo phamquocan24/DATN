@@ -1,11 +1,13 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
 import { FiSearch, FiFilter, FiChevronDown, FiMoreHorizontal } from 'react-icons/fi';
-import AvatarImg from '../../assets/Avatar17.png';
+
 import BellIcon from '../../assets/bell-outlined.png';
 import NotificationPanel from './NotificationPanelAdmin';
-import SchemeIcon from '../../assets/scheme.png';
+
 import { ActivityLogDetails } from './';
+import adminApi from '../../services/adminApi';
+import AdminHeaderDropdown from './AdminHeaderDropdown';
 
 interface Log {
   id: number;
@@ -16,35 +18,155 @@ interface Log {
   actions: string;
   ip: string;
   location: string;
+  level?: string;
+  message?: string;
+  metadata?: any;
 }
 
-const ActivityLog: React.FC = () => {
+interface ActivityLogProps {
+  currentUser?: any;
+}
+
+const ActivityLog: React.FC<ActivityLogProps> = ({ currentUser }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [notifOpen, setNotifOpen] = useState(false);
     const [hasUnread, setHasUnread] = useState(true);
     const [selectedDate, setSelectedDate] = useState('2023-07-19');
-    const dateInputRef = useRef<HTMLInputElement | null>(null);
+
     const [isPageSelectOpen, setIsPageSelectOpen] = useState(false);
     const pageSelectRef = useRef<HTMLDivElement>(null);
     const [selectedLog, setSelectedLog] = useState<Log | null>(null);
-
-    const openDatePicker = () => {
-        dateInputRef.current?.showPicker?.();
-        dateInputRef.current?.click();
-    };
-
-    const logs: Log[] = [
-        { id: 1, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'HR', details: 'Create question set', actions: 'Create Q&A', ip: '192.168.1.1', location: 'Hanoi' },
-        { id: 2, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'Candidate', details: 'Submit CV for application', actions: 'Apply', ip: '192.168.1.1', location: 'Da Nang' },
-        { id: 3, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'Candidate', details: 'Take mini-test', actions: 'Test', ip: '192.168.1.1', location: 'HCM' },
-        { id: 4, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'Candidate', details: 'Edit profile', actions: 'Edit', ip: '192.168.1.1', location: 'Hue' },
-        { id: 5, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'Admin', details: 'Login', actions: 'Login', ip: '192.168.1.1', location: 'Lao Cai' },
-        { id: 6, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'HR', details: 'Post new job', actions: 'Post job', ip: '192.168.1.1', location: 'Hung Yen' },
-        { id: 7, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'Admin', details: 'Export data', actions: 'Export', ip: '192.168.1.1', location: 'Thai Binh' },
-    ];
     
-    const pageOptions = [10, 20, 30];
+    // API data states
+    const [logs, setLogs] = useState<Log[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [levelFilter, setLevelFilter] = useState<string>('all');
+    const [endDate, setEndDate] = useState<string>('');
+
+
+
+    // Fetch logs data
+    useEffect(() => {
+        const fetchLogs = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                
+                const params: any = {
+                    page: currentPage,
+                    limit: itemsPerPage
+                };
+                
+                if (levelFilter !== 'all') {
+                    params.level = levelFilter;
+                }
+                
+                if (selectedDate) {
+                    params.start_date = selectedDate;
+                }
+                
+                if (endDate) {
+                    params.end_date = endDate;
+                }
+                
+                console.log('Fetching logs with params:', params); // Debug log
+                const logsResponse = await adminApi.getLogs(params);
+                console.log('Logs API Response:', logsResponse); // Debug log
+                
+                let logsData = logsResponse;
+                // Handle nested structure if exists
+                if (logsResponse && logsResponse.logs) {
+                    logsData = logsResponse.logs;
+                } else if (logsResponse && Array.isArray(logsResponse)) {
+                    logsData = logsResponse;
+                }
+                
+                // Ensure logsData is an array
+                if (!Array.isArray(logsData)) {
+                    console.error('Logs data is not an array:', logsData);
+                    setError('Invalid logs data format received.');
+                    setLogs([]);
+                    return;
+                }
+                
+                // Transform API data to match component interface
+                const transformedLogs = logsData.map((log: any, index: number) => ({
+                    id: log.id || index + 1,
+                    time: log.timestamp ? new Date(log.timestamp).toLocaleString('en-GB', { 
+                        day: '2-digit', 
+                        month: '2-digit', 
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                    }) : '15:50PM 2025-06-08',
+                    fullName: log.user_name || log.userName || log.metadata?.user_name || 'System User',
+                    user: determineUserType(log),
+                    details: log.message || log.action || log.details || 'System activity',
+                    actions: extractAction(log.message || log.action || ''),
+                    ip: log.ip_address || log.ip || log.metadata?.ip || '192.168.1.1',
+                    location: log.location || log.metadata?.location || 'Unknown',
+                    level: log.level || 'info',
+                    message: log.message,
+                    metadata: log.metadata
+                }));
+                
+                console.log('Transformed logs:', transformedLogs); // Debug log
+                setLogs(transformedLogs);
+                
+            } catch (err) {
+                console.error('Error fetching logs:', err);
+                setError('Failed to load activity logs.');
+                // Fallback to mock data on error
+                setLogs([
+                    { id: 1, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'HR', details: 'Create question set', actions: 'Create Q&A', ip: '192.168.1.1', location: 'Hanoi' },
+                    { id: 2, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'Candidate', details: 'Submit CV for application', actions: 'Apply', ip: '192.168.1.1', location: 'Da Nang' },
+                    { id: 3, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'Candidate', details: 'Take mini-test', actions: 'Test', ip: '192.168.1.1', location: 'HCM' },
+                    { id: 4, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'Candidate', details: 'Edit profile', actions: 'Edit', ip: '192.168.1.1', location: 'Hue' },
+                    { id: 5, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'Admin', details: 'Login', actions: 'Login', ip: '192.168.1.1', location: 'Lao Cai' },
+                    { id: 6, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'HR', details: 'Post new job', actions: 'Post job', ip: '192.168.1.1', location: 'Hung Yen' },
+                    { id: 7, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'Admin', details: 'Export data', actions: 'Export', ip: '192.168.1.1', location: 'Thai Binh' },
+                ]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchLogs();
+    }, [currentPage, itemsPerPage, levelFilter, selectedDate, endDate]);
+    
+    // Helper functions
+    const determineUserType = (log: any): 'HR' | 'Candidate' | 'Admin' => {
+        if (log.user_role || log.userRole || log.metadata?.user_role) {
+            const role = (log.user_role || log.userRole || log.metadata?.user_role).toLowerCase();
+            if (role === 'admin') return 'Admin';
+            if (role === 'recruiter' || role === 'hr') return 'HR';
+            return 'Candidate';
+        }
+        
+        // Fallback based on message content
+        const message = (log.message || '').toLowerCase();
+        if (message.includes('admin') || message.includes('system')) return 'Admin';
+        if (message.includes('job') || message.includes('recruit')) return 'HR';
+        return 'Candidate';
+    };
+    
+    const extractAction = (message: string): string => {
+        const lowerMessage = message.toLowerCase();
+        if (lowerMessage.includes('login')) return 'Login';
+        if (lowerMessage.includes('logout')) return 'Logout';
+        if (lowerMessage.includes('create')) return 'Create';
+        if (lowerMessage.includes('update') || lowerMessage.includes('edit')) return 'Edit';
+        if (lowerMessage.includes('delete')) return 'Delete';
+        if (lowerMessage.includes('apply')) return 'Apply';
+        if (lowerMessage.includes('test')) return 'Test';
+        if (lowerMessage.includes('export')) return 'Export';
+        return 'Activity';
+    };
+    
+    const pageOptions = [10, 20, 50, 100];
 
     const getUserTypeColor = (type: string) => {
         switch (type.toLowerCase()) {
@@ -68,18 +190,22 @@ const ActivityLog: React.FC = () => {
         }
     };
 
+    const getLevelColor = (level: string) => {
+        switch (level.toLowerCase()) {
+            case 'error': return 'bg-red-100 text-red-800';
+            case 'warn': 
+            case 'warning': return 'bg-yellow-100 text-yellow-800';
+            case 'info': return 'bg-blue-100 text-blue-800';
+            case 'debug': return 'bg-purple-100 text-purple-800';
+            default: return 'bg-gray-100 text-gray-800';
+        }
+    };
+
     return (
         <AdminLayout>
             <div className="p-8 bg-white text-left">
                 <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center space-x-3">
-                        <img src={AvatarImg} alt="Avatar" className="w-10 h-10 rounded-full" />
-                        <div className="text-left">
-                          <p className="text-sm font-semibold text-gray-800">Maria Kelly</p>
-                          <p className="text-xs text-gray-500">MariaKelly@email.com</p>
-                        </div>
-                        <FiChevronDown className="h-4 w-4 text-gray-500" />
-                    </div>
+                    <AdminHeaderDropdown currentUser={currentUser} />
                     <div className="flex items-center space-x-6 relative">
                         <button onClick={() => setNotifOpen(!notifOpen)} className="relative focus:outline-none">
                             <img src={BellIcon} alt="Notifications" className="w-5 h-5" />
@@ -100,11 +226,24 @@ const ActivityLog: React.FC = () => {
                                 <h1 className="text-2xl font-semibold text-gray-800">Activity Log</h1>
                                 <p className="text-gray-600">Here is your activity logs from July 19 - July 25.</p>
                             </div>
-                            <div className="relative">
-                                <input ref={dateInputRef} type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
-                                <div className="flex items-center pl-4 pr-10 py-2 w-48 text-left text-gray-700 border rounded-md bg-white select-none cursor-pointer" onClick={openDatePicker}>
-                                    <span>{new Date(selectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(new Date(selectedDate).getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { day: 'numeric' })}</span>
-                                    <img src={SchemeIcon} alt="calendar" onClick={openDatePicker} className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 cursor-pointer" />
+                            <div className="flex items-center gap-2">
+                                <div className="flex flex-col">
+                                    <label className="text-xs text-gray-500 mb-1">Start Date</label>
+                                    <input 
+                                        type="date" 
+                                        value={selectedDate} 
+                                        onChange={(e) => setSelectedDate(e.target.value)} 
+                                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
+                                </div>
+                                <div className="flex flex-col">
+                                    <label className="text-xs text-gray-500 mb-1">End Date</label>
+                                    <input 
+                                        type="date" 
+                                        value={endDate} 
+                                        onChange={(e) => setEndDate(e.target.value)} 
+                                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -124,6 +263,17 @@ const ActivityLog: React.FC = () => {
                                             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                             <input type="text" placeholder="Search users, actions" className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300" />
                                         </div>
+                                        <select 
+                                            value={levelFilter} 
+                                            onChange={(e) => setLevelFilter(e.target.value)}
+                                            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300"
+                                        >
+                                            <option value="all">All Levels</option>
+                                            <option value="error">Error</option>
+                                            <option value="warn">Warning</option>
+                                            <option value="info">Info</option>
+                                            <option value="debug">Debug</option>
+                                        </select>
                                         <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg">
                                             <FiFilter /><span>Filter</span>
                                         </button>
@@ -133,18 +283,25 @@ const ActivityLog: React.FC = () => {
                                 <table className="w-full text-left">
                                     <thead>
                                         <tr className="text-gray-500 text-sm">
-                                            {['Time', 'Full name', 'User', 'Details', 'Actions', 'IP', 'Location'].map(header => (
+                                            {['Time', 'Full name', 'User', 'Level', 'Details', 'Actions', 'IP', 'Location'].map(header => (
                                                 <th key={header} className="pb-4 font-medium">{header} <FiChevronDown className="inline-block" /></th>
                                             ))}
                                             <th className="pb-4 font-medium"></th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {logs.map((log) => (
+                                        {loading ? (
+                                            <tr><td colSpan={9} className="text-center py-8">Loading activity logs...</td></tr>
+                                        ) : error ? (
+                                            <tr><td colSpan={9} className="text-center py-8 text-red-500">{error}</td></tr>
+                                        ) : logs.length === 0 ? (
+                                            <tr><td colSpan={9} className="text-center py-8 text-gray-500">No logs found</td></tr>
+                                        ) : logs.map((log) => (
                                             <tr key={log.id} className="border-t border-gray-100 hover:bg-blue-50 cursor-pointer" onClick={() => setSelectedLog(log)}>
                                                 <td className="py-4 text-gray-500">{log.time}</td>
                                                 <td className="py-4 font-medium">{log.fullName}</td>
                                                 <td className="py-4"><span className={`px-3 py-1 rounded-full text-sm border ${getUserTypeColor(log.user)}`}>{log.user}</span></td>
+                                                <td className="py-4"><span className={`px-2 py-1 rounded text-xs font-medium ${getLevelColor(log.level || 'info')}`}>{(log.level || 'info').toUpperCase()}</span></td>
                                                 <td className="py-4">{log.details}</td>
                                                 <td className="py-4"><span className={`px-3 py-1 rounded-full text-sm border ${getActionColor(log.actions)}`}>{log.actions}</span></td>
                                                 <td className="py-4">{log.ip}</td>

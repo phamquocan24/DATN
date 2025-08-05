@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import candidateApi from '../../services/candidateApi';
 import Avatar from '../../assets/Avatar17.png';
 
-const MyProfileSettings: React.FC = () => {
+interface MyProfileSettingsProps {
+  currentUser?: any;
+}
+
+const MyProfileSettings: React.FC<MyProfileSettingsProps> = ({ currentUser }) => {
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
@@ -16,26 +20,58 @@ const MyProfileSettings: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
+    const initializeProfile = () => {
+      // First, try to use currentUser data for immediate filling
+      if (currentUser) {
+        setFormData({
+          fullName: currentUser.name || currentUser.full_name || currentUser.displayName || '',
+          phone: currentUser.phone || '',
+          email: currentUser.email || '',
+          birthDate: currentUser.birthDate ? currentUser.birthDate.split('T')[0] : '',
+          gender: currentUser.gender || '',
+          accountType: currentUser.accountType || 'job-seeker',
+        });
+        setIsLoading(false);
+      }
+    };
+
     const fetchProfile = async () => {
       try {
         const response = await candidateApi.getProfile();
         const profile = response.data;
+        // Merge API data with currentUser data, API data takes priority for saved values  
         setFormData({
-          fullName: profile.name || '',
-          phone: profile.phone || '',
-          email: profile.email || '',
+          fullName: profile.name || currentUser?.name || currentUser?.full_name || currentUser?.displayName || '',
+          phone: profile.phone || currentUser?.phone || '',
+          email: profile.email || currentUser?.email || '',
           birthDate: profile.birthDate ? profile.birthDate.split('T')[0] : '',
-          gender: profile.gender || '',
+          gender: profile.gender || currentUser?.gender || '',
           accountType: profile.accountType || 'job-seeker',
         });
       } catch (err) {
-        setError('Failed to load profile data.');
+        // If API fails, fall back to currentUser data
+        if (currentUser) {
+          setFormData({
+            fullName: currentUser.name || currentUser.full_name || currentUser.displayName || '',
+            phone: currentUser.phone || '',
+            email: currentUser.email || '',
+            birthDate: currentUser.birthDate ? currentUser.birthDate.split('T')[0] : '',
+            gender: currentUser.gender || '',
+            accountType: currentUser.accountType || 'job-seeker',
+          });
+        } else {
+          setError('Failed to load profile data.');
+        }
       } finally {
         setIsLoading(false);
       }
     };
+
+    // Initialize immediately with currentUser data if available
+    initializeProfile();
+    // Then fetch from API to get any saved changes
     fetchProfile();
-  }, []);
+  }, [currentUser]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

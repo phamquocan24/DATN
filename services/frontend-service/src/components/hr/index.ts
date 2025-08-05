@@ -4,6 +4,7 @@ export { default as DashboardSidebar } from './DashboardSidebar';
 export { default as HrCompanyProfile } from './HrCompanyProfile';
 export { default as HrDashboard } from './HrDashboard';
 export { default as HrHeader } from './HrHeader';
+export { default as HrHeaderDropdown } from './HrHeaderDropdown';
 export { default as HrLayout } from './HrLayout';
 export { default as HrNotificationPanel } from './HrNotificationPanel';
 export { default as HrRoutes } from './HrRoutes';

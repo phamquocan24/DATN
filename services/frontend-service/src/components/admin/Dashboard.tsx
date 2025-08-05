@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
-import AvatarImg from '../../assets/Avatar17.png';
+
 import BellIcon from '../../assets/bell-outlined.png';
 import NotificationPanel from './NotificationPanelAdmin';
 import User1Icon from '../../assets/user1.png';
@@ -10,6 +10,8 @@ import GlassIcon from '../../assets/glass.png';
 import FBIcon from '../../assets/f&b.png';
 import SchemeIcon from '../../assets/scheme.png';
 import adminApi from '../../services/adminApi';
+
+import AdminHeaderDropdown from './AdminHeaderDropdown';
 
 // Hook for count-up animation
 const useCountUp = (target: number, duration = 1000) => {
@@ -50,7 +52,13 @@ const StatCard: React.FC<{ label: string; value: number; color: string; onClick?
   </div>
 );
 
-const Dashboard: React.FC = () => {
+interface DashboardProps {
+  currentUser?: any;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
+  const navigate = useNavigate();
+  
   // State for API data
   const [stats, setStats] = useState([
     { label: 'New Jobs to Review', value: 0, color: 'bg-blue-500', path: '/admin/job-listings' },
@@ -91,8 +99,6 @@ const Dashboard: React.FC = () => {
   const jobViewsCount = useCountUp(2342);
   const jobAppliedCount = useCountUp(654);
 
-  const navigate = useNavigate();
-
   // Tab state for chart filtering
   const [selectedTab, setSelectedTab] = useState<'overview' | 'approved' | 'pending' | 'spam'>('overview');
 
@@ -115,7 +121,7 @@ const Dashboard: React.FC = () => {
         const systemStats = await adminApi.getSystemStatistics();
         const pendingJobs = await adminApi.getPendingJobs();
         const userStats = await adminApi.getUserStatistics();
-        const _applicationStats = await adminApi.getApplicationStats();
+        await adminApi.getApplicationStats();
 
         // Update stats
         setStats([
@@ -221,17 +227,8 @@ const Dashboard: React.FC = () => {
         <div>
         {/* Top Admin Bar */}
         <div className="flex items-center justify-between mb-6">
-          {/* User Info */}
-          <div className="flex items-center space-x-3">
-            <img src={AvatarImg} alt="Avatar" className="w-10 h-10 rounded-full" />
-            <div className="text-left">
-              <p className="text-sm font-semibold text-gray-800">Maria Kelly</p>
-              <p className="text-xs text-gray-500">MariaKelly@email.com</p>
-            </div>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-            </svg>
-          </div>
+          {/* User Info with Dropdown */}
+          <AdminHeaderDropdown currentUser={currentUser} />
 
           {/* Right actions */}
           <div className="flex items-center space-x-6 relative">

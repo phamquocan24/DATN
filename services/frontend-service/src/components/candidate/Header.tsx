@@ -179,15 +179,20 @@ export const Header: React.FC<HeaderProps> = ({ onPageChange, currentPage, onAut
                     onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                     className="flex items-center space-x-2"
                   >
-                    <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center">
-                      {/* Placeholder for user avatar */}
+                    <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-white border border-gray-200">
+                      {/* User avatar: Google photoURL or default blue user icon */}
                       <img 
-                        src={currentUser.avatar || UserIcon} 
-                        alt={currentUser.name} 
-                        className="w-full h-full object-cover" 
+                        src={currentUser?.photoURL || currentUser?.profile_image_url || UserIcon} 
+                        alt={currentUser?.name || currentUser?.displayName || currentUser?.full_name || 'User'} 
+                        className={`${currentUser?.photoURL || currentUser?.profile_image_url ? 'w-full h-full object-cover' : 'w-5 h-5'}`}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = UserIcon;
+                          target.className = 'w-5 h-5';
+                        }}
                       />
                     </div>
-                    <span className="hidden sm:inline font-medium text-gray-700 text-sm">{currentUser.name}</span>
+
                     <svg className={`w-4 h-4 text-gray-600 transition-transform ${isProfileMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
@@ -200,9 +205,13 @@ export const Header: React.FC<HeaderProps> = ({ onPageChange, currentPage, onAut
                       onMouseLeave={() => setIsProfileMenuOpen(false)}
                     >
                       <div className="py-2">
-                        <div className="px-4 py-2 border-b">
-                          <p className="text-sm font-semibold text-gray-800 truncate">{currentUser.name}</p>
-                          <p className="text-xs text-gray-500 truncate">{currentUser.email}</p>
+                        <div className="px-4 py-2 border-b text-left">
+                          <p className="text-sm font-semibold text-gray-800 truncate text-left">
+                            {currentUser?.name || currentUser?.full_name || currentUser?.displayName || 'User'}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate text-left">
+                            {currentUser?.email || 'user@example.com'}
+                          </p>
                         </div>
                         <button
                           onClick={() => { onPageChange('profile'); setIsProfileMenuOpen(false); }}

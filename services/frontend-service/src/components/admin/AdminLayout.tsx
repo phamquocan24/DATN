@@ -2,8 +2,7 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import DashboardSidebar from './DashboardSidebar';
 import Logo from '../../assets/Logo.png';
-import authService from '../../services/authService';
-import api from '../../services/api';
+
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -35,24 +34,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const handleActivityLogClick = () => navigate('/admin/activity-log');
   const handleSettingsClick = () => navigate('/admin/settings');
   const handleFeedbackClick = () => navigate('/admin/feedback');
-  const handleLogoutClick = () => {
-    // Clear auth data immediately
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    delete api.defaults.headers.common['Authorization'];
-    
-    // Call logout API in background (don't wait for it)
-    authService.logout().catch(error => {
-      console.error('Logout API error:', error);
-    });
-    
-    // Redirect to home immediately
-    navigate('/');
-    
-    // Reload page to reset all app state
-    window.location.reload();
-  };
+
 
   return (
     <div className="flex min-h-screen bg-white">
@@ -75,8 +57,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           onActivityLogClick={handleActivityLogClick}
           onSettingsClick={handleSettingsClick}
           onFeedbackClick={handleFeedbackClick}
-          onLogoutClick={handleLogoutClick}
-          showLogout={true}
+          
         />
       </div>
       <div className="flex-1 overflow-visible bg-white">

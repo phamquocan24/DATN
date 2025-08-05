@@ -18,8 +18,7 @@ interface DashboardSidebarProps {
   onActivityLogClick?: () => void;
   onSettingsClick?: () => void;
   onFeedbackClick?: () => void;
-  showLogout?: boolean;
-  onLogoutClick?: () => void;
+
 }
 
 const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
@@ -32,8 +31,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   onActivityLogClick,
   onSettingsClick,
   onFeedbackClick,
-  showLogout = false,
-  onLogoutClick
+
 }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
@@ -118,7 +116,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
         {/* User Info - Removed here */}
       </div>
       {/* Logout at very bottom */}
-      {showLogout && (
+      {false && (
         <div className="p-4 mt-auto border-t border-gray-200">
           <button 
             onClick={onLogoutClick}

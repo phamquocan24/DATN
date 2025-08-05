@@ -15,6 +15,7 @@ interface SettingsProps {
   onBrowseCompaniesClick?: () => void;
   onSettingsClick?: () => void;
   onHelpCenterClick?: () => void;
+  currentUser?: any;
 }
 
 const Settings: React.FC<SettingsProps> = ({
@@ -26,7 +27,8 @@ const Settings: React.FC<SettingsProps> = ({
   onTestManagementClick,
   onFindJobsClick,
   onBrowseCompaniesClick,
-  onHelpCenterClick
+  onHelpCenterClick,
+  currentUser
 }) => {
   const [activeTab, setActiveTab] = useState('my-profile');
 
@@ -37,11 +39,11 @@ const Settings: React.FC<SettingsProps> = ({
   const renderTabContent = () => {
     switch (activeTab) {
       case 'my-profile':
-        return <MyProfileSettings />;
+        return <MyProfileSettings currentUser={currentUser} />;
       case 'login-details':
-        return <LoginDetailsSettings />;
+        return <LoginDetailsSettings currentUser={currentUser} />;
       case 'notifications':
-        return <NotificationsSettings />;
+        return <NotificationsSettings currentUser={currentUser} />;
       default:
         return null;
     }

@@ -7,7 +7,11 @@ import AdminNotificationsSettings from './AdminNotificationsSettings';
 import BellIcon from '../../assets/bell-outlined.png';
 import NotificationPanel from './NotificationPanelAdmin';
 
-const AdminSettings: React.FC = () => {
+interface AdminSettingsProps {
+  currentUser?: any;
+}
+
+const AdminSettings: React.FC<AdminSettingsProps> = ({ currentUser }) => {
   const [activeTab, setActiveTab] = useState<'my-profile' | 'login-details' | 'notifications'>('my-profile');
   const [notifOpen, setNotifOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(true);
@@ -16,11 +20,11 @@ const AdminSettings: React.FC = () => {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'my-profile':
-        return <AdminMyProfileSettings />;
+        return <AdminMyProfileSettings currentUser={currentUser} />;
       case 'login-details':
-        return <AdminLoginDetailsSettings />;
+        return <AdminLoginDetailsSettings currentUser={currentUser} />;
       case 'notifications':
-        return <AdminNotificationsSettings />;
+        return <AdminNotificationsSettings currentUser={currentUser} />;
       default:
         return null;
     }

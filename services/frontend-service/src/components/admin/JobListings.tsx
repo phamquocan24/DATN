@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FiSearch, FiFilter, FiMoreHorizontal, FiChevronDown } from 'react-icons/fi';
 import AdminLayout from './AdminLayout';
-import AvatarImg from '../../assets/Avatar17.png';
+
 import BellIcon from '../../assets/bell-outlined.png';
 import NotificationPanel from './NotificationPanelAdmin';
 import SchemeIcon from '../../assets/scheme.png';
 import JobDetails from './JobDetails'; // Import the new component
 import adminApi from '../../services/adminApi';
+import AdminHeaderDropdown from './AdminHeaderDropdown';
 
 interface Job {
   id: number;
@@ -18,7 +19,11 @@ interface Job {
   needs: { current: number; total: number };
 }
 
-const JobListings: React.FC = () => {
+interface JobListingsProps {
+  currentUser?: any;
+}
+
+const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
   const [selectedTab, setSelectedTab] = useState('jobs');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -160,14 +165,7 @@ const JobListings: React.FC = () => {
         {/* Top Admin Bar - Always visible */}
         <div className="flex items-center justify-between mb-6">
           {/* User Info */}
-          <div className="flex items-center space-x-3">
-            <img src={AvatarImg} alt="Avatar" className="w-10 h-10 rounded-full" />
-            <div className="text-left">
-              <p className="text-sm font-semibold text-gray-800">Maria Kelly</p>
-              <p className="text-xs text-gray-500">MariaKelly@email.com</p>
-            </div>
-            <FiChevronDown className="h-4 w-4 text-gray-500" />
-          </div>
+          <AdminHeaderDropdown currentUser={currentUser} />
 
           <div className="flex items-center space-x-6 relative">
             <button onClick={() => setNotifOpen(!notifOpen)} className="relative focus:outline-none">

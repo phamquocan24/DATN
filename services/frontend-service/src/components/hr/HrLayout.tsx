@@ -8,9 +8,10 @@ import api from '../../services/api';
 interface HrLayoutProps {
   children?: ReactNode;
   activeTab?: string;
+  currentUser?: any;
 }
 
-const HrLayout: React.FC<HrLayoutProps> = ({ children, activeTab = 'dashboard' }) => {
+const HrLayout: React.FC<HrLayoutProps> = ({ children, activeTab = 'dashboard', currentUser }) => {
   const [notifOpen, setNotifOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(true);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(true);
@@ -23,24 +24,7 @@ const HrLayout: React.FC<HrLayoutProps> = ({ children, activeTab = 'dashboard' }
     setHasUnreadMessages(false);
   };
 
-  const handleLogoutClick = () => {
-    // Clear auth data immediately
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    delete api.defaults.headers.common['Authorization'];
-    
-    // Call logout API in background (don't wait for it)
-    authService.logout().catch(error => {
-      console.error('Logout API error:', error);
-    });
-    
-    // Redirect to home immediately
-    navigate('/');
-    
-    // Reload page to reset all app state
-    window.location.reload();
-  };
+
 
   const renderContent = () => {
     if (children) {
@@ -67,7 +51,7 @@ const HrLayout: React.FC<HrLayoutProps> = ({ children, activeTab = 'dashboard' }
       case 'schedule':
         return <MySchedule />;
       case 'settings':
-        return <Settings />;
+        return <Settings currentUser={currentUser} />;
       case 'test':
         return <TestManagement />;
       case 'help':
@@ -84,7 +68,6 @@ const HrLayout: React.FC<HrLayoutProps> = ({ children, activeTab = 'dashboard' }
           activeTab={activeTab} 
           hasUnreadMessages={hasUnreadMessages} 
           onNavigate={handleMarkMessagesAsRead}
-          onLogoutClick={handleLogoutClick}
         />
       </div>
       <div className="flex-1 flex flex-col overflow-visible bg-white">
@@ -94,6 +77,7 @@ const HrLayout: React.FC<HrLayoutProps> = ({ children, activeTab = 'dashboard' }
           toggleNotif={toggleNotif} 
           onCloseNotif={() => setNotifOpen(false)}
           onMarkAllAsRead={() => setHasUnread(false)}
+          currentUser={currentUser}
         />
         <div className="px-8 pt-6">
           <div className="border-t border-gray-200"></div>

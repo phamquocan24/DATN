@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import candidateApi from '../../services/candidateApi';
 
-const LoginDetailsSettings: React.FC = () => {
+interface LoginDetailsSettingsProps {
+  currentUser?: any;
+}
+
+const LoginDetailsSettings: React.FC<LoginDetailsSettingsProps> = ({ currentUser }) => {
     const [passwordData, setPasswordData] = useState({
         oldPassword: '',
         newPassword: '',

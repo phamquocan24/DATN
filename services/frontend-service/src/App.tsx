@@ -87,11 +87,50 @@ const MainContent = () => {
   const location = useLocation();
   const navigate = useNavigate();
   // --- Authentication State ---
-  const [currentUser, setCurrentUser] = useState<any | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
-  // Add authentication state management here
-  const [isAdmin, setIsAdmin] = useState(false); // Default to false
-  const [isHr, setIsHr] = useState(false); // Default to false
+  const [currentUser, setCurrentUser] = useState<any | null>(() => {
+    try {
+      const savedUser = localStorage.getItem('user');
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch (error) {
+      console.error('Error parsing saved user from localStorage:', error);
+      return null;
+    }
+  });
+  const [token, setToken] = useState<string | null>(() => {
+    const savedToken = localStorage.getItem('token');
+    if (savedToken) {
+      // Set authorization header on app init
+      api.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
+    }
+    return savedToken;
+  });
+  
+  // Initialize role states based on saved user
+  const [isAdmin, setIsAdmin] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        const user = JSON.parse(savedUser);
+        return user?.role === 'ADMIN';
+      }
+    } catch (error) {
+      console.error('Error parsing saved user for isAdmin:', error);
+    }
+    return false;
+  });
+  
+  const [isHr, setIsHr] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        const user = JSON.parse(savedUser);
+        return user?.role === 'RECRUITER';
+      }
+    } catch (error) {
+      console.error('Error parsing saved user for isHr:', error);
+    }
+    return false;
+  });
 
   // Protected Route components
   const ProtectedAdminRoute = ({ children }: { children: React.ReactNode }) => {
@@ -162,6 +201,7 @@ const MainContent = () => {
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
           const user = await authService.getCurrentUser();
           setCurrentUser(user);
+          localStorage.setItem('user', JSON.stringify(user)); // Save user to localStorage
           // Set user roles based on backend format (ADMIN, CANDIDATE, RECRUITER)
           const userRole = user?.role as string;
           setIsAdmin(userRole === 'ADMIN');
@@ -197,6 +237,7 @@ const MainContent = () => {
     setToken(authToken);
     setCurrentUser(user);
     localStorage.setItem('token', authToken);
+    localStorage.setItem('user', JSON.stringify(user)); // Save user to localStorage
     api.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
     
     // Set user roles based on backend format (ADMIN, CANDIDATE, RECRUITER)
@@ -425,6 +466,7 @@ const MainContent = () => {
           onBrowseCompaniesClick={() => handlePageChange('browse-companies')}
           onAgentAIClick={() => handlePageChange('agent-ai')}
           onHelpCenterClick={() => handlePageChange('help-center')}
+          currentUser={currentUser}
         />;
       case 'help-center':
         return <HelpCenter 
@@ -495,7 +537,7 @@ const MainContent = () => {
         path="/admin/dashboard"
         element={
           <ProtectedAdminRoute>
-            <AdminDashboard />
+            <AdminDashboard currentUser={currentUser} />
           </ProtectedAdminRoute>
         }
       />
@@ -503,7 +545,7 @@ const MainContent = () => {
         path="/admin/job-listings"
         element={
           <ProtectedAdminRoute>
-            <AdminJobListings />
+            <AdminJobListings currentUser={currentUser} />
           </ProtectedAdminRoute>
         }
       />
@@ -511,7 +553,7 @@ const MainContent = () => {
         path="/admin/candidates"
         element={
           <ProtectedAdminRoute>
-            <AdminCandidateManagement />
+            <AdminCandidateManagement currentUser={currentUser} />
           </ProtectedAdminRoute>
         }
       />
@@ -519,7 +561,7 @@ const MainContent = () => {
         path="/admin/questions"
         element={
           <ProtectedAdminRoute>
-            <AdminQuestionManagement />
+            <AdminQuestionManagement currentUser={currentUser} />
           </ProtectedAdminRoute>
         }
       />
@@ -527,7 +569,7 @@ const MainContent = () => {
         path="/admin/statistics"
         element={
           <ProtectedAdminRoute>
-            <AdminStatistics />
+            <AdminStatistics currentUser={currentUser} />
           </ProtectedAdminRoute>
         }
       />
@@ -535,7 +577,7 @@ const MainContent = () => {
         path="/admin/activity-log"
         element={
           <ProtectedAdminRoute>
-            <AdminActivityLog />
+            <AdminActivityLog currentUser={currentUser} />
           </ProtectedAdminRoute>
         }
       />
@@ -543,7 +585,7 @@ const MainContent = () => {
         path="/admin/feedback"
         element={
           <ProtectedAdminRoute>
-            <AdminFeedbackIssues />
+            <AdminFeedbackIssues currentUser={currentUser} />
           </ProtectedAdminRoute>
         }
       />
@@ -551,7 +593,7 @@ const MainContent = () => {
         path="/admin/settings"
         element={
           <ProtectedAdminRoute>
-            <AdminSettings />
+            <AdminSettings currentUser={currentUser} />
           </ProtectedAdminRoute>
         }
       />
@@ -559,7 +601,7 @@ const MainContent = () => {
         path="/admin/accounts"
         element={
           <ProtectedAdminRoute>
-            <AdminAccountsList />
+            <AdminAccountsList currentUser={currentUser} />
           </ProtectedAdminRoute>
         }
       />
@@ -593,7 +635,7 @@ const MainContent = () => {
       />
 
       {/* HR Routes */}
-      <Route path="/hr/*" element={<ProtectedHrRoute><HrRoutes /></ProtectedHrRoute>} />
+      <Route path="/hr/*" element={<ProtectedHrRoute><HrRoutes currentUser={currentUser} /></ProtectedHrRoute>} />
 
       {/* Candidate facing pages */}
       <Route path="/*" element={renderCandidateLayout()} />

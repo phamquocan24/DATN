@@ -1,6 +1,10 @@
 import React from 'react';
 
-const AdminLoginDetailsSettings: React.FC = () => {
+interface AdminLoginDetailsSettingsProps {
+  currentUser?: any;
+}
+
+const AdminLoginDetailsSettings: React.FC<AdminLoginDetailsSettingsProps> = ({ currentUser }) => {
   return (
     <div className="space-y-8 text-[14px]">
       {/* Basic Information */}

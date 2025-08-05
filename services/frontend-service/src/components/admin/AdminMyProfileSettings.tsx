@@ -1,7 +1,11 @@
 import React from 'react';
 import Avatar from '../../assets/Avatar17.png';
 
-const AdminMyProfileSettings: React.FC = () => {
+interface AdminMyProfileSettingsProps {
+  currentUser?: any;
+}
+
+const AdminMyProfileSettings: React.FC<AdminMyProfileSettingsProps> = ({ currentUser }) => {
   return (
     <div className="space-y-8 text-[14px]">
       {/* Basic Information Heading */}
@@ -25,7 +29,7 @@ const AdminMyProfileSettings: React.FC = () => {
 
           {/* Avatar */}
           <div className="flex items-center justify-center">
-            <img src={Avatar} alt="Admin Profile" className="w-20 h-20 rounded-full object-cover" />
+            <img src={currentUser?.photoURL || currentUser?.profile_image_url || currentUser?.avatar || Avatar} alt="Admin Profile" className="w-20 h-20 rounded-full object-cover" />
           </div>
 
           {/* Upload area */}
@@ -49,7 +53,7 @@ const AdminMyProfileSettings: React.FC = () => {
               </label>
               <input 
                 type="text" 
-                defaultValue="Admin User" 
+                defaultValue={currentUser?.name || currentUser?.full_name || currentUser?.displayName || "Admin User"} 
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007BFF]" 
               />
             </div>
@@ -62,7 +66,7 @@ const AdminMyProfileSettings: React.FC = () => {
                 </label>
                 <input 
                   type="tel" 
-                  defaultValue="+1 234 567 890" 
+                  defaultValue={currentUser?.phone || "+1 234 567 890"} 
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007BFF]" 
                 />
               </div>
@@ -72,7 +76,7 @@ const AdminMyProfileSettings: React.FC = () => {
                 </label>
                 <input 
                   type="email" 
-                  defaultValue="admin@jobhuntly.com" 
+                  defaultValue={currentUser?.email || "admin@jobhuntly.com"} 
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007BFF]" 
                 />
               </div>
