@@ -293,6 +293,58 @@ export const candidateApi = {
   deactivateAccount: async () => {
     const response = await apiClient.delete('/user/account');
     return response.data;
+  },
+
+  // ======================
+  // TEST MANAGEMENT (Candidate)
+  // ======================
+
+  // Get assigned tests for current candidate
+  getMyTests: async (params?: {
+    status?: 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'EXPIRED';
+    page?: number;
+    limit?: number;
+  }) => {
+    const response = await apiClient.get('/tests/my-tests', { params });
+    return response.data;
+  },
+
+  // Get test details (without answers for candidates)
+  getAssignedTest: async (testId: string) => {
+    const response = await apiClient.get(`/tests/${testId}`, { 
+      params: { include_answers: false }
+    });
+    return response.data;
+  },
+
+  // Start a test
+  startTest: async (testId: string) => {
+    const response = await apiClient.post(`/tests/${testId}/start`);
+    return response.data;
+  },
+
+  // Submit test answers
+  submitTest: async (testId: string, answers: Record<string, string>) => {
+    const response = await apiClient.post(`/tests/${testId}/submit`, { answers });
+    return response.data;
+  },
+
+  // Get test result (after completion)
+  getMyTestResult: async (testId: string) => {
+    const response = await apiClient.get(`/tests/${testId}/my-result`);
+    return response.data;
+  },
+
+  // Get test time remaining (during test)
+  getTestTimeRemaining: async (testId: string) => {
+    const response = await apiClient.get(`/tests/${testId}/time-remaining`);
+    return response.data;
+  },
+
+  // Save test progress (auto-save during test)
+  saveTestProgress: async (testId: string, answers: Record<string, string>) => {
+    const response = await apiClient.post(`/tests/${testId}/save-progress`, { answers });
+    return response.data;
   }
 };
 

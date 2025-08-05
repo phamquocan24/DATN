@@ -201,6 +201,84 @@ export const hrApi = {
   getApplicationStats: async () => {
     const response = await apiClient.get('/applications/stats');
     return response.data;
+  },
+
+  // ======================
+  // TEST MANAGEMENT (HR/Recruiter)
+  // ======================
+  
+  // Create new test for a job
+  createTest: async (testData: any) => {
+    const response = await apiClient.post('/tests', testData);
+    return response.data;
+  },
+
+  // Get test details (with answers for HR)
+  getTest: async (testId: string, includeAnswers: boolean = true) => {
+    const params = includeAnswers ? { include_answers: includeAnswers } : {};
+    const response = await apiClient.get(`/tests/${testId}`, { params });
+    return response.data;
+  },
+
+  // Update test (only if HR created it)
+  updateTest: async (testId: string, testData: any) => {
+    const response = await apiClient.put(`/tests/${testId}`, testData);
+    return response.data;
+  },
+
+  // Delete test (only if HR created it)
+  deleteTest: async (testId: string) => {
+    const response = await apiClient.delete(`/tests/${testId}`);
+    return response.data;
+  },
+
+  // Get all tests created by HR
+  getMyTests: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    test_type?: string;
+    is_active?: boolean;
+  }) => {
+    const response = await apiClient.get('/tests', { params });
+    return response.data;
+  },
+
+  // Assign test to candidate
+  assignTestToCandidate: async (testId: string, assignmentData: {
+    candidate_id: string;
+    application_id: string;
+  }) => {
+    const response = await apiClient.post(`/tests/${testId}/assign`, assignmentData);
+    return response.data;
+  },
+
+  // Get test results for HR's tests
+  getTestResults: async (testId: string, params?: {
+    page?: number;
+    limit?: number;
+    status?: 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'EXPIRED';
+  }) => {
+    const response = await apiClient.get(`/tests/${testId}/results`, { params });
+    return response.data;
+  },
+
+  // Get test statistics
+  getTestStatistics: async (testId: string) => {
+    const response = await apiClient.get(`/tests/${testId}/stats`);
+    return response.data;
+  },
+
+  // Get specific candidate result
+  getCandidateTestResult: async (testId: string, candidateId: string) => {
+    const response = await apiClient.get(`/tests/${testId}/results/${candidateId}`);
+    return response.data;
+  },
+
+  // Get tests for a specific job
+  getJobTests: async (jobId: string) => {
+    const response = await apiClient.get(`/jobs/${jobId}/tests`);
+    return response.data;
   }
 };
 

@@ -1,6 +1,7 @@
 const Test = require('../models/Test');
 const winston = require('winston');
 const Joi = require('joi');
+const { authenticateToken, requireRole } = require('../modules/auth');
 
 // Setup logger
 const logger = winston.createLogger({
@@ -54,9 +55,213 @@ const submitTestSchema = Joi.object({
   ).required()
 });
 
+const getAllTestsSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(100).default(20),
+  search: Joi.string().optional(),
+  test_type: Joi.string().valid('MULTIPLE_CHOICE', 'TRUE_FALSE', 'ESSAY', 'CODING', 'MIXED').optional(),
+  is_active: Joi.boolean().optional()
+});
+
 class TestController {
   constructor() {
     this.testModel = new Test();
+  }
+
+  /**
+   * @swagger
+   * /api/v1/tests:
+   *   get:
+   *     summary: Get all tests
+   *     description: Get list of all tests with filtering (Admin/HR only)
+   *     tags: [Tests]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: page
+   *         schema:
+   *           type: number
+   *           minimum: 1
+   *           default: 1
+   *         description: Page number for pagination
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: number
+   *           minimum: 1
+   *           maximum: 100
+   *           default: 20
+   *         description: Number of tests per page
+   *       - in: query
+   *         name: search
+   *         schema:
+   *           type: string
+   *         description: Search by test name or description
+   *       - in: query
+   *         name: test_type
+   *         schema:
+   *           type: string
+   *           enum: [MULTIPLE_CHOICE, TRUE_FALSE, ESSAY, CODING, MIXED]
+   *         description: Filter by test type
+   *       - in: query
+   *         name: is_active
+   *         schema:
+   *           type: boolean
+   *         description: Filter by active status
+   *     responses:
+   *       200:
+   *         description: Tests retrieved successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: true
+   *                 message:
+   *                   type: string
+   *                   example: "Tests retrieved successfully"
+   *                 data:
+   *                   type: array
+   *                   items:
+   *                     $ref: '#/components/schemas/Test'
+   *                 pagination:
+   *                   $ref: '#/components/schemas/Pagination'
+   *       401:
+   *         description: Unauthorized access
+   *       403:
+   *         description: Access denied - Admin/HR role required
+   *       500:
+   *         description: Internal server error
+   */
+  async getAllTests(req, res) {
+    try {
+      const { error, value } = getAllTestsSchema.validate(req.query);
+      if (error) {
+        return res.status(400).json({
+          success: false,
+          error: error.details[0].message,
+          code: 'VALIDATION_ERROR'
+        });
+      }
+
+      const { page, limit, search, test_type, is_active } = value;
+
+      // Build query conditions
+      let whereConditions = [];
+      let queryParams = [];
+      let paramIndex = 1;
+
+      // Admin can see all tests, HR/Recruiter can see tests for their company
+      if (req.user.role === 'ADMIN') {
+        // Admin sees everything - no additional filters
+      } else if (req.user.role === 'HR' || req.user.role === 'RECRUITER') {
+        // HR/Recruiter sees tests for their company
+        whereConditions.push(`j.company_id = $${paramIndex}`);
+        queryParams.push(req.user.company_id);
+        paramIndex++;
+      } else {
+        // Candidates and others cannot access this endpoint
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied - Admin/HR role required',
+          code: 'ACCESS_DENIED'
+        });
+      }
+
+      // Apply filters
+      if (search) {
+        whereConditions.push(`(t.test_name ILIKE $${paramIndex} OR t.test_description ILIKE $${paramIndex})`);
+        queryParams.push(`%${search}%`);
+        paramIndex++;
+      }
+
+      if (test_type) {
+        whereConditions.push(`t.test_type = $${paramIndex}`);
+        queryParams.push(test_type);
+        paramIndex++;
+      }
+
+      if (typeof is_active === 'boolean') {
+        whereConditions.push(`t.is_active = $${paramIndex}`);
+        queryParams.push(is_active);
+        paramIndex++;
+      }
+
+      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+      // Count query
+      const countQuery = `
+        SELECT COUNT(*) as total
+        FROM job_tests t
+        LEFT JOIN jobs j ON t.job_id = j.job_id
+        ${whereClause}
+      `;
+
+      const countResult = await this.testModel.query(countQuery, queryParams, 'count_all_tests');
+      const totalTests = parseInt(countResult.rows[0].total);
+
+      // Calculate pagination
+      const totalPages = Math.ceil(totalTests / limit);
+      const offset = (page - 1) * limit;
+
+      // Main query
+      const testsQuery = `
+        SELECT 
+          t.test_id,
+          t.job_id,
+          t.test_name,
+          t.test_description,
+          t.test_type,
+          t.time_limit,
+          t.passing_score,
+          t.is_active,
+          t.created_by,
+          t.created_at,
+          t.updated_at,
+          j.title,
+          j.company_id,
+          c.company_name,
+          u.full_name as created_by_name
+        FROM job_tests t
+        LEFT JOIN jobs j ON t.job_id = j.job_id
+        LEFT JOIN companies c ON j.company_id = c.company_id
+        LEFT JOIN users u ON t.created_by = u.user_id
+        ${whereClause}
+        ORDER BY t.created_at DESC
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `;
+
+      queryParams.push(limit, offset);
+
+      const testsResult = await this.testModel.query(testsQuery, queryParams, 'get_all_tests');
+
+      const pagination = {
+        page,
+        limit,
+        total: totalTests,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      };
+
+      res.json({
+        success: true,
+        message: 'Tests retrieved successfully',
+        data: testsResult.rows,
+        pagination
+      });
+
+    } catch (error) {
+      logger.error('Failed to get all tests:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        code: 'TESTS_RETRIEVAL_ERROR'
+      });
+    }
   }
 
   /**
@@ -1349,18 +1554,19 @@ const express = require('express');
 const router = express.Router();
 const testController = new TestController();
 
-// Routes
-router.get('/:id', testController.getTestById.bind(testController));
-router.post('/', testController.createTest.bind(testController));
-router.put('/:id', testController.updateTest.bind(testController));
-router.delete('/:id', testController.deleteTest.bind(testController));
-router.get('/job/:jobId', testController.getTestsByJob.bind(testController));
-router.post('/:id/assign', testController.assignTest.bind(testController));
-router.post('/:id/start', testController.startTest.bind(testController));
-router.post('/:id/submit', testController.submitTest.bind(testController));
-router.get('/:id/result', testController.getTestResult.bind(testController));
-router.get('/my-tests', testController.getMyTests.bind(testController));
-router.get('/:id/stats', testController.getTestStats.bind(testController));
-router.get('/:id/results', testController.getTestResults.bind(testController));
+// Routes - Order matters! Specific routes before parameterized ones
+router.get('/my-tests', authenticateToken, testController.getMyTests.bind(testController));
+router.get('/job/:jobId', authenticateToken, requireRole(['HR', 'RECRUITER', 'ADMIN']), testController.getTestsByJob.bind(testController));
+router.get('/', authenticateToken, requireRole(['HR', 'RECRUITER', 'ADMIN']), testController.getAllTests.bind(testController)); // Get all tests
+router.get('/:id', authenticateToken, testController.getTestById.bind(testController));
+router.post('/', authenticateToken, requireRole(['HR', 'RECRUITER']), testController.createTest.bind(testController));
+router.put('/:id', authenticateToken, testController.updateTest.bind(testController));
+router.delete('/:id', authenticateToken, testController.deleteTest.bind(testController));
+router.post('/:id/assign', authenticateToken, requireRole(['HR', 'RECRUITER']), testController.assignTest.bind(testController));
+router.post('/:id/start', authenticateToken, testController.startTest.bind(testController));
+router.post('/:id/submit', authenticateToken, testController.submitTest.bind(testController));
+router.get('/:id/result', authenticateToken, testController.getTestResult.bind(testController));
+router.get('/:id/stats', authenticateToken, requireRole(['HR', 'RECRUITER', 'ADMIN']), testController.getTestStats.bind(testController));
+router.get('/:id/results', authenticateToken, requireRole(['HR', 'RECRUITER', 'ADMIN']), testController.getTestResults.bind(testController));
 
 module.exports = router; 

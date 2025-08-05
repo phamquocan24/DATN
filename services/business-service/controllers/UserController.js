@@ -1136,9 +1136,9 @@ class UserController {
         success: true,
         message: 'User status updated successfully',
         data: {
-          user_id: updatedthis.userModel.user_id,
-          is_active: updatedthis.userModel.is_active,
-          updated_at: updatedthis.userModel.updated_at
+          user_id: updatedUser.user_id,
+          is_active: updatedUser.is_active,
+          updated_at: updatedUser.updated_at
         }
       });
     } catch (error) {

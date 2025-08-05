@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import FindJobsDashboard from './FindJobsDashboard';
 import JobDetail from './JobDetail';
 import JobApplication from './JobApplication';
@@ -53,6 +53,25 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false);
 
+  // Initialize isCollapsed from localStorage, default to false
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    try {
+      const saved = localStorage.getItem('candidate-sidebar-collapsed');
+      return saved ? JSON.parse(saved) : false;
+    } catch {
+      return false;
+    }
+  });
+
+  // Save isCollapsed to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('candidate-sidebar-collapsed', JSON.stringify(isCollapsed));
+    } catch (error) {
+      console.warn('Failed to save candidate sidebar state to localStorage:', error);
+    }
+  }, [isCollapsed]);
+
   const handleGoToDashboard = () => {
     setActiveTab('dashboard');
   };
@@ -87,6 +106,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleCloseApplicationModal = () => {
     setIsApplicationModalOpen(false);
     setSelectedJob(null);
+  };
+
+  const toggleSidebar = () => {
+    setIsCollapsed(!isCollapsed);
   };
 
 
@@ -231,18 +254,22 @@ const Dashboard: React.FC<DashboardProps> = ({
     <>
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <DashboardSidebar 
-        activeTab={activeTab}
-        onDashboardClick={handleGoToDashboard}
-        onAgentAIClick={onAgentAIClick}
-        onMyApplicationsClick={onMyApplicationsClick}
-        onTestManagementClick={onTestManagementClick}
-        onFindJobsClick={onFindJobsClick}
-        onBrowseCompaniesClick={onBrowseCompaniesClick}
-        onProfileClick={onProfileClick}
-        onSettingsClick={onSettingsClick}
-        onHelpCenterClick={onHelpCenterClick}
-      />
+      <div className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white shadow-lg min-h-screen border-l border-r border-gray-200 sticky top-0 z-10 flex flex-col overflow-y-auto overflow-x-hidden transition-all duration-300`}>
+        <DashboardSidebar 
+          activeTab={activeTab}
+          isCollapsed={isCollapsed}
+          onToggleSidebar={toggleSidebar}
+          onDashboardClick={handleGoToDashboard}
+          onAgentAIClick={onAgentAIClick}
+          onMyApplicationsClick={onMyApplicationsClick}
+          onTestManagementClick={onTestManagementClick}
+          onFindJobsClick={onFindJobsClick}
+          onBrowseCompaniesClick={onBrowseCompaniesClick}
+          onProfileClick={onProfileClick}
+          onSettingsClick={onSettingsClick}
+          onHelpCenterClick={onHelpCenterClick}
+        />
+      </div>
 
       {/* Main Content */}
       <div className="flex-1 p-8">

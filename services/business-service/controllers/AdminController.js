@@ -1,5 +1,6 @@
 const express = require('express');
 const Joi = require('joi');
+const crypto = require('crypto');
 const User = require('../models/User');
 const Company = require('../models/Company');
 const { authenticateToken, requireRole } = require('../modules/auth');
@@ -208,7 +209,7 @@ router.get('/users/:user_id', authenticateToken, requireRole(['ADMIN']), async (
   try {
     const { user_id } = req.params;
 
-    if (!userModel.isValidUUID(user_id)) {
+    if (!userModel.db.isValidUUID(user_id)) {
       return res.status(400).json({
         success: false,
         error: 'Invalid user ID format',
@@ -297,7 +298,7 @@ router.put('/users/:user_id/status', authenticateToken, requireRole(['ADMIN']), 
   try {
     const { user_id } = req.params;
 
-    if (!userModel.isValidUUID(user_id)) {
+    if (!userModel.db.isValidUUID(user_id)) {
       return res.status(400).json({
         success: false,
         error: 'Invalid user ID format',

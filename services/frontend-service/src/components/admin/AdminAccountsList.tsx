@@ -23,7 +23,7 @@ interface AdminAccountsListProps {
 
 const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) => {
   
-  const [viewMode, setViewMode] = useState<'pipeline' | 'table'>('table');
+
   const [notifOpen, setNotifOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(true);
   const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
@@ -31,6 +31,14 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState<{
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  } | null>(null);
   
   // State for custom dropdown
   const [accountsPerPage, setAccountsPerPage] = useState(10);
@@ -73,14 +81,18 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
       }
       
       console.log('Fetching accounts with params:', params); // Debug log
-      const usersData = await adminApi.getAllUsers(params);
-      console.log('API Response:', usersData); // Debug log
+      const apiResponse = await adminApi.getAllUsers(params);
+      console.log('API Response:', apiResponse); // Debug log
+      
+      const usersData = apiResponse.data || apiResponse;
+      const paginationData = apiResponse.pagination;
       
       // Ensure usersData is an array
       if (!Array.isArray(usersData)) {
         console.error('Users data is not an array:', usersData);
         setError('Invalid data format received.');
         setAccounts([]);
+        setPagination(null);
         return;
       }
       
@@ -96,11 +108,13 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
       
       console.log('Transformed accounts:', transformedAccounts); // Debug log
       setAccounts(transformedAccounts);
+      setPagination(paginationData);
       setError(null);
     } catch (err) {
       setError('Failed to load accounts.');
       console.error('Error fetching accounts:', err);
       setAccounts([]); // Set empty array on error
+      setPagination(null);
     } finally {
       setIsLoading(false);
     }
@@ -165,14 +179,14 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
       await fetchAccounts();
       
       // Show success message with details
-      alert(`✅ SUCCESS\n\nAccount deactivated successfully!\n\nUser: ${selectedUser.email}\nStatus: Inactive\nTime: ${new Date().toLocaleString()}`);
+      alert(`SUCCESS\n\nAccount deactivated successfully!\n\nUser: ${selectedUser.email}\nStatus: Inactive\nTime: ${new Date().toLocaleString()}`);
       
     } catch (err: any) {
       console.error(`Failed to deactivate user ${selectedUser.id}`, err);
       
       // Better error handling with specific messages
       const errorMessage = err?.response?.data?.error || err?.response?.data?.message || err.message || 'Unknown error occurred';
-      alert(`❌ DEACTIVATION FAILED\n\nUser: ${selectedUser.email}\nError: ${errorMessage}\n\nPlease try again or contact support.`);
+      alert(`DEACTIVATION FAILED\n\nUser: ${selectedUser.email}\nError: ${errorMessage}\n\nPlease try again or contact support.`);
     } finally {
       setIsLoading(false);
     }
@@ -184,10 +198,62 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
     setDeactivationReason('');
   };
 
+  // Pagination navigation functions
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= (pagination?.totalPages || 1)) {
+      setCurrentPage(page);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (pagination?.hasPrev) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (pagination?.hasNext) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    if (!pagination) return [1];
+    
+    const { totalPages } = pagination;
+    const pages: number[] = [];
+    
+    if (totalPages <= 5) {
+      // Show all pages if total is 5 or less
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Show pages around current page
+      let start = Math.max(1, currentPage - 2);
+      let end = Math.min(totalPages, currentPage + 2);
+      
+      // Adjust if we're near the beginning or end
+      if (currentPage <= 3) {
+        end = 5;
+      }
+      if (currentPage >= totalPages - 2) {
+        start = totalPages - 4;
+      }
+      
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+    }
+    
+    return pages;
+  };
+
   const handleReactivate = async (e: React.MouseEvent, userId: number, userEmail: string) => {
     e.stopPropagation(); // Prevent navigation
     
-    if (window.confirm(`🔄 CONFIRM REACTIVATION\n\nAccount: ${userEmail}\n\nThis action will:\n• Enable user login\n• Restore account access\n• Log this action for audit\n\nProceed with reactivation?`)) {
+    if (window.confirm(`CONFIRM REACTIVATION\n\nAccount: ${userEmail}\n\nThis action will:\n• Enable user login\n• Restore account access\n• Log this action for audit\n\nProceed with reactivation?`)) {
       try {
         setIsLoading(true);
         const response = await adminApi.updateUserStatus(userId.toString(), true, 'Account reactivated by admin');
@@ -198,14 +264,14 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
         await fetchAccounts();
         
         // Show success message with details
-        alert(`✅ SUCCESS\n\nAccount reactivated successfully!\n\nUser: ${userEmail}\nStatus: Active\nTime: ${new Date().toLocaleString()}`);
+        alert(`SUCCESS\n\nAccount reactivated successfully!\n\nUser: ${userEmail}\nStatus: Active\nTime: ${new Date().toLocaleString()}`);
         
       } catch (err: any) {
         console.error(`Failed to reactivate user ${userId}`, err);
         
         // Better error handling with specific messages
         const errorMessage = err?.response?.data?.error || err?.response?.data?.message || err.message || 'Unknown error occurred';
-        alert(`❌ REACTIVATION FAILED\n\nUser: ${userEmail}\nError: ${errorMessage}\n\nPlease try again or contact support.`);
+        alert(`REACTIVATION FAILED\n\nUser: ${userEmail}\nError: ${errorMessage}\n\nPlease try again or contact support.`);
       } finally {
         setIsLoading(false);
       }
@@ -259,7 +325,9 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
       {/* Controls (Total Accounts + Search / Filter / Toggle) */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         {/* Total Accounts */}
-        <h1 className="text-2xl font-medium text-gray-900 whitespace-nowrap">Total Accounts : {accounts.length}</h1>
+        <h1 className="text-2xl font-medium text-gray-900 whitespace-nowrap">
+          Total Accounts : {pagination ? pagination.total : accounts.length}
+        </h1>
 
         {/* Right Controls */}
         <div className="flex items-center gap-4 flex-wrap">
@@ -279,7 +347,7 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 min-w-[140px]"
           >
             <option value="all">All Roles</option>
             <option value="candidate">Candidate</option>
@@ -291,28 +359,14 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 min-w-[140px]"
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>
             <option value="inactive">Locked</option>
           </select>
 
-          {/* View Toggle Wrapper */}
-          <div className="flex bg-indigo-50 p-1 rounded-full">
-            <button 
-              className={`px-4 py-2 rounded-full text-sm font-semibold ${viewMode === 'pipeline' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:bg-white/50'}`}
-              onClick={() => setViewMode('pipeline')}
-            >
-              Pipeline View
-            </button>
-            <button 
-              className={`px-4 py-2 rounded-full text-sm font-semibold ${viewMode === 'table' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:bg-white/50'}`}
-              onClick={() => setViewMode('table')}
-            >
-              Table View
-            </button>
-          </div>
+
         </div>
       </div>
 
@@ -324,11 +378,11 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
               <th className="w-6 p-4">
                 <input type="checkbox" className="rounded border-gray-300" />
               </th>
-              <th className="px-4 py-4 text-left font-medium text-gray-600">Full Name <FiChevronDown className="inline-block ml-1 text-gray-400" /></th>
-              <th className="px-4 py-4 text-left font-medium text-gray-600">Email <FiChevronDown className="inline-block ml-1 text-gray-400" /></th>
-              <th className="px-4 py-4 text-left font-medium text-gray-600">Status <FiChevronDown className="inline-block ml-1 text-gray-400" /></th>
-              <th className="px-4 py-4 text-left font-medium text-gray-600">Type <FiChevronDown className="inline-block ml-1 text-gray-400" /></th>
-              <th className="px-4 py-4 text-left font-medium text-gray-600">Action</th>
+              <th className="px-6 py-4 text-left font-medium text-gray-600 w-1/4">Full Name <FiChevronDown className="inline-block ml-1 text-gray-400" /></th>
+              <th className="px-6 py-4 text-left font-medium text-gray-600 w-1/4">Email <FiChevronDown className="inline-block ml-1 text-gray-400" /></th>
+              <th className="px-6 py-4 text-left font-medium text-gray-600 w-1/6">Status <FiChevronDown className="inline-block ml-1 text-gray-400" /></th>
+              <th className="px-6 py-4 text-left font-medium text-gray-600 w-1/6">Type <FiChevronDown className="inline-block ml-1 text-gray-400" /></th>
+              <th className="px-6 py-4 text-left font-medium text-gray-600 w-1/6">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -346,14 +400,14 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
                 <td className="p-4">
                   <input type="checkbox" className="rounded border-gray-300" />
                 </td>
-                <td className="px-4 py-4">
+                <td className="px-6 py-4 text-left">
                   <div className="flex items-center gap-3">
                     <img src={`https://i.pravatar.cc/40?u=${account.id}`} alt={account.fullName} className="w-10 h-10 rounded-full" />
-                    <span className="font-medium">{account.fullName}</span>
+                    <span className="font-medium text-left">{account.fullName}</span>
                   </div>
                 </td>
-                <td className="px-4 py-4 text-gray-600">{account.email}</td>
-                <td className="px-4 py-4">
+                <td className="px-6 py-4 text-left text-gray-600">{account.email}</td>
+                <td className="px-6 py-4 text-left">
                   <span className={`px-3 py-1 rounded-full text-sm ${
                     account.status === 'Active' 
                       ? 'bg-green-100 text-green-600' 
@@ -362,7 +416,7 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
                     {account.status}
                   </span>
                 </td>
-                <td className="px-4 py-4">
+                <td className="px-6 py-4 text-left">
                   <span className={`px-3 py-1 rounded-full text-sm ${
                     account.type === 'HR'
                       ? 'bg-yellow-100 text-yellow-600'
@@ -373,7 +427,7 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
                     {account.type}
                   </span>
                 </td>
-                <td className="px-4 py-4">
+                <td className="px-6 py-4 text-left">
                   <div className="flex items-center gap-2">
                     {account.status === 'Active' ? (
                       <button 
@@ -399,7 +453,7 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
                                    `/admin/hr/${account.id}`; 
                       navigate(path);
                     }}>
-                      Account Details
+                      Details
                     </button>
                     <button className="p-1 hover:bg-gray-100 rounded">
                       <FiMoreHorizontal className="text-gray-600" />
@@ -447,19 +501,44 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
           </div>
           
           <div className="flex items-center gap-2">
-            <button className="min-w-[32px] h-8 px-2 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50">
+            {/* Previous Button */}
+            <button 
+              onClick={goToPreviousPage}
+              disabled={!pagination?.hasPrev}
+              className={`min-w-[32px] h-8 px-2 flex items-center justify-center border rounded ${
+                pagination?.hasPrev 
+                  ? 'border-gray-300 hover:bg-gray-50 cursor-pointer' 
+                  : 'border-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
+            >
               &lt;
             </button>
-            <button className="min-w-[32px] h-8 px-2 flex items-center justify-center bg-[#007BFF] text-white rounded">
-              1
-            </button>
-            <button className="min-w-[32px] h-8 px-2 flex items-center justify-center border border-[#007BFF] text-[#007BFF] rounded hover:bg-blue-50">
-              2
-            </button>
-            <button className="min-w-[32px] h-8 px-2 flex items-center justify-center border border-[#007BFF] text-[#007BFF] rounded hover:bg-blue-50">
-              3
-            </button>
-            <button className="min-w-[32px] h-8 px-2 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50">
+            
+            {/* Page Numbers */}
+            {getPageNumbers().map((page) => (
+              <button
+                key={page}
+                onClick={() => goToPage(page)}
+                className={`min-w-[32px] h-8 px-2 flex items-center justify-center rounded ${
+                  currentPage === page
+                    ? 'bg-[#007BFF] text-white'
+                    : 'border border-[#007BFF] text-[#007BFF] hover:bg-blue-50'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+            
+            {/* Next Button */}
+            <button 
+              onClick={goToNextPage}
+              disabled={!pagination?.hasNext}
+              className={`min-w-[32px] h-8 px-2 flex items-center justify-center border rounded ${
+                pagination?.hasNext 
+                  ? 'border-gray-300 hover:bg-gray-50 cursor-pointer' 
+                  : 'border-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
+            >
               &gt;
             </button>
           </div>
@@ -482,27 +561,27 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
             <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center mr-3">
               <span className="text-orange-600 text-lg">⚠️</span>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900">Deactivate Account</h3>
+            <h3 className="text-lg font-semibold text-gray-900 text-left">Deactivate Account</h3>
           </div>
           
           <div className="mb-4">
-            <p className="text-sm text-gray-600 mb-2">
+            <p className="text-sm text-gray-600 mb-2 text-left">
               You are about to deactivate the following account:
             </p>
             <div className="bg-gray-50 p-3 rounded border">
-              <p className="font-medium text-gray-900">{selectedUser?.email}</p>
+              <p className="font-medium text-gray-900 text-left">{selectedUser?.email}</p>
             </div>
           </div>
 
           <div className="mb-4">
-            <label htmlFor="deactivationReason" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="deactivationReason" className="block text-sm font-medium text-gray-700 mb-2 text-left">
               Reason for deactivation <span className="text-red-500">*</span>
             </label>
             <textarea
               id="deactivationReason"
               value={deactivationReason}
               onChange={(e) => setDeactivationReason(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-left"
               rows={3}
               placeholder="Please provide a reason for deactivating this account..."
               disabled={isLoading}
@@ -510,10 +589,10 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
           </div>
 
           <div className="bg-orange-50 border border-orange-200 rounded p-3 mb-4">
-            <p className="text-sm text-orange-800">
+            <p className="text-sm text-orange-800 text-left">
               <strong>This action will:</strong>
             </p>
-            <ul className="text-sm text-orange-700 mt-1 list-disc list-inside">
+            <ul className="text-sm text-orange-700 mt-1 list-disc list-inside text-left">
               <li>Disable user login access</li>
               <li>Restrict account functionality</li>
               <li>Log this action for audit purposes</li>
@@ -539,6 +618,13 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
         </div>
       </div>
     )}
+
+    {/* Create User Modal */}
+    <AdminCreateUserForm
+      isOpen={isCreateUserOpen}
+      onClose={() => setIsCreateUserOpen(false)}
+      onUserCreated={handleUserCreated}
+    />
     </AdminLayout>
   );
 };

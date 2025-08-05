@@ -56,13 +56,13 @@ const QuestionManagement: React.FC<QuestionManagementProps> = ({ currentUser }) 
         setLoading(true);
         setError(null);
         
-        const testsData = await adminApi.getAllTests();
+        const testsData = await adminApi.getAllTestsAdmin();
         
         if (Array.isArray(testsData)) {
           // Transform API data to component format
           const transformedQuestions = testsData.map((test: any, index: number) => ({
             id: test.id || index + 1,
-            position: test.position || test.job_title || 'Unknown Position',
+            position: test.position || test.title || 'Unknown Position',
             createdBy: 'HR' as const,
             fullName: test.created_by_name || test.creator_name || 'HR Manager',
             contents: test.title || test.name || test.description || 'Test Questions',

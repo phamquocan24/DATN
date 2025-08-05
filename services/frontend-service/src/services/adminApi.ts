@@ -21,11 +21,17 @@ export const adminApi = {
     );
     
     const response = await apiClient.get('/admin/users', { params: cleanParams });
-    // Handle different response structures
+    // Return both data and pagination info
     if (response.data && response.data.data) {
-      return response.data.data; // Return the actual users array
+      return {
+        data: response.data.data,
+        pagination: response.data.pagination || null
+      };
     }
-    return response.data;
+    return {
+      data: response.data,
+      pagination: null
+    };
   },
 
   getUserById: async (userId: string) => {
@@ -173,28 +179,28 @@ export const adminApi = {
 
   // Test Management
   getAllTests: async () => {
-    const response = await apiClient.get('/tests');
+    const response = await apiClient.get('/api/v1/tests');
     return response.data;
   },
 
   getTestStats: async (testId: string) => {
-    const response = await apiClient.get(`/tests/${testId}/stats`);
+    const response = await apiClient.get(`/api/v1/tests/${testId}/stats`);
     return response.data;
   },
 
   // Questions Management (for admin test management)
   createQuestion: async (questionData: any) => {
-    const response = await apiClient.post('/tests/questions', questionData);
+    const response = await apiClient.post('/api/v1/tests/questions', questionData);
     return response.data;
   },
 
   updateQuestion: async (questionId: string, questionData: any) => {
-    const response = await apiClient.put(`/tests/questions/${questionId}`, questionData);
+    const response = await apiClient.put(`/api/v1/tests/questions/${questionId}`, questionData);
     return response.data;
   },
 
   deleteQuestion: async (questionId: string) => {
-    const response = await apiClient.delete(`/tests/questions/${questionId}`);
+    const response = await apiClient.delete(`/api/v1/tests/questions/${questionId}`);
     return response.data;
   },
 
@@ -238,6 +244,98 @@ export const adminApi = {
     if (response.data && response.data.data) {
       return response.data.data;
     }
+    return response.data;
+  },
+
+  // ======================
+  // TEST MANAGEMENT (Admin)
+  // ======================
+
+  // Get all tests in system (Admin override - use standard tests endpoint with admin token)
+  getAllTestsAdmin: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    test_type?: string;
+    is_active?: boolean;
+    created_by?: string;
+  }) => {
+    const response = await apiClient.get('/api/v1/tests', { params });
+    if (response.data && response.data.data) {
+      return response.data.data;
+    }
+    return response.data;
+  },
+
+  // Get test details (with full access for admin)
+  getTestDetails: async (testId: string, includeAnswers: boolean = true) => {
+    const params = includeAnswers ? { include_answers: includeAnswers } : {};
+    const response = await apiClient.get(`/api/v1/tests/${testId}`, { params });
+    return response.data;
+  },
+
+  // Update any test (admin override)
+  updateTest: async (testId: string, testData: any) => {
+    const response = await apiClient.put(`/api/v1/tests/${testId}`, testData);
+    return response.data;
+  },
+
+  // Delete any test (admin override)
+  deleteTest: async (testId: string) => {
+    const response = await apiClient.delete(`/api/v1/tests/${testId}`);
+    return response.data;
+  },
+
+  // Get test results for any test
+  getTestResults: async (testId: string, params?: {
+    page?: number;
+    limit?: number;
+    status?: 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'EXPIRED';
+  }) => {
+    const response = await apiClient.get(`/api/v1/tests/${testId}/results`, { params });
+    return response.data;
+  },
+
+  // Get test statistics
+  getTestStatistics: async (testId: string) => {
+    const response = await apiClient.get(`/api/v1/tests/${testId}/stats`);
+    return response.data;
+  },
+
+  // Get system-wide test analytics (placeholder - may need backend implementation)
+  getTestAnalytics: async (params?: {
+    start_date?: string;
+    end_date?: string;
+    test_type?: string;
+  }) => {
+    // Note: This endpoint may not exist yet in backend
+    const response = await apiClient.get('/api/v1/tests/analytics', { params }).catch(() => ({ data: [] }));
+    return response.data;
+  },
+
+  // Get candidate test result details
+  getCandidateTestResult: async (testId: string, candidateId: string) => {
+    const response = await apiClient.get(`/api/v1/tests/${testId}/results/${candidateId}`);
+    return response.data;
+  },
+
+  // Bulk test operations (placeholder - may need backend implementation)
+  bulkTestAction: async (action: 'activate' | 'deactivate' | 'delete', testIds: string[]) => {
+    // Note: This endpoint may not exist yet in backend
+    const response = await apiClient.post('/api/v1/tests/bulk-action', {
+      action,
+      test_ids: testIds
+    }).catch(() => ({ data: { message: 'Bulk action not implemented yet' } }));
+    return response.data;
+  },
+
+  // Override test assignment (placeholder - may need backend implementation)
+  overrideTestAssignment: async (testId: string, candidateId: string, action: 'reset' | 'extend' | 'complete') => {
+    // Note: This endpoint may not exist yet in backend
+    const response = await apiClient.post(`/api/v1/tests/${testId}/override`, {
+      candidate_id: candidateId,
+      action
+    }).catch(() => ({ data: { message: 'Override action not implemented yet' } }));
     return response.data;
   }
 };
