@@ -137,7 +137,9 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
 
   // Reset to first page when filters change
   useEffect(() => {
-    setCurrentPage(1);
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
   }, [debouncedSearchQuery, roleFilter, statusFilter]);
 
   useEffect(() => {

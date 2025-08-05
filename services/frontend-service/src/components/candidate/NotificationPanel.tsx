@@ -1,86 +1,137 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Bell, BellRing, Calendar, Clock, User, AlertCircle, Briefcase, FileText, Users, X } from 'lucide-react';
+import { notificationApi, type Notification, type NotificationType } from '../../services/notificationApi';
 import Avatar from '../../assets/Avatar17.png';
-import man1 from '../../assets/man1.png';
-import man2 from '../../assets/man2.png';
-
-interface Notification {
-  id: number;
-  type: 'interview' | 'status' | 'message';
-  avatar: string;
-  name: string;
-  message: string;
-  time: string;
-  status?: 'New' | 'Shortlisted';
-  isRead: boolean;
-  interviewDetails?: {
-    position: string;
-    date: string;
-    time: string;
-    email: string;
-  };
-}
 
 interface NotificationPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  position?: 'header' | 'dashboard'; // New prop to determine positioning
+  position?: 'header' | 'dashboard';
   onMarkAllAsRead?: () => void;
 }
 
 const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose, position = 'header', onMarkAllAsRead }) => {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: 1,
-      type: 'interview',
-      avatar: man1,
-      name: 'Jan Mayer',
-      message: 'invited you to interview with Nomad',
-      time: '12 mins ago',
-      status: 'New',
-      isRead: false,
-      interviewDetails: {
-        position: 'Social Media Manager Role',
-        date: 'Mon, 20 July 2021',
-        time: '12 PM - 12:30 PM',
-        email: 'jakegyll@email.com'
-      }
-    },
-    {
-      id: 2,
-      type: 'status',
-      avatar: man2,
-      name: 'Jana Alicia',
-      message: 'from Udacity updated your job applications status',
-      time: '3 days ago',
-      status: 'Shortlisted',
-      isRead: false
-    },
-    {
-      id: 3,
-      type: 'interview',
-      avatar: Avatar,
-      name: 'Ally Wales',
-      message: 'from Digital Ocean sent you an interview invitation',
-      time: '14 July 2021 • 3:26 PM',
-      isRead: true,
-      interviewDetails: {
-        position: 'Frontend Developer Role',
-        date: 'Thu, 22 July 2021',
-        time: '2 PM - 2:30 PM',
-        email: 'ally.wales@digitalocean.com'
-      }
-    }
-  ]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(notif => ({ ...notif, isRead: true })));
-    onMarkAllAsRead?.(); // Call parent callback to hide red dot
+  // Load notifications on component mount
+  useEffect(() => {
+    if (isOpen) {
+      loadNotifications();
+      loadUnreadCount();
+    }
+  }, [isOpen]);
+
+  const loadNotifications = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await notificationApi.getNotifications({
+        limit: 20,
+        orderBy: 'created_at',
+        direction: 'DESC'
+      });
+      setNotifications(response.data);
+    } catch (err) {
+      setError('Failed to load notifications');
+      console.error('Error loading notifications:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const markAsRead = (id: number) => {
-    setNotifications(prev => prev.map(notif => 
-      notif.id === id ? { ...notif, isRead: true } : notif
-    ));
+  const loadUnreadCount = async () => {
+    try {
+      const response = await notificationApi.getUnreadCount();
+      setUnreadCount(response.data.unread_count);
+    } catch (err) {
+      console.error('Error loading unread count:', err);
+    }
+  };
+
+  const markAsRead = async (notificationId: string) => {
+    try {
+      await notificationApi.markAsRead(notificationId);
+      setNotifications(prev => prev.map(notif => 
+        notif.notification_id === notificationId ? { ...notif, is_read: true, read_at: new Date().toISOString() } : notif
+      ));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await notificationApi.markAllAsRead();
+      setNotifications(prev => prev.map(notif => ({ 
+        ...notif, 
+        is_read: true, 
+        read_at: new Date().toISOString() 
+      })));
+      setUnreadCount(0);
+      onMarkAllAsRead?.();
+    } catch (err) {
+      console.error('Error marking all notifications as read:', err);
+    }
+  };
+
+  const deleteNotification = async (notificationId: string) => {
+    try {
+      await notificationApi.deleteNotification(notificationId);
+      setNotifications(prev => prev.filter(notif => notif.notification_id !== notificationId));
+      loadUnreadCount(); // Refresh unread count
+    } catch (err) {
+      console.error('Error deleting notification:', err);
+    }
+  };
+
+  // Helper function to get notification icon
+  const getNotificationIcon = (type: NotificationType) => {
+    switch (type) {
+      case 'APPLICATION_UPDATE':
+        return <Briefcase className="w-5 h-5 text-blue-500" />;
+      case 'INTERVIEW_SCHEDULED':
+        return <Calendar className="w-5 h-5 text-green-500" />;
+      case 'TEST_ASSIGNED':
+        return <FileText className="w-5 h-5 text-purple-500" />;
+      case 'JOB_MATCH':
+        return <Briefcase className="w-5 h-5 text-orange-500" />;
+      case 'SYSTEM_UPDATE':
+        return <AlertCircle className="w-5 h-5 text-yellow-500" />;
+      case 'GENERAL':
+      default:
+        return <Bell className="w-5 h-5 text-gray-500" />;
+    }
+  };
+
+  // Helper function to format time
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} mins ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+    
+    return date.toLocaleDateString();
+  };
+
+  // Helper function to get priority color
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'HIGH':
+        return 'border-l-red-500';
+      case 'MEDIUM':
+        return 'border-l-yellow-500';
+      case 'LOW':
+      default:
+        return 'border-l-green-500';
+    }
   };
 
   if (!isOpen) return null;
@@ -110,113 +161,140 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose, 
 
         {/* Notifications List */}
         <div className="max-h-[380px] overflow-y-auto overflow-x-hidden">
-          {notifications.map((notification) => (
-            <div
-              key={notification.id}
-              className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${
-                !notification.isRead ? 'bg-blue-50' : ''
-              }`}
-              onClick={() => markAsRead(notification.id)}
-            >
-              <div className="flex items-start space-x-3">
-                <img
-                  src={notification.avatar}
-                  alt={notification.name}
-                  className="w-10 h-10 rounded-full flex-shrink-0"
-                />
-                <div className="flex-1 min-w-0 overflow-hidden text-left">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-medium text-gray-900">
-                      {notification.name}
-                    </p>
-                    {notification.status && (
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        notification.status === 'New' 
-                          ? 'bg-blue-100 text-blue-700' 
-                          : 'bg-green-100 text-green-700'
-                      }`}>
-                        {notification.status}
-                      </span>
-                    )}
+          {loading ? (
+            <div className="p-4 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#007BFF] mx-auto"></div>
+              <p className="text-sm text-gray-500 mt-2">Loading notifications...</p>
+            </div>
+          ) : error ? (
+            <div className="p-4 text-center">
+              <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
+              <p className="text-sm text-red-600">{error}</p>
+              <button 
+                onClick={loadNotifications}
+                className="text-[#007BFF] hover:text-[#0056b3] text-sm font-medium mt-2"
+              >
+                Try again
+              </button>
+            </div>
+          ) : notifications.length === 0 ? (
+            <div className="p-8 text-center">
+              <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-sm text-gray-500">No notifications yet</p>
+              <p className="text-xs text-gray-400 mt-1">We'll notify you when there's something new</p>
+            </div>
+          ) : (
+            notifications.map((notification) => (
+              <div
+                key={notification.notification_id}
+                className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 border-l-4 ${getPriorityColor(notification.priority)} ${
+                  !notification.is_read ? 'bg-blue-50' : ''
+                }`}
+                onClick={() => markAsRead(notification.notification_id)}
+              >
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    {getNotificationIcon(notification.type)}
                   </div>
-                  <p className="text-sm text-gray-600 mb-1 break-words">
-                    {notification.message}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {notification.time}
-                  </p>
-                  
-                  {/* Interview Details Card */}
-                  {notification.interviewDetails && (
-                    <div className="mt-3 p-3 bg-white border border-gray-200 rounded-lg text-left">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <div className="w-6 h-6 bg-[#007BFF] rounded flex items-center justify-center">
-                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4m5 0a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V9a2 2 0 012-2h12zM9 7h6" />
-                          </svg>
-                        </div>
-                        <h4 className="font-semibold text-gray-900 text-sm">
-                          Interview - Jake Gyll
-                        </h4>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-3">
-                        {notification.interviewDetails.position}
+                  <div className="flex-1 min-w-0 overflow-hidden text-left">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {notification.title}
                       </p>
-                      
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4m5 0a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V9a2 2 0 012-2h12zM9 7h6" />
-                          </svg>
-                          <div>
-                            <p className="text-xs text-gray-500">Date</p>
-                            <p className="text-sm font-medium text-gray-900">
-                              {notification.interviewDetails.date}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <div>
-                            <p className="text-xs text-gray-500">Time</p>
-                            <p className="text-sm font-medium text-gray-900">
-                              {notification.interviewDetails.time}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <div className="flex items-center space-x-2">
-                          <img
-                            src={notification.avatar}
-                            alt={notification.name}
-                            className="w-6 h-6 rounded-full"
-                          />
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">
-                              {notification.name}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {notification.interviewDetails.email}
-                            </p>
-                          </div>
-                        </div>
+                      <div className="flex items-center space-x-2">
+                        {notification.priority === 'HIGH' && (
+                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">
+                            High Priority
+                          </span>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteNotification(notification.notification_id);
+                          }}
+                          className="text-gray-400 hover:text-red-500 p-1"
+                          title="Delete notification"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
+                    <p className="text-sm text-gray-600 mb-2 break-words">
+                      {notification.message}
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-gray-500">
+                        {formatTime(notification.created_at)}
+                      </p>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        notification.type === 'APPLICATION_UPDATE' ? 'bg-blue-100 text-blue-700' :
+                        notification.type === 'INTERVIEW_SCHEDULED' ? 'bg-green-100 text-green-700' :
+                        notification.type === 'TEST_ASSIGNED' ? 'bg-purple-100 text-purple-700' :
+                        notification.type === 'JOB_MATCH' ? 'bg-orange-100 text-orange-700' :
+                        notification.type === 'SYSTEM_UPDATE' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {notification.type.replace('_', ' ')}
+                      </span>
+                    </div>
+                    
+                    {/* Enhanced Details based on notification type */}
+                    {notification.data && notification.type === 'INTERVIEW_SCHEDULED' && notification.data.interview_date && (
+                      <div className="mt-3 p-3 bg-white border border-gray-200 rounded-lg text-left">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Calendar className="w-5 h-5 text-green-500" />
+                          <h4 className="font-semibold text-gray-900 text-sm">
+                            Interview Details
+                          </h4>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <Calendar className="w-4 h-4 text-gray-400" />
+                            <div>
+                              <p className="text-xs text-gray-500">Date</p>
+                              <p className="text-sm font-medium text-gray-900">
+                                {new Date(notification.data.interview_date).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          {notification.data.interview_time && (
+                            <div className="flex items-center space-x-2">
+                              <Clock className="w-4 h-4 text-gray-400" />
+                              <div>
+                                <p className="text-xs text-gray-500">Time</p>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {notification.data.interview_time}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {notification.data && notification.type === 'APPLICATION_UPDATE' && notification.data.new_status && (
+                      <div className="mt-2 p-2 bg-gray-50 rounded text-sm">
+                        <span className="text-gray-600">Status: </span>
+                        <span className={`font-medium ${
+                          notification.data.new_status === 'HIRED' || notification.data.new_status === 'OFFERED' ? 'text-green-600' :
+                          notification.data.new_status === 'REJECTED' ? 'text-red-600' :
+                          notification.data.new_status === 'SHORTLISTED' ? 'text-blue-600' :
+                          'text-gray-600'
+                        }`}>
+                          {notification.data.new_status}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Unread indicator */}
+                  {!notification.is_read && (
+                    <div className="w-2 h-2 bg-[#007BFF] rounded-full flex-shrink-0 mt-2"></div>
                   )}
                 </div>
-                
-                {/* Unread indicator */}
-                {!notification.isRead && (
-                  <div className="w-2 h-2 bg-[#007BFF] rounded-full flex-shrink-0 mt-2"></div>
-                )}
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
         
         {/* Footer */}

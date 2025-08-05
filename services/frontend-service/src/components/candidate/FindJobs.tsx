@@ -97,7 +97,9 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
       }));
 
       setJobs(formattedJobs);
-      setPagination(prev => ({ ...prev, total: jobsData?.total || jobsArray.length }));
+      // Only update total, not page/limit to avoid infinite loop
+      const newTotal = jobsData?.total || jobsArray.length;
+      setPagination(prev => ({ ...prev, total: newTotal }));
       setError(null);
     } catch (err) {
       setError('Failed to fetch jobs.');
@@ -107,9 +109,10 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
     }
   }, [searchQuery, location, pagination.page, pagination.limit, filters]);
 
+  // Use direct dependencies instead of fetchJobs callback to avoid infinite loops
   useEffect(() => {
     fetchJobs();
-  }, [fetchJobs]);
+  }, [searchQuery, location, pagination.page, pagination.limit, filters]);
 
   const toggleSavedJob = (jobId: number) => {
     setSavedJobs(prev => 

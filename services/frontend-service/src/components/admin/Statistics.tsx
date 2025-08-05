@@ -20,31 +20,106 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
     const [hasUnread, setHasUnread] = useState(true);
     const [isExportOpen, setIsExportOpen] = useState(false);
     const exportRef = useRef<HTMLDivElement>(null);
+    const trendsDropdownRef = useRef<HTMLDivElement>(null);
     
     // API data states
     const [loading, setLoading] = useState(true);
+    const [chartsLoading, setChartsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [statsData, setStatsData] = useState<any>(null);
+    const [trendsPeriod, setTrendsPeriod] = useState<'7days' | '30days' | '1year'>('7days');
+    const [isTrendsDropdownOpen, setIsTrendsDropdownOpen] = useState(false);
+    const [initialLoad, setInitialLoad] = useState(true);
+    const fetchingRef = useRef(false);
+
+    // Helper function to calculate date ranges based on current system time
+    const getDateRange = (period: '7days' | '30days' | '1year') => {
+        // Always calculate from current date in system (today)
+        const endDate = new Date();
+        // Set time to end of day to include full day data
+        endDate.setHours(23, 59, 59, 999);
+        
+        const startDate = new Date();
+        // Set time to start of day
+        startDate.setHours(0, 0, 0, 0);
+        
+        switch (period) {
+            case '7days':
+                // Last 7 days including today (today + 6 previous days)
+                startDate.setDate(endDate.getDate() - 6); // 6 days ago + today = 7 days
+                break;
+            case '30days':
+                // Last 30 days including today (today + 29 previous days)
+                startDate.setDate(endDate.getDate() - 29); // 29 days ago + today = 30 days
+                break;
+            case '1year':
+                // Last 12 months including current month
+                startDate.setFullYear(endDate.getFullYear() - 1);
+                startDate.setDate(endDate.getDate() + 1); // Start from same day last year
+                break;
+        }
+        
+        console.log(`Date range for ${period}:`, {
+            start: startDate.toLocaleDateString(),
+            end: endDate.toLocaleDateString(),
+            startISO: startDate.toISOString(),
+            endISO: endDate.toISOString()
+        });
+        
+        return {
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+            displayRange: {
+                start: startDate.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                }),
+                end: endDate.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                })
+            }
+        };
+    };
+
+    // Get display text for current time period
+    const getTimePeriodDisplay = () => {
+        const dateRange = getDateRange(trendsPeriod);
+        return `${dateRange.displayRange.start} - ${dateRange.displayRange.end}`;
+    };
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (exportRef.current && !exportRef.current.contains(event.target as Node)) {
                 setIsExportOpen(false);
             }
+            // Close trends dropdown when clicking outside
+            if (trendsDropdownRef.current && !trendsDropdownRef.current.contains(event.target as Node)) {
+                setIsTrendsDropdownOpen(false);
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Fetch statistics data
+    // Initial page load - fetch basic stats
     useEffect(() => {
-        const fetchStatistics = async () => {
+        const fetchBasicStatistics = async () => {
             try {
                 setLoading(true);
                 setError(null);
                 
-                const systemStats = await adminApi.getSystemStatistics();
-                console.log('Statistics API Response:', systemStats);
+                // Initial load with default 7 days period
+                const dateRange = getDateRange('7days');
+                
+                const systemStats = await adminApi.getSystemStatistics({
+                    start_date: dateRange.startDate,
+                    end_date: dateRange.endDate,
+                    period: '7days'
+                });
+                console.log('Initial Statistics API Response:', systemStats);
                 
                 setStatsData(systemStats);
             } catch (err: any) {
@@ -76,11 +151,67 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
                 }
             } finally {
                 setLoading(false);
+                setInitialLoad(false);
             }
         };
 
-        fetchStatistics();
-    }, []);
+        fetchBasicStatistics();
+    }, []); // Only run once on mount
+
+    // Fetch chart data when period changes
+    useEffect(() => {
+        const fetchChartData = async () => {
+            // Don't fetch if:
+            // - No basic data loaded yet
+            // - Still in initial load
+            // - Already fetching to prevent multiple concurrent requests
+            if (!statsData || initialLoad || fetchingRef.current) {
+                console.log('Skipping chart fetch:', { 
+                    hasStatsData: !!statsData, 
+                    initialLoad, 
+                    alreadyFetching: fetchingRef.current 
+                });
+                return;
+            }
+            
+            try {
+                fetchingRef.current = true;
+                setChartsLoading(true);
+                
+                // Calculate date range based on selected period
+                const dateRange = getDateRange(trendsPeriod);
+                
+                console.log(`Fetching chart data for ${trendsPeriod}...`);
+                const chartStats = await adminApi.getSystemStatistics({
+                    start_date: dateRange.startDate,
+                    end_date: dateRange.endDate,
+                    period: trendsPeriod
+                });
+                console.log(`Chart data for ${trendsPeriod}:`, chartStats);
+                
+                // Update only the chart-related data, keep user/company stats
+                setStatsData((prevData: any) => ({
+                    ...prevData,
+                    registration_trends: chartStats.registration_trends,
+                    period: trendsPeriod
+                }));
+            } catch (err: any) {
+                console.error('Error fetching chart data:', err);
+                // Don't show error for chart data, keep existing data
+            } finally {
+                setChartsLoading(false);
+                fetchingRef.current = false;
+            }
+        };
+
+        // Only run fetchChartData after initial load is complete
+        if (!initialLoad) {
+            console.log(`Period changed to ${trendsPeriod}, fetching chart data...`);
+            fetchChartData();
+        } else {
+            console.log(`Period changed to ${trendsPeriod}, but still in initial load, skipping...`);
+        }
+    }, [trendsPeriod]); // Only run when period changes - removed statsData and initialLoad to prevent infinite loop
 
     // Dynamic stats cards based on API data
     const statsCards = [
@@ -151,52 +282,104 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
     
     // Dynamic line chart data - Registration Trends
     const getLineData = () => {
-        if (loading || !statsData) {
-            return {
-                labels: ['19 Jul', '20 Jul', '21 Jul', '22 Jul', '23 Jul', '24 Jul', '25 Jul'],
-                datasets: [
-                    {
-                        label: 'Total Registrations',
-                        data: [0, 0, 0, 0, 0, 0, 0],
-                        fill: false,
-                        borderColor: '#2ED47A',
-                        tension: 0.4,
-                        borderWidth: 2,
-                        pointBackgroundColor: '#FFFFFF',
-                        pointBorderColor: '#2ED47A',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                    },
-                    {
-                        label: 'Candidates',
-                        data: [0, 0, 0, 0, 0, 0, 0],
-                        fill: false,
-                        borderColor: '#4D7DFF',
-                        tension: 0.4,
-                        borderWidth: 2,
-                        pointBackgroundColor: '#FFFFFF',
-                        pointBorderColor: '#4D7DFF',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
+        // Generate labels based on selected time period
+        const generateLabels = () => {
+            const labels = [];
+            const endDate = new Date();
+            let periodsToShow = 7;
+            
+            switch (trendsPeriod) {
+                case '7days':
+                    periodsToShow = 7;
+                    for (let i = periodsToShow - 1; i >= 0; i--) {
+                        const date = new Date(endDate);
+                        date.setDate(endDate.getDate() - i);
+                        labels.push(`${date.getDate()} ${date.toLocaleDateString('en', { month: 'short' })}`);
                     }
-                ],
-            };
+                    break;
+                case '30days':
+                    periodsToShow = 30;
+                    for (let i = periodsToShow - 1; i >= 0; i--) {
+                        const date = new Date(endDate);
+                        date.setDate(endDate.getDate() - i);
+                        labels.push(`${date.getDate()} ${date.toLocaleDateString('en', { month: 'short' })}`);
+                    }
+                    break;
+                case '1year':
+                    periodsToShow = 12;
+                    for (let i = periodsToShow - 1; i >= 0; i--) {
+                        const date = new Date(endDate);
+                        date.setMonth(endDate.getMonth() - i);
+                        labels.push(`${date.toLocaleDateString('en', { month: 'short' })} ${date.getFullYear()}`);
+                    }
+                    break;
+            }
+            return labels;
+        };
+
+        // Generate sample data based on time period
+        const generateSampleData = (length: number, baseValue: number, variance: number) => {
+            return new Array(length).fill(0).map(() => 
+                Math.floor(Math.random() * variance) + baseValue
+            );
+        };
+
+        // Use API data directly - trust the backend to return correct data for the period
+        const trendData = statsData?.registration_trends || [];
+        let labels, totalRegistrations, candidateRegistrations;
+        
+        if (trendData.length > 0) {
+            // Use API data directly - backend returns filtered data for the selected period
+            console.log(`Using API data for ${trendsPeriod}:`, trendData);
+            
+            // Extract labels from API data (reverse for chronological order)
+            const reversedData = [...trendData].reverse();
+            
+            labels = reversedData.map((item: any) => {
+                const date = new Date(item.date);
+                if (trendsPeriod === '1year') {
+                    // For yearly data, backend returns YYYY-MM format
+                    return `${date.toLocaleDateString('en', { month: 'short' })} ${date.getFullYear()}`;
+                } else {
+                    // For daily data, show day and month
+                    return `${date.getDate()} ${date.toLocaleDateString('en', { month: 'short' })}`;
+                }
+            });
+            
+            // Process the data values (already reversed)
+            totalRegistrations = reversedData.map((item: any) => item.registrations || 0);
+            candidateRegistrations = reversedData.map((item: any) => item.candidate_registrations || 0);
+            
+        } else {
+            // Fallback to sample data only if no API data available
+            console.log(`No API data available, using sample data for ${trendsPeriod}`);
+            labels = generateLabels();
+            
+            switch (trendsPeriod) {
+                case '7days':
+                    totalRegistrations = generateSampleData(7, 20, 30);
+                    candidateRegistrations = generateSampleData(7, 15, 25);
+                    break;
+                case '30days':
+                    totalRegistrations = generateSampleData(30, 15, 25);
+                    candidateRegistrations = generateSampleData(30, 10, 20);
+                    break;
+                case '1year':
+                    totalRegistrations = generateSampleData(12, 300, 200);
+                    candidateRegistrations = generateSampleData(12, 250, 150);
+                    break;
+                default:
+                    totalRegistrations = generateSampleData(7, 20, 30);
+                    candidateRegistrations = generateSampleData(7, 15, 25);
+            }
         }
 
-        const trendData = statsData?.registration_trends || [];
-        const labels = trendData.map((item: any) => {
-            const date = new Date(item.date);
-            return `${date.getDate()} ${date.toLocaleDateString('en', { month: 'short' })}`;
-        });
-        const totalRegistrations = trendData.map((item: any) => item.registrations || 0);
-        const candidateRegistrations = trendData.map((item: any) => item.candidate_registrations || 0);
-
         return {
-            labels: labels.length > 0 ? labels : ['19 Jul', '20 Jul', '21 Jul', '22 Jul', '23 Jul', '24 Jul', '25 Jul'],
+            labels,
             datasets: [
                 {
                     label: 'Total Registrations',
-                    data: totalRegistrations.length > 0 ? totalRegistrations : [25, 30, 45, 35, 50, 40, 60],
+                    data: totalRegistrations,
                     fill: false,
                     borderColor: '#2ED47A',
                     tension: 0.4,
@@ -208,7 +391,7 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
                 },
                 {
                     label: 'Candidates',
-                    data: candidateRegistrations.length > 0 ? candidateRegistrations : [20, 25, 35, 28, 40, 32, 48],
+                    data: candidateRegistrations,
                     fill: false,
                     borderColor: '#4D7DFF',
                     tension: 0.4,
@@ -222,45 +405,60 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
         };
     };
 
-    const lineOptions = {
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { 
-                display: true,
-                position: 'top' as const,
-                labels: {
-                    usePointStyle: true,
-                    padding: 20
+    // Dynamic line chart options with auto-scaling Y-axis
+    const getLineOptions = () => {
+        // Calculate max value from current data for better scaling
+        const currentData = getLineData();
+        const allValues = currentData.datasets.flatMap(dataset => dataset.data);
+        const maxValue = Math.max(...allValues);
+        const suggestedMax = maxValue === 0 ? 100 : Math.ceil(maxValue * 1.2); // 20% padding above max value
+        
+        return {
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { 
+                    display: true,
+                    position: 'top' as const,
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    suggestedMax: suggestedMax,
                 }
             }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                max: 1000,
-            }
-        }
+        };
     };
 
-    const doughnutOptions = {
-        cutout: '75%',
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                display: false
-            },
-            tooltip: {
-                enabled: true,
-                callbacks: {
-                    label: (context: TooltipItem<'doughnut'>) => {
-                        const total = 243;
-                        const percentage = context.raw as number;
-                        const value = Math.round((percentage / 100) * total);
-                        return `${context.label}: ${value}`;
+    // Dynamic doughnut chart options with API-based total
+    const getDoughnutOptions = () => {
+        // Calculate total from current data
+        const currentData = getDoughnutData();
+        const total = currentData.datasets[0].data.reduce((sum: number, value: number) => sum + value, 0);
+        
+        return {
+            cutout: '75%',
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    enabled: true,
+                    callbacks: {
+                        label: (context: TooltipItem<'doughnut'>) => {
+                            const value = context.raw as number;
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
+                            return `${context.label}: ${value} (${percentage}%)`;
+                        },
                     },
                 },
             },
-        },
+        };
     };
 
 
@@ -285,7 +483,14 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
                 <div className="flex justify-between items-center mb-8">
                     <div>
                         <h1 className="text-2xl font-semibold">Statistics</h1>
-                        <p className="text-gray-600">Overall report on system performance</p>
+                        <p className="text-gray-600">
+                            Overall report on system performance
+                            {!loading && (
+                                <span className="ml-2 text-sm text-blue-600 font-medium">
+                                    ({getTimePeriodDisplay()})
+                                </span>
+                            )}
+                        </p>
                     </div>
                     <div ref={exportRef} className="relative">
                         <button
@@ -340,7 +545,7 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
                         {/* Stat Cards */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {statsCards.map(card => (
-                                <div key={card.title} className="bg-white p-6 rounded-lg border border-gray-200 flex justify-between items-start">
+                                <div key={card.title} className="bg-white p-6 rounded-lg border border-gray-200 flex justify-between items-start transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 cursor-pointer">
                                     <div>
                                         <p className="text-gray-500 mb-2">{card.title}</p>
                                         <div className="flex items-baseline gap-2">
@@ -352,7 +557,7 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
                                         </div>
                                         <p className="text-sm text-gray-500 mt-1">vs last day</p>
                                     </div>
-                                    <div className={`p-2 rounded-lg ${card.iconBg}`}>{card.icon}</div>
+                                    <div className={`p-2 rounded-lg ${card.iconBg} transition-transform hover:scale-110`}>{card.icon}</div>
                                 </div>
                             ))}
                         </div>
@@ -360,10 +565,64 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
                         {/* Line Chart */}
                         <div className="bg-white p-6 rounded-lg border border-gray-200">
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className="font-semibold">Registration Trends</h3>
-                                <button className="flex items-center gap-2 text-sm px-3 py-1.5 border rounded-lg">Last 7 days <FiChevronDown /></button>
+                                <div>
+                                    <h3 className="font-semibold">Registration Trends</h3>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Data from {getTimePeriodDisplay()}
+                                    </p>
+                                </div>
+                                <div className="relative" ref={trendsDropdownRef}>
+                                    <button 
+                                        onClick={() => setIsTrendsDropdownOpen(!isTrendsDropdownOpen)}
+                                        className="flex items-center gap-2 text-sm px-3 py-1.5 border rounded-lg hover:bg-gray-50 transition-colors"
+                                    >
+                                        {trendsPeriod === '7days' ? 'Last 7 days' : 
+                                         trendsPeriod === '30days' ? 'Last month' : 'Last year'} 
+                                        <FiChevronDown className={`transition-transform ${isTrendsDropdownOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    {isTrendsDropdownOpen && (
+                                        <div className="absolute right-0 top-full mt-1 w-32 bg-white border rounded-lg shadow-lg z-10">
+                                            <button 
+                                                onClick={() => { 
+                                                    setTrendsPeriod('7days'); 
+                                                    setIsTrendsDropdownOpen(false); 
+                                                }}
+                                                className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 first:rounded-t-lg ${trendsPeriod === '7days' ? 'bg-blue-50 text-blue-600' : ''}`}
+                                            >
+                                                Last 7 days
+                                            </button>
+                                            <button 
+                                                onClick={() => { 
+                                                    setTrendsPeriod('30days'); 
+                                                    setIsTrendsDropdownOpen(false); 
+                                                }}
+                                                className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${trendsPeriod === '30days' ? 'bg-blue-50 text-blue-600' : ''}`}
+                                            >
+                                                Last month
+                                            </button>
+                                            <button 
+                                                onClick={() => { 
+                                                    setTrendsPeriod('1year'); 
+                                                    setIsTrendsDropdownOpen(false); 
+                                                }}
+                                                className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 last:rounded-b-lg ${trendsPeriod === '1year' ? 'bg-blue-50 text-blue-600' : ''}`}
+                                            >
+                                                Last year
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                            <div className="h-80"><Line data={getLineData()} options={lineOptions} /></div>
+                            {chartsLoading ? (
+                                <div className="h-80 flex items-center justify-center">
+                                    <div className="flex items-center space-x-2">
+                                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                                        <span className="text-gray-500">Loading chart data...</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="h-80"><Line data={getLineData()} options={getLineOptions()} /></div>
+                            )}
                         </div>
                     </div>
 
@@ -375,7 +634,7 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
                                 <h3 className="font-semibold">User Role Distribution</h3>
                             </div>
                             <div className="relative h-48 w-48 mx-auto">
-                                <Doughnut data={getDoughnutData()} options={doughnutOptions} />
+                                <Doughnut data={getDoughnutData()} options={getDoughnutOptions()} />
                             </div>
                             <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                                 {getDoughnutData().labels.map((label, i) => (

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import adminApi from '../../services/adminApi';
 
 interface CreateUserFormData {
@@ -155,7 +156,14 @@ const AdminCreateUserForm: React.FC<AdminCreateUserFormProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <>
+      <style>{`
+        input[type="password"]::-webkit-password-reveal-button,
+        input[type="password"]::-ms-reveal {
+          display: none;
+        }
+      `}</style>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
         <div className="p-6">
           {/* Header */}
@@ -188,11 +196,11 @@ const AdminCreateUserForm: React.FC<AdminCreateUserFormProps> = ({
           {/* Step Indicator */}
           <div className="flex items-center justify-center mb-6">
             <div className="flex items-center">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= 1 ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= 1 ? 'text-white' : 'bg-gray-200 text-gray-600'}`} style={{backgroundColor: currentStep >= 1 ? '#007BFF' : ''}}>
                 1
               </div>
-              <div className={`w-12 h-1 ${currentStep >= 2 ? 'bg-blue-500' : 'bg-gray-200'}`}></div>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= 2 ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'}`}>
+              <div className={`w-12 h-1 ${currentStep >= 2 ? 'bg-gray-200' : 'bg-gray-200'}`} style={{backgroundColor: currentStep >= 2 ? '#007BFF' : ''}}></div>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= 2 ? 'text-white' : 'bg-gray-200 text-gray-600'}`} style={{backgroundColor: currentStep >= 2 ? '#007BFF' : ''}}>
                 2
               </div>
             </div>
@@ -200,8 +208,8 @@ const AdminCreateUserForm: React.FC<AdminCreateUserFormProps> = ({
 
           {/* Step Labels */}
           <div className="flex justify-between mb-6 text-sm text-gray-600">
-            <span className={currentStep === 1 ? 'font-medium text-blue-600' : ''}>Basic Information</span>
-            <span className={currentStep === 2 ? 'font-medium text-blue-600' : ''}>Account Details</span>
+            <span className={currentStep === 1 ? 'font-medium' : ''} style={{color: currentStep === 1 ? '#007BFF' : ''}}>Basic Information</span>
+            <span className={currentStep === 2 ? 'font-medium' : ''} style={{color: currentStep === 2 ? '#007BFF' : ''}}>Account Details</span>
           </div>
 
           {/* Form */}
@@ -220,7 +228,10 @@ const AdminCreateUserForm: React.FC<AdminCreateUserFormProps> = ({
                     value={formData.full_name}
                     onChange={handleInputChange}
                     disabled={loading}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{'--tw-ring-color': '#007BFF'} as any}
+                    onFocus={(e) => (e.target as HTMLInputElement).style.borderColor = '#007BFF'}
+                    onBlur={(e) => (e.target as HTMLInputElement).style.borderColor = '#d1d5db'}
                     placeholder="Enter full name"
                   />
                 </div>
@@ -236,7 +247,10 @@ const AdminCreateUserForm: React.FC<AdminCreateUserFormProps> = ({
                     value={formData.email}
                     onChange={handleInputChange}
                     disabled={loading}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{'--tw-ring-color': '#007BFF'} as any}
+                    onFocus={(e) => (e.target as HTMLInputElement).style.borderColor = '#007BFF'}
+                    onBlur={(e) => (e.target as HTMLInputElement).style.borderColor = '#d1d5db'}
                     placeholder="Enter email address"
                   />
                 </div>
@@ -252,7 +266,10 @@ const AdminCreateUserForm: React.FC<AdminCreateUserFormProps> = ({
                     value={formData.phone}
                     onChange={handleInputChange}
                     disabled={loading}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{'--tw-ring-color': '#007BFF'} as any}
+                    onFocus={(e) => (e.target as HTMLInputElement).style.borderColor = '#007BFF'}
+                    onBlur={(e) => (e.target as HTMLInputElement).style.borderColor = '#d1d5db'}
                     placeholder="Enter phone number"
                   />
                 </div>
@@ -272,7 +289,10 @@ const AdminCreateUserForm: React.FC<AdminCreateUserFormProps> = ({
                     value={formData.role}
                     onChange={handleInputChange}
                     disabled={loading}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{'--tw-ring-color': '#007BFF'} as any}
+                    onFocus={(e) => (e.target as HTMLSelectElement).style.borderColor = '#007BFF'}
+                    onBlur={(e) => (e.target as HTMLSelectElement).style.borderColor = '#d1d5db'}
                   >
                     <option value="CANDIDATE">Candidate</option>
                     <option value="HR">HR</option>
@@ -292,7 +312,10 @@ const AdminCreateUserForm: React.FC<AdminCreateUserFormProps> = ({
                       value={formData.password}
                       onChange={handleInputChange}
                       disabled={loading}
-                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{'--tw-ring-color': '#007BFF'} as any}
+                      onFocus={(e) => e.target.style.borderColor = '#007BFF'}
+                      onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
                       placeholder="Enter password"
                     />
                     <button
@@ -301,16 +324,7 @@ const AdminCreateUserForm: React.FC<AdminCreateUserFormProps> = ({
                       disabled={loading}
                       className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {showPassword ? (
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 11-4.243-4.243m4.242 4.242L9.88 9.88" />
-                        </svg>
-                      ) : (
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      )}
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
                   <p className="text-xs text-gray-500 mt-1 text-left">
@@ -330,7 +344,10 @@ const AdminCreateUserForm: React.FC<AdminCreateUserFormProps> = ({
                       value={formData.confirmPassword}
                       onChange={handleInputChange}
                       disabled={loading}
-                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{'--tw-ring-color': '#007BFF'} as any}
+                      onFocus={(e) => e.target.style.borderColor = '#007BFF'}
+                      onBlur={(e) => e.target.style.borderColor = '#d1d5db'}
                       placeholder="Confirm password"
                     />
                     <button
@@ -339,16 +356,7 @@ const AdminCreateUserForm: React.FC<AdminCreateUserFormProps> = ({
                       disabled={loading}
                       className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {showConfirmPassword ? (
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 11-4.243-4.243m4.242 4.242L9.88 9.88" />
-                        </svg>
-                      ) : (
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      )}
+                      {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
                 </div>
@@ -371,7 +379,10 @@ const AdminCreateUserForm: React.FC<AdminCreateUserFormProps> = ({
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                className="flex-1 text-white py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                style={{backgroundColor: '#007BFF'}}
+                onMouseEnter={(e) => (e.target as HTMLButtonElement).style.backgroundColor = '#0056b3'}
+                onMouseLeave={(e) => (e.target as HTMLButtonElement).style.backgroundColor = '#007BFF'}
               >
                 {loading ? (
                   <div className="flex items-center gap-2">
@@ -399,6 +410,7 @@ const AdminCreateUserForm: React.FC<AdminCreateUserFormProps> = ({
         </div>
       </div>
     </div>
+    </>
   );
 };
 

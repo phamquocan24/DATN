@@ -239,7 +239,7 @@ router.get('/users/:user_id', authenticateToken, requireRole(['ADMIN']), async (
           JOIN companies c ON rp.company_id = c.company_id
           WHERE rp.user_id = $1
         `;
-        const companiesResult = await userModel.query(companiesQuery, [user_id], 'get_user_companies');
+        const companiesResult = await userModel.db.query(companiesQuery, [user_id], 'get_user_companies');
         additionalData.companies = companiesResult.rows;
       } catch (error) {
         logger.warn('Failed to get user companies:', error);
@@ -268,7 +268,7 @@ router.get('/users/:user_id', authenticateToken, requireRole(['ADMIN']), async (
         ORDER BY activity_date DESC
         LIMIT 10
       `;
-      const activityResult = await userModel.query(activityQuery, [user_id], 'get_user_activity');
+      const activityResult = await userModel.db.query(activityQuery, [user_id], 'get_user_activity');
       additionalData.recent_activity = activityResult.rows;
     } catch (error) {
       logger.warn('Failed to get user activity:', error);
@@ -378,8 +378,12 @@ router.post('/users', authenticateToken, requireRole(['ADMIN']), async (req, res
       });
     }
 
+    // Map HR role to RECRUITER for database compatibility
+    const mappedRole = value.role === 'HR' ? 'RECRUITER' : value.role;
+
     const userData = {
       ...value,
+      role: mappedRole, // Use mapped role
       // If no password provided, user will need to set it via password reset
       password: value.password || crypto.randomBytes(16).toString('hex'),
       is_email_verified: true, // Admin-created users are pre-verified
@@ -636,6 +640,8 @@ router.post('/users/bulk-action', authenticateToken, requireRole(['ADMIN']), asy
 // Get system statistics
 router.get('/statistics', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
   try {
+    const { start_date, end_date, period } = req.query;
+    
     // Get user statistics
     const userStats = {
       total_users: await userModel.count(),
@@ -652,20 +658,95 @@ router.get('/statistics', authenticateToken, requireRole(['ADMIN']), async (req,
       active_companies: await companyModel.count({ company_status: 'ACTIVE' })
     };
 
-    // Get registration trends (last 30 days)
-    const trendQuery = `
-      SELECT 
-        DATE(created_at) as date,
-        COUNT(*) as registrations,
-        COUNT(*) FILTER (WHERE role = 'CANDIDATE') as candidate_registrations,
-        COUNT(*) FILTER (WHERE role = 'RECRUITER') as recruiter_registrations
-      FROM users
-      WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
-      GROUP BY DATE(created_at)
-      ORDER BY date DESC
-    `;
+    // Dynamic registration trends based on time period
+    let trendQuery;
+    let queryParams = [];
+    let groupBy = 'DATE(created_at)';
+    let orderBy = 'date DESC';
+    
+    // Always use provided date range from frontend
+    if (start_date && end_date) {
+      console.log(`Using date range: ${start_date} to ${end_date}`);
+      
+      // Determine grouping based on period
+      if (period === '1year') {
+        // For year view, group by month
+        groupBy = "TO_CHAR(created_at, 'YYYY-MM')";
+        trendQuery = `
+          SELECT 
+            TO_CHAR(created_at, 'YYYY-MM') as date,
+            COUNT(*) as registrations,
+            COUNT(*) FILTER (WHERE role = 'CANDIDATE') as candidate_registrations,
+            COUNT(*) FILTER (WHERE role = 'RECRUITER') as recruiter_registrations
+          FROM users
+          WHERE created_at >= $1::timestamp AND created_at <= $2::timestamp
+          GROUP BY ${groupBy}
+          ORDER BY date DESC
+        `;
+      } else {
+        // Daily grouping for 7days and 30days
+        trendQuery = `
+          SELECT 
+            DATE(created_at) as date,
+            COUNT(*) as registrations,
+            COUNT(*) FILTER (WHERE role = 'CANDIDATE') as candidate_registrations,
+            COUNT(*) FILTER (WHERE role = 'RECRUITER') as recruiter_registrations
+          FROM users
+          WHERE created_at >= $1::timestamp AND created_at <= $2::timestamp
+          GROUP BY ${groupBy}
+          ORDER BY ${orderBy}
+        `;
+      }
+      queryParams = [start_date, end_date];
+    } else {
+      // Fallback to current date logic if no dates provided
+      let interval = '7 days'; // default
+      
+      switch (period) {
+        case '7days':
+          interval = '7 days';
+          break;
+        case '30days':
+          interval = '30 days';
+          break;
+        case '1year':
+          interval = '1 year';
+          groupBy = "TO_CHAR(created_at, 'YYYY-MM')";
+          break;
+      }
+      
+      if (period === '1year') {
+        trendQuery = `
+          SELECT 
+            TO_CHAR(created_at, 'YYYY-MM') as date,
+            COUNT(*) as registrations,
+            COUNT(*) FILTER (WHERE role = 'CANDIDATE') as candidate_registrations,
+            COUNT(*) FILTER (WHERE role = 'RECRUITER') as recruiter_registrations
+          FROM users
+          WHERE created_at >= CURRENT_DATE - INTERVAL '${interval}'
+          GROUP BY ${groupBy}
+          ORDER BY date DESC
+        `;
+      } else {
+        trendQuery = `
+          SELECT 
+            DATE(created_at) as date,
+            COUNT(*) as registrations,
+            COUNT(*) FILTER (WHERE role = 'CANDIDATE') as candidate_registrations,
+            COUNT(*) FILTER (WHERE role = 'RECRUITER') as recruiter_registrations
+          FROM users
+          WHERE created_at >= CURRENT_DATE - INTERVAL '${interval}'
+          GROUP BY ${groupBy}
+          ORDER BY ${orderBy}
+        `;
+      }
+    }
 
-    const trendResult = await userModel.query(trendQuery, [], 'get_registration_trends');
+    console.log(`Fetching registration trends for period: ${period || 'default'}`);
+    console.log('SQL Query:', trendQuery);
+    console.log('Query Params:', queryParams);
+
+    const trendResult = await userModel.db.query(trendQuery, queryParams, 'get_registration_trends');
 
     // Get recent activities
     const recentActivitiesQuery = `
@@ -681,13 +762,15 @@ router.get('/statistics', authenticateToken, requireRole(['ADMIN']), async (req,
       LIMIT 10
     `;
 
-    const recentActivitiesResult = await userModel.query(recentActivitiesQuery, [], 'get_recent_activities');
+    const recentActivitiesResult = await userModel.db.query(recentActivitiesQuery, [], 'get_recent_activities');
 
     const statistics = {
       users: userStats,
       companies: companyStats,
       registration_trends: trendResult.rows,
       recent_activities: recentActivitiesResult.rows,
+      period: period || '30days',
+      query_date_range: start_date && end_date ? { start_date, end_date } : null,
       generated_at: new Date().toISOString()
     };
 

@@ -63,8 +63,8 @@ export const adminApi = {
   },
 
   // Statistics
-  getSystemStatistics: async () => {
-    const response = await apiClient.get('/admin/statistics');
+  getSystemStatistics: async (params?: { start_date?: string; end_date?: string; period?: string }) => {
+    const response = await apiClient.get('/admin/statistics', { params });
     // Handle different response structures
     if (response.data && response.data.data) {
       return response.data.data;
@@ -73,7 +73,7 @@ export const adminApi = {
   },
 
   getUserStatistics: async () => {
-    const response = await apiClient.get('/admin/user-statistics');
+    const response = await apiClient.get('/users/admin/statistics');
     // Handle different response structures
     if (response.data && response.data.data) {
       return response.data.data;
@@ -82,12 +82,8 @@ export const adminApi = {
   },
 
   // Job Management  
-  getAllJobs: async () => {
-    const response = await apiClient.get('/jobs');
-    // Handle different response structures
-    if (response.data && response.data.data) {
-      return response.data.data;
-    }
+  getAllJobs: async (params?: { page?: number; limit?: number; search?: string; status?: string }) => {
+    const response = await apiClient.get('/jobs', { params });
     return response.data;
   },
 

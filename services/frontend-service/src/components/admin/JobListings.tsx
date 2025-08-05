@@ -31,6 +31,8 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
   const [notifOpen, setNotifOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(true);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [totalJobs, setTotalJobs] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,7 +53,11 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
       try {
         setLoading(true);
         setError(null);
-        const jobsData = await adminApi.getAllJobs();
+        const apiResult = await adminApi.getAllJobs({ page: currentPage, limit: itemsPerPage });
+        const jobsData = apiResult?.data || [];
+        const paginationInfo = apiResult?.pagination;
+        setTotalPages(paginationInfo?.totalPages || 1);
+        setTotalJobs(paginationInfo?.total || jobsData.length);
         
         // Transform API data to match component interface
         const formattedJobs = jobsData.map((job: any) => ({
@@ -81,7 +87,7 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
     };
 
     fetchJobs();
-  }, []);
+  }, [currentPage, itemsPerPage]);
 
   const handleJobClick = (job: Job) => {
     setSelectedJob(job);
@@ -221,7 +227,7 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
               {/* Table content and pagination */}
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
-                  <div className="text-lg font-semibold text-gray-800 text-left">Total Jobs: {jobs.length}</div>
+                  <div className="text-lg font-semibold text-gray-800 text-left">Total Jobs: {totalJobs}</div>
                   <div className="flex items-center space-x-4">
                     <div className="relative">
                       <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -302,7 +308,7 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
                     {isPageSelectOpen && (
                       <div className="absolute bottom-full mb-1 w-16 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                         {pageOptions.map((option) => (
-                          <div key={option} onClick={() => { setItemsPerPage(option); setIsPageSelectOpen(false); }} className="px-2 py-0.5 text-center cursor-pointer hover:bg-[#007BFF] hover:text-white">{option}</div>
+                          <div key={option} onClick={() => { setItemsPerPage(option); setCurrentPage(1); setIsPageSelectOpen(false); }} className="px-2 py-0.5 text-center cursor-pointer hover:bg-[#007BFF] hover:text-white">{option}</div>
                         ))}
                       </div>
                     )}
@@ -310,11 +316,33 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
                   <span className="text-gray-600 whitespace-nowrap">Jobs per page</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button className="min-w-[32px] h-8 px-2 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50">&lt;</button>
-                  {[1, 2, 3].map(page => (
-                    <button key={page} className={`min-w-[32px] h-8 px-2 flex items-center justify-center rounded ${currentPage === page ? 'bg-[#007BFF] text-white' : 'border border-[#007BFF] text-[#007BFF] hover:bg-blue-50'}`} onClick={() => setCurrentPage(page)}>{page}</button>
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className={`min-w-[32px] h-8 px-2 flex items-center justify-center border rounded ${currentPage === 1 ? 'border-gray-200 text-gray-300 cursor-not-allowed' : 'border-gray-300 hover:bg-gray-50'}`}
+                  >
+                    &lt;
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      className={`min-w-[32px] h-8 px-2 flex items-center justify-center rounded ${
+                        currentPage === page
+                          ? 'bg-[#007BFF] text-white'
+                          : 'border border-transparent text-[#007BFF] hover:bg-blue-50'
+                      }`}
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </button>
                   ))}
-                  <button className="min-w-[32px] h-8 px-2 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50">&gt;</button>
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    className={`min-w-[32px] h-8 px-2 flex items-center justify-center border rounded ${currentPage === totalPages ? 'border-gray-200 text-gray-300 cursor-not-allowed' : 'border-gray-300 hover:bg-gray-50'}`}
+                  >
+                    &gt;
+                  </button>
                 </div>
               </div>
             </div>

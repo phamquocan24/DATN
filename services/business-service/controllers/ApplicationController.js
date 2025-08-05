@@ -1215,12 +1215,29 @@ class ApplicationController {
         filters.company_id = req.user.company_id;
       }
 
-      const stats = await this.applicationModel.getApplicationStats(filters);
+      // Build basic statistics directly through SQL because model helper is missing
+      let whereSql = '';
+      const params = [];
+      if (filters.company_id) {
+        params.push(filters.company_id);
+        whereSql += ` WHERE company_id = $${params.length}`;
+      }
+      const statsQuery = `
+        SELECT 
+          COUNT(*)::int                     AS total_applications,
+          COUNT(*) FILTER (WHERE current_status = 'PENDING')   AS pending,
+          COUNT(*) FILTER (WHERE current_status = 'APPROVED')  AS approved,
+          COUNT(*) FILTER (WHERE current_status = 'REJECTED')  AS rejected,
+          COUNT(*) FILTER (WHERE current_status = 'SHORTLISTED') AS shortlisted
+        FROM applications
+        ${whereSql}
+      `;
+      const result = await this.applicationModel.db.query(statsQuery, params, 'get_application_stats');
 
       res.json({
         success: true,
         message: 'Application statistics retrieved successfully',
-        data: stats
+        data: result.rows[0]
       });
     } catch (error) {
       logger.error('Failed to get application stats:', error);

@@ -106,6 +106,13 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
   const [animateBars, setAnimateBars] = useState(false); // for main chart only
   const [animateProgress, setAnimateProgress] = useState(false); // for applicants summary
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'morning';
+    if (hour < 18) return 'afternoon';
+    return 'evening';
+  };
+
   // Notification logic
   const [notifOpen, setNotifOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(true);
@@ -261,7 +268,7 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
           <div>
             <h1 className="text-left text-2xl font-normal text-gray-800" style={{ fontFamily: 'ABeeZee, sans-serif' }}>
-              Good morning, Maria
+              Good {getGreeting()}, {currentUser?.full_name || currentUser?.name || 'Admin'}
             </h1>
             <p className="text-left text-gray-500 font-medium" style={{ fontFamily: 'ABeeZee, sans-serif' }}>
               Here is your job listings statistic report from July 19 - July 25.

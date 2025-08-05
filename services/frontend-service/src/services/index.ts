@@ -16,6 +16,7 @@ export { default as scheduleApi } from './scheduleApi';
 export { default as analyticsApi } from './analyticsApi';
 export { default as emailApi } from './emailApi';
 export { default as testApi } from './testApi';
+export { default as notificationApi } from './notificationApi';
 
 // API Hooks
 export * from './apiHooks';
@@ -66,28 +67,8 @@ export const authApi = {
   }
 };
 
-// Notifications API
-export const notificationsApi = {
-  getAll: async () => {
-    const response = await apiClient.get('/notifications');
-    return response.data;
-  },
-
-  markAsRead: async (notificationId: string) => {
-    const response = await apiClient.put(`/notifications/${notificationId}/read`);
-    return response.data;
-  },
-
-  markAllAsRead: async () => {
-    const response = await apiClient.put('/notifications/mark-all-read');
-    return response.data;
-  },
-
-  create: async (notificationData: any) => {
-    const response = await apiClient.post('/notifications', notificationData);
-    return response.data;
-  }
-};
+// Notifications API - Re-export from notificationApi for backwards compatibility
+export { notificationApi as notificationsApi } from './notificationApi';
 
 // Generic API helpers
 export const apiHelpers = {

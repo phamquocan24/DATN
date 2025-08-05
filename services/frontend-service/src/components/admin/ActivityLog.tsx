@@ -44,8 +44,29 @@ const ActivityLog: React.FC<ActivityLogProps> = ({ currentUser }) => {
     const [error, setError] = useState<string | null>(null);
     const [levelFilter, setLevelFilter] = useState<string>('all');
     const [endDate, setEndDate] = useState<string>('');
+    const [totalLogs, setTotalLogs] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
 
+    // Debounce search query
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery);
+        }, 500); // 500ms delay
 
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    // Reset to first page when debounced search changes (except for initial load)
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
+    
+    useEffect(() => {
+        if (!isInitialLoad && currentPage !== 1) {
+            resetToFirstPage();
+        }
+        setIsInitialLoad(false);
+    }, [debouncedSearchQuery]);
 
     // Fetch logs data
     useEffect(() => {
@@ -71,23 +92,61 @@ const ActivityLog: React.FC<ActivityLogProps> = ({ currentUser }) => {
                     params.end_date = endDate;
                 }
                 
-                console.log('Fetching logs with params:', params); // Debug log
-                const logsResponse = await adminApi.getLogs(params);
-                console.log('Logs API Response:', logsResponse); // Debug log
-                
-                let logsData = logsResponse;
-                // Handle nested structure if exists
-                if (logsResponse && logsResponse.logs) {
-                    logsData = logsResponse.logs;
-                } else if (logsResponse && Array.isArray(logsResponse)) {
-                    logsData = logsResponse;
+                if (debouncedSearchQuery.trim()) {
+                    params.search = debouncedSearchQuery;
                 }
+                
+                console.log('Fetching logs with params:', params); // Debug log
+                const apiResponse = await adminApi.getLogs(params);
+                console.log('Logs API Response:', apiResponse); // Debug log
+                
+                // Handle different response formats
+                let logsData = [];
+                let paginationInfo = {
+                    total: 0,
+                    totalPages: 1,
+                    page: currentPage,
+                    limit: itemsPerPage
+                };
+                
+                if (apiResponse && apiResponse.logs) {
+                    // Structure: { logs: [], pagination: {...} }
+                    logsData = apiResponse.logs || [];
+                    paginationInfo = {
+                        total: apiResponse.pagination?.total || 0,
+                        totalPages: apiResponse.pagination?.totalPages || 1,
+                        page: apiResponse.pagination?.page || currentPage,
+                        limit: apiResponse.pagination?.limit || itemsPerPage
+                    };
+                } else if (apiResponse && Array.isArray(apiResponse)) {
+                    // Direct array response
+                    logsData = apiResponse;
+                    paginationInfo.total = logsData.length;
+                } else if (apiResponse && apiResponse.data) {
+                    // Nested structure: { data: { logs: [], pagination: {...} } }
+                    logsData = apiResponse.data.logs || [];
+                    paginationInfo = {
+                        total: apiResponse.data.pagination?.total || 0,
+                        totalPages: apiResponse.data.pagination?.totalPages || 1,
+                        page: apiResponse.data.pagination?.page || currentPage,
+                        limit: apiResponse.data.pagination?.limit || itemsPerPage
+                    };
+                }
+                
+                console.log('Parsed logs data:', logsData);
+                console.log('Pagination info:', paginationInfo);
+                
+                // Update pagination states
+                setTotalLogs(paginationInfo.total);
+                setTotalPages(paginationInfo.totalPages);
                 
                 // Ensure logsData is an array
                 if (!Array.isArray(logsData)) {
                     console.error('Logs data is not an array:', logsData);
                     setError('Invalid logs data format received.');
                     setLogs([]);
+                    setTotalLogs(0);
+                    setTotalPages(1);
                     return;
                 }
                 
@@ -119,23 +178,17 @@ const ActivityLog: React.FC<ActivityLogProps> = ({ currentUser }) => {
             } catch (err) {
                 console.error('Error fetching logs:', err);
                 setError('Failed to load activity logs.');
-                // Fallback to mock data on error
-                setLogs([
-                    { id: 1, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'HR', details: 'Create question set', actions: 'Create Q&A', ip: '192.168.1.1', location: 'Hanoi' },
-                    { id: 2, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'Candidate', details: 'Submit CV for application', actions: 'Apply', ip: '192.168.1.1', location: 'Da Nang' },
-                    { id: 3, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'Candidate', details: 'Take mini-test', actions: 'Test', ip: '192.168.1.1', location: 'HCM' },
-                    { id: 4, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'Candidate', details: 'Edit profile', actions: 'Edit', ip: '192.168.1.1', location: 'Hue' },
-                    { id: 5, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'Admin', details: 'Login', actions: 'Login', ip: '192.168.1.1', location: 'Lao Cai' },
-                    { id: 6, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'HR', details: 'Post new job', actions: 'Post job', ip: '192.168.1.1', location: 'Hung Yen' },
-                    { id: 7, time: '15:50PM 2025-06-08', fullName: 'Jerome Bell', user: 'Admin', details: 'Export data', actions: 'Export', ip: '192.168.1.1', location: 'Thai Binh' },
-                ]);
+                // No fallback mock data - show empty state instead
+                setLogs([]);
+                setTotalLogs(0);
+                setTotalPages(1);
             } finally {
                 setLoading(false);
             }
         };
 
         fetchLogs();
-    }, [currentPage, itemsPerPage, levelFilter, selectedDate, endDate]);
+    }, [currentPage, itemsPerPage, levelFilter, selectedDate, endDate, debouncedSearchQuery]);
     
     // Helper functions
     const determineUserType = (log: any): 'HR' | 'Candidate' | 'Admin' => {
@@ -167,6 +220,38 @@ const ActivityLog: React.FC<ActivityLogProps> = ({ currentUser }) => {
     };
     
     const pageOptions = [10, 20, 50, 100];
+
+    // Reset to page 1 when filters change (except for page change itself)
+    const resetToFirstPage = () => {
+        if (currentPage !== 1) {
+            setCurrentPage(1);
+        }
+    };
+
+    // Handle filter changes
+    const handleLevelFilterChange = (newLevel: string) => {
+        setLevelFilter(newLevel);
+        resetToFirstPage();
+    };
+
+    const handleSearchChange = (newQuery: string) => {
+        setSearchQuery(newQuery);
+        // Don't reset page immediately - let debounce handle it
+    };
+
+    const handleDateChange = (type: 'start' | 'end', newDate: string) => {
+        if (type === 'start') {
+            setSelectedDate(newDate);
+        } else {
+            setEndDate(newDate);
+        }
+        resetToFirstPage();
+    };
+
+    const handleItemsPerPageChange = (newLimit: number) => {
+        setItemsPerPage(newLimit);
+        resetToFirstPage();
+    };
 
     const getUserTypeColor = (type: string) => {
         switch (type.toLowerCase()) {
@@ -232,7 +317,7 @@ const ActivityLog: React.FC<ActivityLogProps> = ({ currentUser }) => {
                                     <input 
                                         type="date" 
                                         value={selectedDate} 
-                                        onChange={(e) => setSelectedDate(e.target.value)} 
+                                        onChange={(e) => handleDateChange('start', e.target.value)} 
                                         className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                     />
                                 </div>
@@ -241,7 +326,7 @@ const ActivityLog: React.FC<ActivityLogProps> = ({ currentUser }) => {
                                     <input 
                                         type="date" 
                                         value={endDate} 
-                                        onChange={(e) => setEndDate(e.target.value)} 
+                                        onChange={(e) => handleDateChange('end', e.target.value)} 
                                         className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                                     />
                                 </div>
@@ -257,16 +342,22 @@ const ActivityLog: React.FC<ActivityLogProps> = ({ currentUser }) => {
                         <div className="bg-white rounded-lg border border-gray-200">
                             <div className="p-6">
                                 <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
-                                    <div className="text-lg font-semibold text-gray-800">Total Logs: {logs.length}</div>
+                                    <div className="text-lg font-semibold text-gray-800">Total Logs: {totalLogs}</div>
                                     <div className="flex items-center space-x-4">
                                         <div className="relative">
                                             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                            <input type="text" placeholder="Search users, actions" className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300" />
+                                            <input 
+                                                type="text" 
+                                                placeholder="Search users, actions" 
+                                                value={searchQuery}
+                                                onChange={(e) => handleSearchChange(e.target.value)}
+                                                className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300" 
+                                            />
                                         </div>
                                         <select 
                                             value={levelFilter} 
-                                            onChange={(e) => setLevelFilter(e.target.value)}
-                                            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300"
+                                            onChange={(e) => handleLevelFilterChange(e.target.value)}
+                                            className="px-4 py-2 w-32 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300"
                                         >
                                             <option value="all">All Levels</option>
                                             <option value="error">Error</option>
@@ -323,20 +414,74 @@ const ActivityLog: React.FC<ActivityLogProps> = ({ currentUser }) => {
                                         {isPageSelectOpen && (
                                             <div className="absolute bottom-full mb-1 w-16 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                                                 {pageOptions.map((option) => (
-                                                    <div key={option} onClick={() => { setItemsPerPage(option); setIsPageSelectOpen(false); }} className="px-2 py-0.5 text-center cursor-pointer hover:bg-[#007BFF] hover:text-white">{option}</div>
+                                                    <div key={option} onClick={() => { handleItemsPerPageChange(option); setIsPageSelectOpen(false); }} className="px-2 py-0.5 text-center cursor-pointer hover:bg-[#007BFF] hover:text-white">{option}</div>
                                                 ))}
                                             </div>
                                         )}
                                     </div>
                                     <span className="text-gray-600 whitespace-nowrap">Logs per page</span>
                                 </div>
+                                {totalPages > 1 && (
                                 <div className="flex items-center gap-2">
-                                    <button className="min-w-[32px] h-8 px-2 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50">&lt;</button>
-                                    {[1, 2, 3].map(page => (
-                                        <button key={page} className={`min-w-[32px] h-8 px-2 flex items-center justify-center rounded ${currentPage === page ? 'bg-[#007BFF] text-white' : 'border border-transparent text-[#007BFF] hover:bg-blue-50'}`} onClick={() => setCurrentPage(page)}>{page}</button>
-                                    ))}
-                                    <button className="min-w-[32px] h-8 px-2 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50">&gt;</button>
+                                    <button 
+                                        className="min-w-[32px] h-8 px-2 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                                        disabled={currentPage === 1}
+                                    >
+                                        &lt;
+                                    </button>
+                                    
+                                    {/* Dynamic pagination */}
+                                    {(() => {
+                                        const pages = [];
+                                        const maxVisiblePages = 5;
+                                        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                                        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                                        
+                                        // Adjust start page if we're near the end
+                                        if (endPage - startPage + 1 < maxVisiblePages) {
+                                            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                                        }
+                                        
+                                        // Add first page and ellipsis if needed
+                                        if (startPage > 1) {
+                                            pages.push(
+                                                <button key={1} className={`min-w-[32px] h-8 px-2 flex items-center justify-center rounded ${currentPage === 1 ? 'bg-[#007BFF] text-white' : 'border border-transparent text-[#007BFF] hover:bg-blue-50'}`} onClick={() => setCurrentPage(1)}>1</button>
+                                            );
+                                            if (startPage > 2) {
+                                                pages.push(<span key="ellipsis-start" className="px-2">...</span>);
+                                            }
+                                        }
+                                        
+                                        // Add visible pages
+                                        for (let page = startPage; page <= endPage; page++) {
+                                            pages.push(
+                                                <button key={page} className={`min-w-[32px] h-8 px-2 flex items-center justify-center rounded ${currentPage === page ? 'bg-[#007BFF] text-white' : 'border border-transparent text-[#007BFF] hover:bg-blue-50'}`} onClick={() => setCurrentPage(page)}>{page}</button>
+                                            );
+                                        }
+                                        
+                                        // Add ellipsis and last page if needed
+                                        if (endPage < totalPages) {
+                                            if (endPage < totalPages - 1) {
+                                                pages.push(<span key="ellipsis-end" className="px-2">...</span>);
+                                            }
+                                            pages.push(
+                                                <button key={totalPages} className={`min-w-[32px] h-8 px-2 flex items-center justify-center rounded ${currentPage === totalPages ? 'bg-[#007BFF] text-white' : 'border border-transparent text-[#007BFF] hover:bg-blue-50'}`} onClick={() => setCurrentPage(totalPages)}>{totalPages}</button>
+                                            );
+                                        }
+                                        
+                                        return pages;
+                                    })()}
+                                    
+                                    <button 
+                                        className="min-w-[32px] h-8 px-2 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        &gt;
+                                    </button>
                                 </div>
+                                )}
                             </div>
                         </div>
                     </>

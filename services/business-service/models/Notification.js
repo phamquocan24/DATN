@@ -189,21 +189,31 @@ class Notification extends BaseModel {
    */
   async markAllAsRead(userId) {
     try {
-      const query = `
+      // First get count of unread notifications
+      const countQuery = `
+        SELECT COUNT(*) as unread_count
+        FROM notifications
+        WHERE user_id = $1 AND is_read = false
+      `;
+      
+      const countResult = await this.db.query(countQuery, [userId], 'count_unread_notifications');
+      const updatedCount = parseInt(countResult.rows[0]?.unread_count || 0);
+
+      // Then update them
+      const updateQuery = `
         UPDATE notifications 
         SET is_read = true, read_at = NOW()
         WHERE user_id = $1 AND is_read = false
-        RETURNING COUNT(*) as updated_count
       `;
 
-      const result = await this.db.query(query, [userId], 'mark_all_notifications_read');
+      await this.db.query(updateQuery, [userId], 'mark_all_notifications_read');
 
       logger.info('All notifications marked as read', {
         user_id: userId,
-        updated_count: result.rows[0]?.updated_count || 0
+        updated_count: updatedCount
       });
 
-      return result.rows[0]?.updated_count || 0;
+      return updatedCount;
     } catch (error) {
       logger.error('Failed to mark all notifications as read:', error);
       throw error;
@@ -472,15 +482,25 @@ class Notification extends BaseModel {
    */
   async cleanupOldNotifications(daysOld = 30) {
     try {
-      const query = `
+      // First count how many will be deleted
+      const countQuery = `
+        SELECT COUNT(*) as delete_count
+        FROM notifications 
+        WHERE created_at < NOW() - INTERVAL '${daysOld} days'
+        AND is_read = true
+      `;
+
+      const countResult = await this.db.query(countQuery, [], 'count_old_notifications');
+      const deletedCount = parseInt(countResult.rows[0]?.delete_count || 0);
+
+      // Then delete them
+      const deleteQuery = `
         DELETE FROM notifications 
         WHERE created_at < NOW() - INTERVAL '${daysOld} days'
         AND is_read = true
-        RETURNING COUNT(*) as deleted_count
       `;
 
-      const result = await this.db.query(query, [], 'cleanup_old_notifications');
-      const deletedCount = result.rows[0]?.deleted_count || 0;
+      await this.db.query(deleteQuery, [], 'cleanup_old_notifications');
 
       logger.info('Old notifications cleaned up', {
         deleted_count: deletedCount,
