@@ -1,0 +1,181 @@
+{
+  "companies": [
+    {
+      "company_name": "Tech Solutions Inc.",
+      "tax_code": "0123456789",
+      "description": "A leading technology solutions provider specializing in software development, cloud services, and digital transformation for enterprises across Vietnam.",
+      "industry": "Information Technology",
+      "company_size": "201-500",
+      "address": "123 Tech Street, District 1",
+      "website": "https://techsolutions.com",
+      "logo_url": "https://techsolutions.com/logo.png",
+      "company_status": "ACTIVE",
+      "is_verified": true,
+      "founded_year": 2010,
+      "city_name": "Hồ Chí Minh",
+      "district_name": "Quận 1"
+    },
+    {
+      "company_name": "Innovate Tech Vietnam",
+      "tax_code": "0234567890",
+      "description": "Innovative startup focused on AI/ML solutions, mobile app development, and IoT technologies. We create cutting-edge products for the Vietnamese market.",
+      "industry": "Software Development",
+      "company_size": "51-200",
+      "address": "456 Innovation Hub, District 2",
+      "website": "https://innovatetech.vn",
+      "logo_url": "https://innovatetech.vn/assets/logo.png",
+      "company_status": "ACTIVE",
+      "is_verified": true,
+      "founded_year": 2018,
+      "city_name": "Hồ Chí Minh",
+      "district_name": "Quận 2"
+    },
+    {
+      "company_name": "Digital Corp Asia",
+      "tax_code": "0345678901",
+      "description": "Digital marketing and e-commerce solutions company. We help businesses transform their digital presence and grow their online revenue.",
+      "industry": "Digital Marketing",
+      "company_size": "11-50",
+      "address": "789 Digital Plaza, District 7",
+      "website": "https://digitalcorp.asia",
+      "logo_url": "https://digitalcorp.asia/img/brand.png",
+      "company_status": "ACTIVE",
+      "is_verified": true,
+      "founded_year": 2020,
+      "city_name": "Hồ Chí Minh",
+      "district_name": "Quận 7"
+    }
+  ],
+  "recruiters": [
+    {
+      "email": "hr@techsolutions.com",
+      "full_name": "Nguyễn Thị Mai",
+      "phone": "+84 123 456 789",
+      "company_tax_code": "0123456789",
+      "position": "Senior HR Manager",
+      "department": "Human Resources",
+      "hire_authority_level": "SENIOR"
+    },
+    {
+      "email": "recruiter@innovatetech.com",
+      "full_name": "Trần Văn Nam",
+      "phone": "+84 987 654 321",
+      "company_tax_code": "0234567890",
+      "position": "Technical Recruiter",
+      "department": "Engineering",
+      "hire_authority_level": "MANAGER"
+    },
+    {
+      "email": "hiring@digitalcorp.com",
+      "full_name": "Lê Thị Hoa",
+      "phone": "+84 555 123 456",
+      "company_tax_code": "0345678901",
+      "position": "Talent Acquisition Lead",
+      "department": "HR & Talent",
+      "hire_authority_level": "DIRECTOR"
+    }
+  ],
+  "jobs": [
+    {
+      "title": "Senior Full Stack Developer",
+      "description": "We are seeking a highly skilled Senior Full Stack Developer to join our dynamic team. You will be responsible for developing and maintaining web applications using modern technologies and frameworks. This role offers excellent opportunities for growth and innovation in a collaborative environment.",
+      "requirements": "Bachelor's degree in Computer Science or related field; 4+ years of experience in full-stack development; Proficiency in React.js, Node.js, PostgreSQL; Experience with cloud platforms (AWS/Azure); Strong understanding of RESTful APIs and microservices architecture; Excellent problem-solving skills and attention to detail.",
+      "responsibilities": "Develop and maintain scalable web applications; Collaborate with cross-functional teams to define and implement new features; Write clean, maintainable, and well-documented code; Participate in code reviews and technical discussions; Optimize application performance and ensure security best practices; Mentor junior developers and contribute to team knowledge sharing.",
+      "benefits": "Competitive salary range 25-35M VND; Annual performance bonus; Health insurance for employee and family; 15 days annual leave + public holidays; Professional development budget 10M VND/year; Modern office with latest technology; Flexible working hours and remote work options; Team building activities and company trips.",
+      "experience_level": "SENIOR",
+      "employment_type": "FULL_TIME",
+      "salary_min": 25000000,
+      "salary_max": 35000000,
+      "currency": "VND",
+      "work_arrangement": "HYBRID",
+      "min_experience_years": 4,
+      "max_experience_years": 8,
+      "category": "Software Development",
+      "education_requirements": "Bachelor's degree in Computer Science, Software Engineering, or related technical field",
+      "language_requirements": ["Vietnamese", "English"],
+      "application_deadline": "2024-12-31",
+      "status": "PUBLISHED",
+      "company_tax_code": "0123456789",
+      "recruiter_email": "hr@techsolutions.com",
+      "city_name": "Hồ Chí Minh",
+      "district_name": "Quận 1",
+      "skills": [
+        {"skill_name": "React.js", "required_level": "ADVANCED", "is_required": true},
+        {"skill_name": "Node.js", "required_level": "ADVANCED", "is_required": true},
+        {"skill_name": "PostgreSQL", "required_level": "INTERMEDIATE", "is_required": true},
+        {"skill_name": "TypeScript", "required_level": "INTERMEDIATE", "is_required": false},
+        {"skill_name": "AWS", "required_level": "INTERMEDIATE", "is_required": false}
+      ]
+    },
+    {
+      "title": "Mobile App Developer (React Native)",
+      "description": "Join our innovative team as a Mobile App Developer specializing in React Native. You will create amazing mobile experiences for our users and contribute to cutting-edge mobile solutions. We're looking for passionate developers who love building beautiful, performant mobile applications.",
+      "requirements": "Bachelor's degree in Computer Science or equivalent experience; 2+ years of React Native development experience; Strong knowledge of JavaScript/TypeScript; Experience with native iOS/Android development is a plus; Familiarity with Redux, MobX, or similar state management; Understanding of mobile UI/UX principles; Experience with API integration and third-party libraries.",
+      "responsibilities": "Design and develop mobile applications using React Native; Implement pixel-perfect UIs that match designs and specifications; Integrate with backend APIs and third-party services; Optimize app performance and ensure smooth user experience; Debug and resolve technical issues across different devices; Collaborate with designers and backend developers; Stay updated with latest mobile development trends and technologies.",
+      "benefits": "Salary range 18-28M VND based on experience; Stock options in growing startup; Premium health insurance; 12 days annual leave + sick leave; Learning and development opportunities; Latest MacBook Pro and development tools; Startup environment with rapid growth potential; Regular team events and hackathons.",
+      "experience_level": "MIDDLE",
+      "employment_type": "FULL_TIME",
+      "salary_min": 18000000,
+      "salary_max": 28000000,
+      "currency": "VND",
+      "work_arrangement": "ONSITE",
+      "min_experience_years": 2,
+      "max_experience_years": 5,
+      "category": "Mobile Development",
+      "education_requirements": "Bachelor's degree in Computer Science, Information Technology, or related field",
+      "language_requirements": ["Vietnamese", "English"],
+      "application_deadline": "2024-11-30",
+      "status": "PUBLISHED",
+      "company_tax_code": "0234567890",
+      "recruiter_email": "recruiter@innovatetech.com",
+      "city_name": "Hồ Chí Minh",
+      "district_name": "Quận 2",
+      "skills": [
+        {"skill_name": "React Native", "required_level": "ADVANCED", "is_required": true},
+        {"skill_name": "TypeScript", "required_level": "INTERMEDIATE", "is_required": true},
+        {"skill_name": "React.js", "required_level": "ADVANCED", "is_required": true}
+      ]
+    },
+    {
+      "title": "Digital Marketing Specialist",
+      "description": "We are looking for a creative and data-driven Digital Marketing Specialist to join our growing marketing team. You will be responsible for developing and executing digital marketing campaigns across multiple channels to drive brand awareness and customer acquisition for our clients.",
+      "requirements": "Bachelor's degree in Marketing, Communications, or related field; 2+ years of digital marketing experience; Proficiency in Google Ads, Facebook Ads, and other advertising platforms; Experience with Google Analytics, SEO/SEM tools; Knowledge of content marketing and social media management; Strong analytical skills and data interpretation; Excellent written and verbal communication skills in Vietnamese and English.",
+      "responsibilities": "Develop and execute comprehensive digital marketing strategies; Manage and optimize paid advertising campaigns across Google, Facebook, and other platforms; Create engaging content for social media, blogs, and email campaigns; Analyze campaign performance and provide actionable insights; Conduct market research and competitor analysis; Collaborate with design team to create marketing materials; Report on campaign performance and ROI to clients and management.",
+      "benefits": "Competitive salary 15-22M VND; Performance-based bonuses; Health and dental insurance; Professional development courses and certifications; 13th month salary; Modern office in District 7; Flexible working arrangements; Annual company retreat; Career advancement opportunities.",
+      "experience_level": "MIDDLE",
+      "employment_type": "FULL_TIME",
+      "salary_min": 15000000,
+      "salary_max": 22000000,
+      "currency": "VND",
+      "work_arrangement": "HYBRID",
+      "min_experience_years": 2,
+      "max_experience_years": 4,
+      "category": "Digital Marketing",
+      "education_requirements": "Bachelor's degree in Marketing, Business Administration, Communications, or related field",
+      "language_requirements": ["Vietnamese", "English"],
+      "application_deadline": "2024-12-15",
+      "status": "PUBLISHED",
+      "company_tax_code": "0345678901",
+      "recruiter_email": "hiring@digitalcorp.com",
+      "city_name": "Hồ Chí Minh",
+      "district_name": "Quận 7",
+      "skills": [
+        {"skill_name": "Google Ads", "required_level": "INTERMEDIATE", "is_required": true},
+        {"skill_name": "Google Analytics", "required_level": "INTERMEDIATE", "is_required": true},
+        {"skill_name": "SEO", "required_level": "INTERMEDIATE", "is_required": true}
+      ]
+    }
+  ],
+  "skills": [
+    {"skill_name": "React.js", "skill_type": "TECHNICAL", "description": "Frontend JavaScript library for building user interfaces"},
+    {"skill_name": "Node.js", "skill_type": "TECHNICAL", "description": "JavaScript runtime for server-side development"},
+    {"skill_name": "PostgreSQL", "skill_type": "TECHNICAL", "description": "Advanced open-source relational database"},
+    {"skill_name": "React Native", "skill_type": "TECHNICAL", "description": "Framework for building native mobile apps using React"},
+    {"skill_name": "Google Ads", "skill_type": "MARKETING", "description": "Google advertising platform for paid search and display ads"},
+    {"skill_name": "Facebook Ads", "skill_type": "MARKETING", "description": "Facebook advertising platform for social media marketing"},
+    {"skill_name": "SEO", "skill_type": "MARKETING", "description": "Search Engine Optimization techniques and strategies"},
+    {"skill_name": "Google Analytics", "skill_type": "ANALYTICS", "description": "Web analytics service for tracking website traffic"},
+    {"skill_name": "TypeScript", "skill_type": "TECHNICAL", "description": "Strongly typed programming language built on JavaScript"},
+    {"skill_name": "AWS", "skill_type": "CLOUD", "description": "Amazon Web Services cloud computing platform"}
+  ]
+}

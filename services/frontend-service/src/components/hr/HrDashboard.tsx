@@ -119,12 +119,30 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ notifOpen, hasUnread, toggleN
         setLoading(true);
         setError(null);
 
-        const [applicationStats, _jobStats, myJobs] = await Promise.all([
-          hrApi.getApplicationStats(),
-          hrApi.getJobStats(),
-          hrApi.getMyJobs()
-        ]);
+        // Make API calls with individual error handling
+        let applicationStats = null;
+        let myJobs = null;
 
+        try {
+          applicationStats = await hrApi.getApplicationStats();
+          console.log('Application Stats Response:', applicationStats);
+        } catch (appErr) {
+          console.error('Error fetching application stats:', appErr);
+          applicationStats = { pendingReview: 0, scheduledToday: 0, messagesReceived: 0 };
+        }
+
+        try {
+          myJobs = await hrApi.getMyJobs();
+          console.log('My Jobs Response:', myJobs);
+        } catch (jobsErr) {
+          console.error('Error fetching jobs:', jobsErr);
+          myJobs = { data: [] };
+        }
+
+        // Extract jobs array from API response - handle multiple possible structures
+        const jobsArray = myJobs?.data || myJobs?.jobs || (Array.isArray(myJobs) ? myJobs : []);
+        console.log('Extracted jobs array:', jobsArray);
+        
         setDashboardData(prevData => ({
           ...prevData,
           stats: [
@@ -132,21 +150,32 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ notifOpen, hasUnread, toggleN
             { label: 'Schedule for today', value: applicationStats?.scheduledToday || 0, color: 'bg-green-500', path: '#' },
             { label: 'Messages received', value: applicationStats?.messagesReceived || 0, color: 'bg-cyan-500', path: '#' },
           ],
-          jobUpdates: myJobs?.slice(0, 4).map((job: any) => ({
+          jobUpdates: Array.isArray(jobsArray) ? jobsArray.slice(0, 4).map((job: any) => ({
             logo: nomadLogo,
-            title: job.title,
-            company: job.company?.name || 'Your Company',
-            location: job.location || 'Location',
-            tags: job.skills?.slice(0, 2) || ['Business'],
-            applied: job.applicationsCount || 0,
-            capacity: job.openPositions || 1,
-            type: job.type || 'Full-Time'
-          })) || []
+            title: job.title || job.test_name || 'Job Title',
+            company: job.company?.name || job.company_name || 'Your Company',
+            location: job.city || job.location || 'Location',
+            tags: Array.isArray(job.skills) ? job.skills.slice(0, 2) : ['Business'],
+            applied: job.applications_count || job.applicationsCount || 0,
+            capacity: job.open_positions || job.openPositions || 1,
+            type: job.employment_type || job.type || 'Full-Time'
+          })) : []
         }));
 
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
         setError('Failed to load dashboard data');
+        
+        // Set fallback data structure when API fails
+        setDashboardData(prevData => ({
+          ...prevData,
+          stats: [
+            { label: 'Review new candidates', value: 0, color: 'bg-blue-500', path: '#' },
+            { label: 'Schedule for today', value: 0, color: 'bg-green-500', path: '#' },
+            { label: 'Messages received', value: 0, color: 'bg-cyan-500', path: '#' },
+          ],
+          jobUpdates: []
+        }));
       } finally {
         setLoading(false);
       }

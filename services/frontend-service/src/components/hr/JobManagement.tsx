@@ -2,17 +2,25 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiFilter, FiMoreHorizontal, FiChevronDown } from 'react-icons/fi';
 import calendarIcon from '../../assets/scheme.png';
-import api from '../../services/api';
+import hrApi from '../../services/hrApi';
 
 interface Job {
-  id: number;
-  role: string;
-  status: 'Live' | 'Closed';
-  datePosted: string;
-  dueDate: string;
-  jobType: 'Fulltime' | 'Freelance';
-  applicants: number;
-  needs: string;
+  job_id: string;
+  title: string;
+  status: string;
+  created_at: string;
+  application_deadline: string;
+  employment_type: string;
+  applications_count?: number;
+  open_positions?: number;
+  // Legacy fields for UI compatibility
+  id?: number;
+  role?: string;
+  datePosted?: string;
+  dueDate?: string;
+  jobType?: string;
+  applicants?: number;
+  needs?: string;
 }
 
 const JobManagement: React.FC = () => {
@@ -32,8 +40,30 @@ const JobManagement: React.FC = () => {
     const fetchJobs = async () => {
       setIsLoading(true);
       try {
-        const response = await api.get('/jobs/my-jobs');
-        setJobs(response.data.data);
+        const response = await hrApi.getMyJobs();
+        const jobsArray = response?.data || response || [];
+        
+        // Transform API data to component format
+        const transformedJobs = jobsArray.map((job: any) => ({
+          job_id: job.job_id || job.id,
+          title: job.title,
+          status: job.status,
+          created_at: job.created_at,
+          application_deadline: job.application_deadline,
+          employment_type: job.employment_type,
+          applications_count: job.applications_count || 0,
+          open_positions: job.open_positions || 1,
+          // Legacy fields for UI compatibility
+          id: parseInt(job.job_id || job.id) || Math.random(),
+          role: job.title,
+          datePosted: new Date(job.created_at).toLocaleDateString() || 'N/A',
+          dueDate: new Date(job.application_deadline).toLocaleDateString() || 'N/A',
+          jobType: job.employment_type === 'FULL_TIME' ? 'Fulltime' : 'Freelance',
+          applicants: job.applications_count || 0,
+          needs: `${job.applications_count || 0}/${job.open_positions || 1}`
+        }));
+        
+        setJobs(transformedJobs);
         setError(null);
       } catch (err) {
         setError('Failed to load your jobs.');
@@ -115,7 +145,7 @@ const JobManagement: React.FC = () => {
             ) : error ? (
               <tr><td colSpan={8} className="text-center p-4 text-red-500">{error}</td></tr>
             ) : jobs.map((job) => (
-              <tr key={job.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => navigate(`/hr/job-management/${job.id}`)}>
+              <tr key={job.job_id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => navigate(`/hr/job-management/${job.job_id}`)}>
                 <td className="px-4 py-4 font-medium">{job.role}</td>
                 <td className="px-4 py-4">
                   <span className={`px-3 py-1 text-xs font-semibold rounded-full ${job.status === 'Live' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>{job.status}</span>

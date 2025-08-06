@@ -4,12 +4,13 @@ import apiClient from './api';
 export const candidateApi = {
   // Job Search & Browse
   getAllJobs: async () => {
-    const response = await apiClient.get('/jobs');
+    const response = await apiClient.get('/api/v1/jobs');
     return response.data;
   },
 
-  getJobById: async (jobId: string) => {
-    const response = await apiClient.get(`/jobs/${jobId}`);
+  getJobById: async (jobId: string, includeStats?: boolean) => {
+    const params = includeStats ? { include_stats: includeStats } : {};
+    const response = await apiClient.get(`/api/v1/jobs/${jobId}`, { params });
     return response.data;
   },
 
@@ -21,13 +22,13 @@ export const candidateApi = {
       )
     );
     
-    const response = await apiClient.get('/jobs/search', { params: cleanParams });
+    const response = await apiClient.get('/api/v1/jobs/search', { params: cleanParams });
     return response.data;
   },
 
-  getJobRecommendations: async () => {
+  getJobRecommendations: async (params?: { page?: number; limit?: number }) => {
     try {
-      const response = await apiClient.get('/jobs/recommendations');
+      const response = await apiClient.get('/api/v1/jobs/recommendations', { params });
       return response.data;
     } catch (error: any) {
       // If user is not authenticated, return empty recommendations
@@ -39,21 +40,21 @@ export const candidateApi = {
     }
   },
 
-  getLatestJobs: async () => {
-    const response = await apiClient.get('/jobs/latest');
+  getLatestJobs: async (params?: { limit?: number }) => {
+    const response = await apiClient.get('/api/v1/jobs/latest', { params });
     return response.data;
   },
 
   getFeaturedJobs: async () => {
-    // Use regular jobs endpoint since /jobs/featured doesn't exist
-    const response = await apiClient.get('/jobs');
+    // Use regular jobs endpoint since /api/v1/jobs/featured doesn't exist
+    const response = await apiClient.get('/api/v1/jobs');
     return response.data;
   },
 
   // Saved/Bookmarked Jobs Management - using existing saved_jobs table with auth handling
   getFavoriteJobs: async () => {
     try {
-      const response = await apiClient.get('/jobs/bookmarked');
+      const response = await apiClient.get('/api/v1/jobs/bookmarked');
       return response.data;
     } catch (error: any) {
       console.error('Failed to get bookmarked jobs:', error);
@@ -71,7 +72,7 @@ export const candidateApi = {
 
   addJobToFavorites: async (jobId: string) => {
     try {
-      const response = await apiClient.post(`/jobs/${jobId}/bookmark`);
+      const response = await apiClient.post(`/api/v1/jobs/${jobId}/bookmark`);
       return response.data;
     } catch (error: any) {
       console.error('Failed to bookmark job:', error);
@@ -91,7 +92,7 @@ export const candidateApi = {
 
   removeJobFromFavorites: async (jobId: string) => {
     try {
-      const response = await apiClient.delete(`/jobs/${jobId}/bookmark`);
+      const response = await apiClient.delete(`/api/v1/jobs/${jobId}/bookmark`);
       return response.data;
     } catch (error: any) {
       console.error('Failed to remove bookmark:', error);
@@ -110,7 +111,7 @@ export const candidateApi = {
   },
 
   getJobStats: async () => {
-    const response = await apiClient.get('/jobs/stats');
+    const response = await apiClient.get('/api/v1/jobs/stats');
     return response.data;
   },
 
@@ -162,8 +163,19 @@ export const candidateApi = {
     return response.data;
   },
 
-  getCompanyJobs: async (companyId: string) => {
-    const response = await apiClient.get(`/jobs/company/${companyId}`);
+  getCompanyJobs: async (companyId: string, params?: {
+    search?: string;
+    employment_type?: string;
+    work_type?: string;
+    salary_min?: number;
+    salary_max?: number;
+    experience_required?: number;
+    page?: number;
+    limit?: number;
+    orderBy?: string;
+    direction?: string;
+  }) => {
+    const response = await apiClient.get(`/api/v1/jobs/company/${companyId}`, { params });
     return response.data;
   },
 
@@ -305,13 +317,13 @@ export const candidateApi = {
     page?: number;
     limit?: number;
   }) => {
-    const response = await apiClient.get('/tests/my-tests', { params });
+    const response = await apiClient.get('/api/v1/tests/my-tests', { params });
     return response.data;
   },
 
   // Get test details (without answers for candidates)
   getAssignedTest: async (testId: string) => {
-    const response = await apiClient.get(`/tests/${testId}`, { 
+    const response = await apiClient.get(`/api/v1/tests/${testId}`, { 
       params: { include_answers: false }
     });
     return response.data;
@@ -319,31 +331,31 @@ export const candidateApi = {
 
   // Start a test
   startTest: async (testId: string) => {
-    const response = await apiClient.post(`/tests/${testId}/start`);
+    const response = await apiClient.post(`/api/v1/tests/${testId}/start`);
     return response.data;
   },
 
   // Submit test answers
   submitTest: async (testId: string, answers: Record<string, string>) => {
-    const response = await apiClient.post(`/tests/${testId}/submit`, { answers });
+    const response = await apiClient.post(`/api/v1/tests/${testId}/submit`, { answers });
     return response.data;
   },
 
   // Get test result (after completion)
   getMyTestResult: async (testId: string) => {
-    const response = await apiClient.get(`/tests/${testId}/my-result`);
+    const response = await apiClient.get(`/api/v1/tests/${testId}/my-result`);
     return response.data;
   },
 
   // Get test time remaining (during test)
   getTestTimeRemaining: async (testId: string) => {
-    const response = await apiClient.get(`/tests/${testId}/time-remaining`);
+    const response = await apiClient.get(`/api/v1/tests/${testId}/time-remaining`);
     return response.data;
   },
 
   // Save test progress (auto-save during test)
   saveTestProgress: async (testId: string, answers: Record<string, string>) => {
-    const response = await apiClient.post(`/tests/${testId}/save-progress`, { answers });
+    const response = await apiClient.post(`/api/v1/tests/${testId}/save-progress`, { answers });
     return response.data;
   }
 };

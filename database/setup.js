@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-require('dotenv').config({ path: require('path').resolve(__dirname, '../../database.env') });
+require('dotenv').config({ path: require('path').resolve(__dirname, '../database.env') });
 
 const { dbConfig } = require('./config');
 const path = require('path');

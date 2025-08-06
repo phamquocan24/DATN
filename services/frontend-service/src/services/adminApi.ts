@@ -83,16 +83,12 @@ export const adminApi = {
 
   // Job Management  
   getAllJobs: async (params?: { page?: number; limit?: number; search?: string; status?: string }) => {
-    const response = await apiClient.get('/jobs', { params });
+    const response = await apiClient.get('/api/v1/jobs', { params });
     return response.data;
   },
 
-  getPendingJobs: async () => {
-    const response = await apiClient.get('/jobs/pending');
-    // Handle different response structures
-    if (response.data && response.data.data) {
-      return response.data.data;
-    }
+  getPendingJobs: async (params?: { page?: number; limit?: number }) => {
+    const response = await apiClient.get('/api/v1/jobs/pendings', { params });
     return response.data;
   },
 
@@ -103,34 +99,35 @@ export const adminApi = {
         value !== '' && value !== null && value !== undefined
       )
     );
-    const response = await apiClient.get('/jobs/search', { params: cleanParams });
+    const response = await apiClient.get('/api/v1/jobs/search', { params: cleanParams });
     return response.data;
   },
 
   // Added missing job stats endpoint for admin
   getJobStats: async () => {
-    const response = await apiClient.get('/jobs/stats');
+    const response = await apiClient.get('/api/v1/jobs/stats');
     return response.data;
   },
 
   // Added missing latest jobs endpoint for admin
-  getLatestJobs: async () => {
-    const response = await apiClient.get('/jobs/latest');
+  getLatestJobs: async (params?: { limit?: number }) => {
+    const response = await apiClient.get('/api/v1/jobs/latest', { params });
     return response.data;
   },
 
-  approveJob: async (jobId: string) => {
-    const response = await apiClient.post(`/jobs/${jobId}/approve`);
+  approveJob: async (jobId: string, reason?: string) => {
+    const response = await apiClient.post(`/api/v1/jobs/${jobId}/approve`, { reason });
     return response.data;
   },
 
-  rejectJob: async (jobId: string) => {
-    const response = await apiClient.post(`/jobs/${jobId}/reject`);
+  rejectJob: async (jobId: string, reason?: string) => {
+    const response = await apiClient.post(`/api/v1/jobs/${jobId}/reject`, { reason });
     return response.data;
   },
 
-  getJobById: async (jobId: string) => {
-    const response = await apiClient.get(`/jobs/${jobId}`);
+  getJobById: async (jobId: string, includeStats?: boolean) => {
+    const params = includeStats ? { include_stats: includeStats } : {};
+    const response = await apiClient.get(`/api/v1/jobs/${jobId}`, { params });
     return response.data;
   },
 

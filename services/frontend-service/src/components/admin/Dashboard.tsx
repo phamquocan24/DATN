@@ -124,15 +124,45 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
         setLoading(true);
         setError(null);
 
-        // Fetch system statistics
-        const systemStats = await adminApi.getSystemStatistics();
-        const pendingJobs = await adminApi.getPendingJobs();
-        const userStats = await adminApi.getUserStatistics();
-        await adminApi.getApplicationStats();
+        // Fetch system statistics with individual error handling
+        let systemStats = null;
+        try {
+          systemStats = await adminApi.getSystemStatistics();
+        } catch (err) {
+          console.error('Error fetching system stats:', err);
+          systemStats = {};
+        }
+
+        let pendingJobsResponse = null;
+        try {
+          pendingJobsResponse = await adminApi.getPendingJobs();
+        } catch (err) {
+          console.error('Error fetching pending jobs:', err);
+          pendingJobsResponse = { data: [] };
+        }
+
+        let userStats = null;
+        try {
+          userStats = await adminApi.getUserStatistics();
+        } catch (err) {
+          console.error('Error fetching user stats:', err);
+          userStats = {};
+        }
+
+        try {
+          await adminApi.getApplicationStats();
+        } catch (err) {
+          console.error('Error fetching application stats:', err);
+        }
+
+        // Extract pending jobs array from response
+        const pendingJobsArray = pendingJobsResponse?.data || pendingJobsResponse || [];
+        console.log('Pending jobs response:', pendingJobsResponse);
+        console.log('Pending jobs array:', pendingJobsArray);
 
         // Update stats
         setStats([
-          { label: 'New Jobs to Review', value: pendingJobs?.length || 0, color: 'bg-blue-500', path: '/admin/job-listings' },
+          { label: 'New Jobs to Review', value: Array.isArray(pendingJobsArray) ? pendingJobsArray.length : 0, color: 'bg-blue-500', path: '/admin/job-listings' },
           { label: 'Violated Accounts', value: systemStats?.violatedAccounts || 0, color: 'bg-orange-500', path: '/admin/accounts' },
           { label: 'New Feedback', value: systemStats?.newFeedback || 0, color: 'bg-green-500', path: '/admin/feedback' },
         ]);
@@ -150,9 +180,16 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
           { title: 'New Feedback & Issues', applied: systemStats?.newFeedback || 0, capacity: 20, icon: FBIcon, path: '/admin/feedback' },
         ]);
 
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching dashboard data:', err);
-        setError('Failed to load dashboard data');
+        
+        // Enhanced error logging
+        if (err.response?.data?.error?.includes('pendings')) {
+          console.error('UUID error with "pendings":', err.response.data);
+          setError('API configuration error: Invalid UUID parameter detected. Please check the endpoint configuration.');
+        } else {
+          setError('Failed to load dashboard data');
+        }
       } finally {
         setLoading(false);
       }

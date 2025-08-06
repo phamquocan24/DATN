@@ -66,7 +66,7 @@ export const companyApi = {
    * Create a new company (HR/Recruiter only)
    */
   createCompany: async (companyData: CreateCompanyData) => {
-    const response = await apiClient.post('/companies', companyData);
+    const response = await apiClient.post('/api/v1/api/v1/companies', companyData);
     return response.data;
   },
 
@@ -74,7 +74,7 @@ export const companyApi = {
    * Get all companies with pagination and filtering
    */
   getAllCompanies: async (params?: CompanySearchParams) => {
-    const response = await apiClient.get('/companies', { params });
+    const response = await apiClient.get('/api/v1/api/v1/companies', { params });
     return response.data;
   },
 
@@ -82,7 +82,7 @@ export const companyApi = {
    * Get company by ID
    */
   getCompanyById: async (companyId: string) => {
-    const response = await apiClient.get(`/companies/${companyId}`);
+    const response = await apiClient.get(`/api/v1/api/v1/companies/${companyId}`);
     return response.data;
   },
 
@@ -90,7 +90,7 @@ export const companyApi = {
    * Update company information (HR/Recruiter only)
    */
   updateCompany: async (companyId: string, companyData: UpdateCompanyData) => {
-    const response = await apiClient.put(`/companies/${companyId}`, companyData);
+    const response = await apiClient.put(`/api/v1/api/v1/companies/${companyId}`, companyData);
     return response.data;
   },
 
@@ -98,7 +98,7 @@ export const companyApi = {
    * Delete company (HR/Recruiter/Admin only)
    */
   deleteCompany: async (companyId: string) => {
-    const response = await apiClient.delete(`/companies/${companyId}`);
+    const response = await apiClient.delete(`/api/v1/api/v1/companies/${companyId}`);
     return response.data;
   },
 
@@ -108,7 +108,7 @@ export const companyApi = {
    * Get company recruiters/HR staff
    */
   getCompanyRecruiters: async (companyId: string) => {
-    const response = await apiClient.get(`/companies/${companyId}/recruiters`);
+    const response = await apiClient.get(`/api/v1/companies/${companyId}/recruiters`);
     return response.data;
   },
 
@@ -116,7 +116,7 @@ export const companyApi = {
    * Get company statistics
    */
   getCompanyStats: async (companyId: string): Promise<{ success: boolean; data: CompanyStats }> => {
-    const response = await apiClient.get(`/companies/${companyId}/stats`);
+    const response = await apiClient.get(`/api/v1/companies/${companyId}/stats`);
     return response.data;
   },
 
@@ -124,7 +124,7 @@ export const companyApi = {
    * Get jobs posted by company
    */
   getCompanyJobs: async (companyId: string, params?: { page?: number; limit?: number; status?: string }) => {
-    const response = await apiClient.get(`/companies/${companyId}/jobs`, { params });
+    const response = await apiClient.get(`/api/v1/companies/${companyId}/jobs`, { params });
     return response.data;
   },
 
@@ -134,7 +134,7 @@ export const companyApi = {
    * Search companies by various criteria
    */
   searchCompanies: async (searchParams: CompanySearchParams) => {
-    const response = await apiClient.get('/companies/search', { params: searchParams });
+    const response = await apiClient.get('/api/v1/companies/search', { params: searchParams });
     return response.data;
   },
 
@@ -142,7 +142,7 @@ export const companyApi = {
    * Get featured/popular companies
    */
   getFeaturedCompanies: async (limit: number = 10) => {
-    const response = await apiClient.get('/companies/featured', { params: { limit } });
+    const response = await apiClient.get('/api/v1/companies/featured', { params: { limit } });
     return response.data;
   },
 
@@ -150,7 +150,7 @@ export const companyApi = {
    * Get companies by industry
    */
   getCompaniesByIndustry: async (industry: string, params?: CompanySearchParams) => {
-    const response = await apiClient.get('/companies/by-industry', { 
+    const response = await apiClient.get('/api/v1/companies/by-industry', { 
       params: { industry, ...params } 
     });
     return response.data;
@@ -163,12 +163,12 @@ export const companyApi = {
    */
   verifyCompany: async (companyId: string, verified: boolean = true) => {
     try {
-      const response = await apiClient.patch(`/companies/${companyId}/verify`, { verified });
+      const response = await apiClient.patch(`/api/v1/companies/${companyId}/verify`, { verified });
       return response.data;
     } catch (error: any) {
       if (error.response?.status === 404) {
         // Fallback to admin endpoint if direct endpoint doesn't exist
-        const response = await apiClient.post(`/admin/companies/${companyId}/verify`, { verified });
+        const response = await apiClient.post(`/admin/api/v1/companies/${companyId}/verify`, { verified });
         return response.data;
       }
       throw error;
@@ -180,14 +180,14 @@ export const companyApi = {
    */
   getCompanyAnalytics: async (companyId: string, period: string = 'month') => {
     try {
-      const response = await apiClient.get(`/companies/${companyId}/analytics`, { 
+      const response = await apiClient.get(`/api/v1/companies/${companyId}/analytics`, { 
         params: { period } 
       });
       return response.data;
     } catch (error: any) {
       // Fallback to analytics service
       if (error.response?.status === 404) {
-        const response = await apiClient.get('/analytics/companies', { 
+        const response = await apiClient.get('/analytics/api/v1/companies', { 
           params: { companyId, period } 
         });
         return response.data;
@@ -205,7 +205,7 @@ export const companyApi = {
     const formData = new FormData();
     formData.append('logo', logoFile);
     
-    const response = await apiClient.post(`/companies/${companyId}/logo`, formData, {
+    const response = await apiClient.post(`/api/v1/companies/${companyId}/logo`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -218,7 +218,7 @@ export const companyApi = {
    */
   getIndustries: async () => {
     try {
-      const response = await apiClient.get('/companies/industries');
+      const response = await apiClient.get('/api/v1/companies/industries');
       return response.data;
     } catch (error: any) {
       // Fallback with default industries

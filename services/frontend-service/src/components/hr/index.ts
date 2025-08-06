@@ -20,4 +20,5 @@ export { default as TestManagement } from './TestManagement';
 export { default as HelpCenter } from './HelpCenter'; 
 export { default as TestDetails } from './TestDetails';
 export { default as TestResultDetails } from './TestResultDetails';
+export { default as CreateTestModal } from './CreateTestModal';
 export { default as CompanyManagement } from './CompanyManagement'; 
