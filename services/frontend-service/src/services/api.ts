@@ -115,8 +115,10 @@ apiClient.interceptors.response.use(
           isRefreshing = false;
         }
       } else {
+        // No refresh token: clear stale auth but do not force redirect to avoid bounce on dashboard reload
         AuthService.clearAuthData();
-        window.location.href = '/login';
+        // Let the app continue; protected pages can handle soft auth prompts
+        return Promise.reject(error);
       }
     }
 

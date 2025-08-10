@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import DashboardSidebar from './DashboardSidebar';
+import companyApi, { Company as ApiCompany } from '../../services/companyApi';
 
 interface Company {
-  id: number;
+  id: string;
   name: string;
   description: string;
   logo: string;
@@ -43,6 +44,8 @@ export const BrowseCompanies: React.FC<BrowseCompaniesProps> = ({
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [activeTab, setActiveTab] = useState('browse-companies');
   const [isFilterVisible, setIsFilterVisible] = useState(false); // Default hidden
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
 
   // Company-specific filters
   const [filters, setFilters] = useState({
@@ -62,62 +65,26 @@ export const BrowseCompanies: React.FC<BrowseCompaniesProps> = ({
 
 
 
-  const companies: Company[] = [
-    {
-      id: 1,
-      name: 'Stripe',
-      description: 'Stripe is a software platform for starting and running internet businesses. Millions of businesses rely on Stripe\'s software tools...',
-      logo: 'S',
-      logoColor: 'bg-[#635BFF] text-white',
-      jobs: 7,
-      tags: ['Business', 'Payment gateway']
-    },
-    {
-      id: 2,
-      name: 'Truebill',
-      description: 'Take control of your money. Truebill develops a mobile app that helps consumers take control of their financial...',
-      logo: 'T',
-      logoColor: 'bg-[#007BFF] text-white',
-      jobs: 7,
-      tags: ['Business']
-    },
-    {
-      id: 3,
-      name: 'Square',
-      description: 'Square builds common business tools in unconventional ways so more people can start, run, and grow their businesses.',
-      logo: 'S',
-      logoColor: 'bg-black text-white',
-      jobs: 7,
-      tags: ['Business', 'Blockchain']
-    },
-    {
-      id: 4,
-      name: 'Coinbase',
-      description: 'Coinbase is a digital currency wallet and platform where merchants and consumers can transact with new digital currencies.',
-      logo: 'C',
-      logoColor: 'bg-[#007BFF] text-white',
-      jobs: 7,
-      tags: ['Business', 'Blockchain']
-    },
-    {
-      id: 5,
-      name: 'Robinhood',
-      description: 'Robinhood is lowering barriers, removing fees, and providing greater access to financial information.',
-      logo: 'R',
-      logoColor: 'bg-black text-white',
-      jobs: 7,
-      tags: ['Business']
-    },
-    {
-      id: 6,
-      name: 'Kraken',
-      description: 'Based in San Francisco, Kraken is the world\'s largest global bitcoin exchange in euro volume and liquidity.',
-      logo: 'K',
-      logoColor: 'bg-purple-600 text-white',
-      jobs: 7,
-      tags: ['Business', 'Blockchain']
-    }
-  ];
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      const resp = await companyApi.getAllCompanies({ page: pagination.page, limit: pagination.limit } as any);
+      const data = resp?.data || resp;
+      const items: ApiCompany[] = Array.isArray(data) ? data : (data?.data || []);
+      const mapped: Company[] = items.map((c: any, i: number) => ({
+        id: (c.company_id || c.id || '').toString(),
+        name: c.company_name,
+        description: c.company_description || 'No description provided.',
+        logo: (c.company_name || 'C').charAt(0).toUpperCase(),
+        logoColor: ['bg-[#635BFF] text-white','bg-[#007BFF] text-white','bg-black text-white','bg-purple-600 text-white'][i % 4],
+        jobs: 0,
+        tags: [c.industry || 'Business']
+      }));
+      setCompanies(mapped);
+      const p = data?.pagination || { page: pagination.page, limit: pagination.limit, total: mapped.length, totalPages: 1 };
+      setPagination({ page: p.page, limit: p.limit, total: p.total, totalPages: p.totalPages || Math.max(1, Math.ceil(p.total / p.limit)) });
+    };
+    fetchCompanies();
+  }, [pagination.page, pagination.limit]);
 
   const industries = [
     { name: 'Advertising', count: 43 },
@@ -447,7 +414,7 @@ export const BrowseCompanies: React.FC<BrowseCompaniesProps> = ({
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-4">
                 <h2 className="text-lg font-semibold text-gray-900">All Companies</h2>
-                <span className="text-gray-500 text-sm">Showing 73 results</span>
+                <span className="text-gray-500 text-sm">Showing {pagination.total} results</span>
               </div>
               <div className="flex items-center space-x-4">
                 <span className="text-sm text-gray-500">Sort by:</span>
@@ -500,19 +467,24 @@ export const BrowseCompanies: React.FC<BrowseCompaniesProps> = ({
 
             {/* Pagination */}
             <div className="flex items-center justify-center space-x-2">
-              <button className="p-2 text-gray-400 hover:text-gray-600">
+              <button className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50" disabled={pagination.page <= 1} onClick={() => setPagination(p => ({ ...p, page: Math.max(1, p.page - 1) }))}>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <button className="px-3 py-1 bg-[#007BFF] text-white rounded">1</button>
-              <button className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded">2</button>
-              <button className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded">3</button>
-              <button className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded">4</button>
-              <button className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded">5</button>
-              <span className="px-3 py-1 text-gray-400">...</span>
-              <button className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded">33</button>
-              <button className="p-2 text-gray-600 hover:text-gray-800">
+              {Array.from({ length: Math.min(5, pagination.totalPages || 1) }, (_, i) => {
+                const start = Math.max(1, pagination.page - 2);
+                const page = start + i;
+                if (page > (pagination.totalPages || 1)) return null;
+                return (
+                  <button key={page} onClick={() => setPagination(p => ({ ...p, page }))} className={`px-3 py-1 rounded ${page === pagination.page ? 'bg-[#007BFF] text-white' : 'text-gray-600 hover:bg-gray-100'}`}>{page}</button>
+                );
+              })}
+              {pagination.page + 2 < (pagination.totalPages || 1) && <span className="px-3 py-1 text-gray-400">...</span>}
+              {pagination.page !== (pagination.totalPages || 1) && (pagination.totalPages || 1) > 5 && (
+                <button className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded" onClick={() => setPagination(p => ({ ...p, page: p.totalPages }))}>{pagination.totalPages}</button>
+              )}
+              <button className="p-2 text-gray-600 hover:text-gray-800 disabled:opacity-50" disabled={pagination.page >= (pagination.totalPages || 1)} onClick={() => setPagination(p => ({ ...p, page: Math.min((p.totalPages || p.page + 1), p.page + 1) }))}>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>

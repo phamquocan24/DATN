@@ -117,7 +117,13 @@ export const candidateApi = {
 
   // Application Management
   createApplication: async (applicationData: any) => {
-    const response = await apiClient.post('/applications', applicationData);
+    // Backend expects `job_id`; accept both and normalize
+    const payload: any = { ...applicationData };
+    if (payload.jobId && !payload.job_id) {
+      payload.job_id = payload.jobId;
+      delete payload.jobId;
+    }
+    const response = await apiClient.post('/applications', payload);
     return response.data;
   },
 
@@ -246,8 +252,8 @@ export const candidateApi = {
     return response.data;
   },
 
-  // Test Management
-  getMyTests: async () => {
+  // Test Management (legacy endpoints - kept for backward compatibility)
+  getLegacyMyTests: async () => {
     try {
       const response = await apiClient.get('/tests/my-tests');
       return response.data;
@@ -261,17 +267,17 @@ export const candidateApi = {
     }
   },
 
-  startTest: async (testId: string) => {
+  startLegacyTest: async (testId: string) => {
     const response = await apiClient.post(`/tests/${testId}/start`);
     return response.data;
   },
 
-  submitTest: async (testId: string, answers: any) => {
+  submitLegacyTest: async (testId: string, answers: any) => {
     const response = await apiClient.post(`/tests/${testId}/submit`, { answers });
     return response.data;
   },
 
-  getTestResult: async (testId: string) => {
+  getLegacyTestResult: async (testId: string) => {
     const response = await apiClient.get(`/tests/${testId}/result`);
     return response.data;
   },

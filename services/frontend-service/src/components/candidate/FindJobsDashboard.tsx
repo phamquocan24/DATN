@@ -4,7 +4,7 @@ import DashboardSidebar from './DashboardSidebar';
 import candidateApi from '../../services/candidateApi';
 
 interface Job {
-  id: number;
+  id: string;
   title: string;
   company: string;
   location: string;
@@ -76,6 +76,7 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
     salaryRange: ['$3000 or above'] as string[]
   });
   const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
   const [activeTab, setActiveTab] = useState('find-jobs');
   const [isFilterVisible, setIsFilterVisible] = useState(false); // Default hidden
   const [currentView, setCurrentView] = useState<'list' | 'detail'>('list');
@@ -102,16 +103,15 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
         setError(null);
         
         const searchParams = {
-          query: searchQuery,
-          location: location,
-          type: filters.employmentType,
+          query: searchQuery || undefined,
+          location: location || undefined,
+          employmentType: filters.employmentType,
           categories: filters.categories,
-          page: currentPage
-        };
+          page: currentPage,
+          limit: 10
+        } as any;
         
-        const jobsData = searchQuery ? 
-          await candidateApi.searchJobs(searchParams) : 
-          await candidateApi.getAllJobs();
+        const jobsData = await candidateApi.searchJobs(searchParams);
         
         // Handle different API response structures with better error handling
         let jobsArray = [];
@@ -128,20 +128,20 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
         
         // Transform API data to match component interface
         const formattedJobs = jobsArray.map((job: any, index: number) => ({
-          id: job.id || job._id,
+          id: (job.id || job._id || job.job_id || '').toString(),
           title: job.title,
-          company: job.company?.name || 'Company',
+          company: job.company?.name || job.company_name || 'Company',
           location: job.location || 'Location',
-          type: job.type || 'Full Time',
+          type: job.type || job.employment_type || 'Full Time',
           tags: [
             ...(job.skills?.slice(0, 2) || ['Business']),
             `Match: ${job.matchScore || Math.floor(Math.random() * 40) + 40}%`
           ],
-          logo: job.company?.name?.charAt(0) || 'C',
+          logo: (job.company?.name || job.company_name || job.title || 'C').charAt(0).toUpperCase(),
           logoColor: `bg-${['blue', 'green', 'purple', 'red', 'teal'][index % 5]}-500 text-white`,
           match: job.matchScore || Math.floor(Math.random() * 40) + 40,
           applied: job.applicationsCount || 0,
-          capacity: job.openPositions || 1,
+          capacity: job.openPositions || job.max_applications || 1,
           salary: job.salary,
           description: job.description || mockJobDetails.description,
           requirements: job.requirements || mockJobDetails.requirements,
@@ -150,6 +150,11 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
         }));
         
         setJobs(formattedJobs);
+        const apiPage = jobsData?.pagination?.page ?? currentPage;
+        const apiLimit = jobsData?.pagination?.limit ?? 10;
+        const apiTotal = jobsData?.pagination?.total ?? formattedJobs.length;
+        const apiTotalPages = jobsData?.pagination?.totalPages ?? Math.max(1, Math.ceil(apiTotal / apiLimit));
+        setPagination({ page: apiPage, limit: apiLimit, total: apiTotal, totalPages: apiTotalPages });
       } catch (err) {
         console.error('Error fetching jobs:', err);
         setError('Failed to load jobs');
@@ -161,10 +166,10 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
     fetchJobs();
   }, [searchQuery, location, filters, currentPage]);
 
-  const handleApplyToJob = async (jobId: number) => {
+  const handleApplyToJob = async (jobId: string) => {
     try {
       await candidateApi.createApplication({
-        jobId: jobId,
+        job_id: jobId,
         coverLetter: 'Application submitted through job search'
       });
       alert('Application submitted successfully!');
@@ -174,7 +179,7 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
     }
   };
 
-  const toggleSavedJob = (jobId: number) => {
+  const toggleSavedJob = (jobId: string) => {
     setSavedJobs(prev => 
       prev.includes(jobId) 
         ? prev.filter(id => id !== jobId)
@@ -584,7 +589,7 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-4">
               <h2 className="text-lg font-semibold text-gray-900">All Jobs</h2>
-              <span className="text-gray-500 text-sm">Showing 73 results</span>
+               <span className="text-gray-500 text-sm">Showing {pagination.total} results</span>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-500">Sort by:</span>
@@ -627,39 +632,46 @@ export const FindJobsDashboard: React.FC<FindJobsDashboardProps> = ({
             ))}
           </div>
 
-              {/* Pagination */}
+              {/* Pagination (API-synced) */}
               <div className="flex items-center justify-center space-x-2">
                 <button 
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+                  className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                  disabled={currentPage <= 1}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
-                {[1, 2, 3, 4, 5].map((page) => (
+                {Array.from({ length: Math.min(5, pagination.totalPages || 1) }, (_, i) => {
+                  const start = Math.max(1, currentPage - 2);
+                  const page = start + i;
+                  if ((pagination.totalPages || 1) < page) return null;
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-10 h-10 rounded-lg font-medium ${
+                        currentPage === page ? 'bg-[#007BFF] text-white' : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+                {currentPage + 2 < (pagination.totalPages || 1) && <span className="text-gray-500">...</span>}
+                {currentPage !== (pagination.totalPages || 1) && (pagination.totalPages || 1) > 5 && (
                   <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`w-10 h-10 rounded-lg font-medium ${
-                      currentPage === page
-                        ? 'bg-[#007BFF] text-white'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
+                    onClick={() => setCurrentPage(pagination.totalPages || 1)}
+                    className="w-10 h-10 rounded-lg font-medium text-gray-700 hover:bg-gray-100"
                   >
-                    {page}
+                    {pagination.totalPages}
                   </button>
-                ))}
-                <span className="text-gray-500">...</span>
-                <button
-                  onClick={() => setCurrentPage(33)}
-                  className="w-10 h-10 rounded-lg font-medium text-gray-700 hover:bg-gray-100"
-                >
-                  33
-                </button>
+                )}
                 <button 
-                  onClick={() => setCurrentPage(prev => Math.min(33, prev + 1))}
-                  className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+                  onClick={() => setCurrentPage(prev => Math.min((pagination.totalPages || prev + 1), prev + 1))}
+                  className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                  disabled={currentPage >= (pagination.totalPages || 1)}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

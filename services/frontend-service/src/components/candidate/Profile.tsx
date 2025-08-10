@@ -39,8 +39,15 @@ const Profile: React.FC<ProfileProps> = ({
   onHelpCenterClick
 }) => {
   const [activeTab, setActiveTab] = useState('public-profile');
-  const [profileData, setProfileData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [profileData, setProfileData] = useState<any>(() => {
+    try {
+      const cached = localStorage.getItem('user');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isLoading, setIsLoading] = useState(() => !localStorage.getItem('user'));
   const [error, setError] = useState<string | null>(null);
 
   // ProfileSuggestions states
@@ -52,7 +59,8 @@ const Profile: React.FC<ProfileProps> = ({
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        setIsLoading(true);
+        // Only show spinner if we don't have cached profile
+        if (!profileData) setIsLoading(true);
         const profileResponse = await candidateApi.getProfile();
         if (profileResponse?.data) {
           setProfileData(profileResponse.data);
