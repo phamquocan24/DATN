@@ -1,122 +1,82 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Footer } from './Footer';
 import { CTA } from './CTA';
 import GroupUnderline from '../../assets/Group.png';
 import { FiArrowRight, FiArrowLeft } from 'react-icons/fi';
 import { companyApi, Company as ApiCompany } from '../../services/companyApi';
 
-interface Company {
-  id: number;
-  name: string;
-  location: string;
-  description: string;
-  jobs: number;
-  logo: string;
-  logoColor: string;
-  category: string;
-  isFavorite?: boolean;
-}
+// Removed local Company mock interface
 
 interface CompaniesProps {
   onCompanyClick?: (companyId: string) => void;
 }
 
 export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState('Florence, Italy');
-  const [activeCategory, setActiveCategory] = useState('Design');
-  const [favoriteCompanies, setFavoriteCompanies] = useState<number[]>([1]);
+  const [activeCategory, setActiveCategory] = useState<string>('Design');
+  // Removed favorites for mock cards
   const [apiCompanies, setApiCompanies] = useState<ApiCompany[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [allCompanies, setAllCompanies] = useState<ApiCompany[]>([]);
+  const [categoryCompanies, setCategoryCompanies] = useState<ApiCompany[]>([]);
 
-  // Recommended Companies
-  const recommendedCompanies: Company[] = [
-    {
-      id: 1,
-      name: 'Nomad',
-      location: 'Paris, France',
-      description: 'Nomad is located in Paris, France. Nomad has generated $728.8M in sales (USD).',
-      jobs: 3,
-      logo: 'N',
-      logoColor: 'bg-green-500 text-white',
-      category: 'Design',
-      isFavorite: true
-    },
-    {
-      id: 2,
-      name: 'Discord',
-      location: 'San Francisco, USA',
-      description: "We'd love to work with someone like you. We care about creating a delightful experience.",
-      jobs: 3,
-      logo: 'D',
-      logoColor: 'bg-purple-500 text-white',
-      category: 'Technology'
-    },
-    {
-      id: 3,
-      name: 'Maze',
-      location: 'Berlin, Germany',
-      description: "We're a passionate bunch working from all over the world to build the future of rapid testing together.",
-      jobs: 3,
-      logo: 'M',
-      logoColor: 'bg-[#007BFF] text-white',
-      category: 'Design'
-    },
-    {
-      id: 4,
-      name: 'Udacity',
-      location: 'Mountain View, USA',
-      description: 'Udacity is the trusted market leader of online university that teaches the actual programming skills.',
-      jobs: 3,
-      logo: 'U',
-      logoColor: 'bg-[#007BFF] text-white',
-      category: 'Education'
-    },
-    {
-      id: 5,
-      name: 'Webflow',
-      location: 'San Francisco, USA',
-      description: 'Webflow is the leading visual development and hosting platform built from the ground up for the mobile age.',
-      jobs: 3,
-      logo: 'W',
-      logoColor: 'bg-[#007BFF] text-white',
-      category: 'Technology'
-    },
-    {
-      id: 6,
-      name: 'Foundation',
-      location: 'New York, USA',
-      description: 'Foundation helps creators mint and auction their digital artworks as NFTs on the Ethereum blockchain.',
-      jobs: 3,
-      logo: 'F',
-      logoColor: 'bg-black text-white',
-      category: 'Crypto'
-    }
-  ];
+  // Removed mock recommended companies
 
   // Companies by category
-  const categories = [
-    { name: 'Design', count: 24, active: true },
-    { name: 'Fintech', count: 12, active: false },
-    { name: 'Hosting', count: 8, active: false },
-    { name: 'Business Service', count: 15, active: false },
-    { name: 'Development', count: 18, active: false },
-    { name: 'Marketing', count: 10, active: false },
-    { name: 'Education', count: 22, active: false },
-    { name: 'Crypto', count: 7, active: false },
-  ];
+  // Dynamic categories computed from API companies (fallback to defaults if empty)
+  const [categories, setCategories] = useState<{ name: string; count: number; active?: boolean }[]>([
+    { name: 'Design', count: 0, active: true },
+    { name: 'Fintech', count: 0, active: false },
+    { name: 'Hosting', count: 0, active: false },
+    { name: 'Business Service', count: 0, active: false },
+    { name: 'Development', count: 0, active: false },
+    { name: 'Marketing', count: 0, active: false },
+    { name: 'Education', count: 0, active: false },
+    { name: 'Crypto', count: 0, active: false },
+  ]);
 
-  const designCompanies = [
-    { name: 'Pentagram', logo: 'P', logoColor: 'bg-red-500 text-white', jobs: 3 },
-    { name: 'Wolff Olins', logo: 'WO', logoColor: 'bg-black text-white', jobs: 4 },
-    { name: 'Clay', logo: 'C', logoColor: 'bg-black text-white', jobs: 3 },
-    { name: 'MediaMonks', logo: 'MM', logoColor: 'bg-black text-white', jobs: 5 },
-    { name: 'Packer', logo: 'P', logoColor: 'bg-red-400 text-white', jobs: 3 },
-    { name: 'Square', logo: 'S', logoColor: 'bg-black text-white', jobs: 3 },
-    { name: 'Divy', logo: 'D', logoColor: 'bg-gray-800 text-white', jobs: 3 },
-    { name: 'WebFlow', logo: 'W', logoColor: 'bg-[#007BFF] text-white', jobs: 5 }
-  ];
+  // Load all companies once for category section and compute counts by industry
+  useEffect(() => {
+    const loadAllForCategories = async () => {
+      try {
+        const resp = await companyApi.getAllCompanies({ page: 1, limit: 200 });
+        if (resp.success) {
+          const companies: ApiCompany[] = resp.data || [];
+          setAllCompanies(companies);
+
+          // Group by industry
+          const countsMap = companies.reduce<Record<string, number>>((acc, c) => {
+            const key = c.industry || 'Other';
+            acc[key] = (acc[key] || 0) + 1;
+            return acc;
+          }, {});
+
+          // Create categories list from industries sorted by count desc
+          const computedCategories = Object.entries(countsMap)
+            .sort((a, b) => b[1] - a[1])
+            .map(([name, count], idx) => ({ name, count, active: idx === 0 }));
+
+          if (computedCategories.length > 0) {
+            setCategories(computedCategories);
+            setActiveCategory(computedCategories[0].name);
+            setCategoryCompanies(
+              companies.filter(c => (c.industry || 'Other') === computedCategories[0].name)
+            );
+          } else {
+            setCategoryCompanies([]);
+          }
+        }
+      } catch (err) {
+        // Ignore and keep defaults
+        console.error('Failed to load companies for categories', err);
+      }
+    };
+    loadAllForCategories();
+  }, []);
 
   // Fetch companies from API
   useEffect(() => {
@@ -152,67 +112,9 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
     ? apiCompanies
     : apiCompanies.slice(0, 6);
 
-  const toggleFavorite = (companyId: number) => {
-    setFavoriteCompanies(prev => 
-      prev.includes(companyId) 
-        ? prev.filter(id => id !== companyId)
-        : [...prev, companyId]
-    );
-  };
+  // No-op: favorites removed with mock cards
 
-  const CompanyCard = ({ company, showDescription = true }: { company: Company, showDescription?: boolean }) => (
-    <div 
-      className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group cursor-pointer text-left"
-      onClick={() => onCompanyClick?.(company.id.toString())}
-    >
-      <div className="flex items-start justify-between mb-4">
-        <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold ${company.logoColor}`}>
-          {company.logo}
-        </div>
-        <span className="text-sm text-[#007BFF] bg-[#007BFF]/10 px-3 py-1 rounded-full">
-            {company.jobs} Jobs
-        </span>
-      </div>
-
-      <h3 className="font-semibold text-gray-900 group-hover:text-[#007BFF] transition-colors text-lg mb-2">
-        {company.name}
-      </h3>
-
-      {showDescription && (
-        <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-          {company.description}
-        </p>
-      )}
-
-      <div className="flex items-center justify-between">
-        <div className="flex space-x-2">
-          <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full font-medium border border-yellow-200">
-            Business Service
-          </span>
-           {company.category !== 'Design' && 
-             <span className="px-3 py-1 bg-red-100 text-red-700 text-xs rounded-full font-medium border border-red-200">
-                {company.category}
-            </span>
-           }
-        </div>
-        <button 
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleFavorite(company.id);
-          }}
-          className={`transition-colors ${
-            favoriteCompanies.includes(company.id) 
-              ? 'text-red-500 hover:text-red-600' 
-              : 'text-gray-400 hover:text-red-500'
-          }`}
-        >
-          <svg className="w-5 h-5" fill={favoriteCompanies.includes(company.id) ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
-        </button>
-      </div>
-    </div>
-  );
+  // Removed mock CompanyCard (only API companies are shown)
 
   const SmallCompanyCard = ({ company }: { company: any }) => (
     <div 
@@ -233,7 +135,7 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
 
   const ApiCompanyCard = ({ company }: { company: ApiCompany }) => (
     <div 
-      className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group cursor-pointer text-left"
+      className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 transform hover:border-[#007BFF]/30 transition-all duration-200 group cursor-pointer text-left"
       onClick={() => onCompanyClick?.(company.company_id)}
     >
       <div className="flex items-start justify-between mb-4">
@@ -281,17 +183,73 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
     </div>
   );
 
-  const getCategoryIcon = (categoryName: string) => {
-    switch (categoryName) {
+  const getCategoryIcon = (categoryName: string, size: 'sm' | 'md' = 'md') => {
+    const sizeCls = size === 'sm' ? 'w-5 h-5' : 'w-7 h-7';
+    const derive = (name: string) => {
+      const n = (name || '').toLowerCase();
+      if (n.includes('information technology') || n === 'technology' || n === 'it') return 'IT';
+      if (n.includes('e-commerce') || n.includes('commerce') || n.includes('retail')) return 'E_COMMERCE';
+      if ((n.includes('digital') && n.includes('marketing')) || n === 'marketing') return 'DIGITAL_MARKETING';
+      if (n.includes('software') || n.includes('development') || n.includes('dev')) return 'SOFTWARE';
+      if (n.includes('transport') || n.includes('logistics')) return 'TRANSPORT';
+      if (n.includes('bank') || n.includes('finance') || n.includes('fintech')) return 'FINANCE';
+      if (n.includes('conglomerate')) return 'CONGLOMERATE';
+      return name;
+    };
+    const key = derive(categoryName);
+    switch (key) {
+      case 'IT':
+        // Technology icon (same style as Home Explore)
+        return (
+          <svg className={sizeCls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+          </svg>
+        );
+      case 'E_COMMERCE':
+        return (
+          <svg className={sizeCls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l3-8H6.4M7 13L5.4 5M7 13l-2 6m0 0h12m-12 0a2 2 0 104 0m8 0a2 2 0 104 0" />
+          </svg>
+        );
+      case 'DIGITAL_MARKETING':
+        return (
+          <svg className={sizeCls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+          </svg>
+        );
+      case 'SOFTWARE':
+        return (
+          <svg className={sizeCls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 18l6-6-6-6M8 6l-6 6 6 6" />
+          </svg>
+        );
+      case 'TRANSPORT':
+        return (
+          <svg className={sizeCls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 13h13V7H3v6zm13 0h3l3 3v-6h-6m-9 8a2 2 0 110-4 2 2 0 010 4zm12 0a2 2 0 110-4 2 2 0 010 4z" />
+          </svg>
+        );
+      case 'FINANCE':
+        return (
+          <svg className={sizeCls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        );
+      case 'CONGLOMERATE':
+        return (
+          <svg className={sizeCls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z" />
+          </svg>
+        );
       case 'Design':
         return (
-          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className={sizeCls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v6a2 2 0 002 2h4a2 2 0 002-2V5zM21 15a2 2 0 00-2-2h-4a2 2 0 00-2 2v2a4 4 0 004 4h2a2 2 0 002-2v-2z" />
           </svg>
         );
       case 'Fintech':
         return (
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={sizeCls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
             </svg>
         );
@@ -357,6 +315,13 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
       categoryPage * categoriesPerPage,
       (categoryPage + 1) * categoriesPerPage
   );
+
+  // When activeCategory changes (by clicking card), update the list
+  useEffect(() => {
+    if (!activeCategory) return;
+    const filtered = allCompanies.filter(c => (c.industry || 'Other') === activeCategory);
+    setCategoryCompanies(filtered);
+  }, [activeCategory, allCompanies]);
 
   return (
     <>
@@ -432,10 +397,10 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
             <div className="mb-16">
               <div className="mb-8 text-left">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  {searchQuery ? `Search Results for "${searchQuery}"` : 'Companies from Database'}
+                  {searchQuery ? `Search Results for "${searchQuery}"` : 'Recommended Companies'}
                 </h2>
                 <p className="text-gray-600">
-                  {searchQuery ? 'Companies matching your search criteria' : 'Real companies from our platform'}
+                  {searchQuery ? 'Companies matching your search criteria' : 'Based on your profile, company preferences, and recent activity'}
                 </p>
               </div>
 
@@ -486,21 +451,7 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
             </div>
           )}
 
-          {/* Recommended Companies - Only show if no API companies */}
-          {apiCompanies.length === 0 && !loading && (
-            <div className="mb-16">
-              <div className="mb-8 text-left">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Recommended Companies</h2>
-                <p className="text-gray-600">Based on your profile, company preferences, and recent activity</p>
-              </div>
-
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {recommendedCompanies.map((company) => (
-                  <CompanyCard key={company.id} company={company} />
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Recommended section removed - only API companies used */}
         </div>
         
         {/* CTA Section */}
@@ -511,7 +462,7 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
         {/* Companies by Category */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div>
-            <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center justify-between mb-8">
                 <h2 className="text-3xl font-bold text-gray-900 text-left">Companies by Category</h2>
                 <div className="flex items-center gap-2">
                     <button 
@@ -541,7 +492,9 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
                             : 'bg-white border-gray-200 text-[#007BFF] hover:bg-[#007BFF] hover:text-white'
                         }`}
                     >
-                        <div className="w-auto flex items-center justify-start mb-4">
+                        <div className={`w-auto flex items-center justify-start mb-4 ${
+                          activeCategory === category.name ? 'text-white' : 'text-[#007BFF] group-hover:text-white'
+                        }`}>
                             {getCategoryIcon(category.name)}
                         </div>
                         
@@ -555,7 +508,7 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
                             <span className={`text-sm transition-colors ${
                               activeCategory === category.name ? 'text-white' : 'text-gray-500 group-hover:text-white'
                             }`}>
-                                {category.count} companies
+                            {category.count} companies
                             </span>
                             <svg className={`w-4 h-4 transition-colors ${
                               activeCategory === category.name ? 'text-white' : 'text-gray-400 group-hover:text-white'
@@ -567,32 +520,40 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
                     ))}
                 </div>
 
-                {/* Results count */}
+                {/* Results count + View more */}
                 <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3 text-gray-600">
-                        <svg className="w-5 h-5 text-[#007BFF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
-                        </svg>
-                        <p>
-                            Showing <span className="text-gray-900 font-medium">24 Results</span>
-                        </p>
+                  <div className="flex items-center gap-3 text-gray-600">
+                    <div className={`p-2 rounded-md border ${
+                      activeCategory ? 'text-[#007BFF] border-[#007BFF]/30 bg-[#007BFF]/5' : 'text-gray-500 border-gray-200'
+                    }`}>
+                      {getCategoryIcon(activeCategory || 'IT', 'sm')}
                     </div>
+                    <p>
+                      Showing <span className="text-gray-900 font-medium">{categoryCompanies.length} Results</span>
+                    </p>
+                  </div>
+                  <button className="text-[#007BFF] hover:text-[#0056b3] font-medium flex items-center" onClick={() => {
+                      navigate('/find-companies', { state: { companies: categoryCompanies, category: activeCategory } });
+                  }}>
+                    View more {activeCategory} companies
+                    <FiArrowRight className="w-4 h-4 ml-2" />
+                  </button>
                 </div>
 
                 {/* Companies Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-                    {designCompanies.map((company, index) => (
-                    <SmallCompanyCard key={index} company={company} />
+                    {categoryCompanies.slice(0, 8).map((company) => (
+                      <SmallCompanyCard key={company.company_id} company={{
+                        id: company.company_id,
+                        name: company.company_name,
+                        logo: company.company_name?.slice(0,2).toUpperCase() || 'C',
+                        logoColor: 'bg-black text-white',
+                        jobs: 0
+                      }} />
                     ))}
                 </div>
 
-                {/* View more link */}
-                <div className="text-left">
-                    <button className="text-[#007BFF] hover:text-[#007BFF] font-medium flex items-center">
-                    View more {activeCategory} companies
-                    <FiArrowRight className="w-4 h-4 ml-2" />
-                    </button>
-                </div>
+                {/* View more link moved to header above */}
             </div>
         </div>
       </div>

@@ -168,6 +168,7 @@ const MainContent = () => {
   const [authMode, setAuthMode] = useState<'login' | 'signup' | 'forgot-password'>('login');
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [lastCompanyListPage, setLastCompanyListPage] = useState<'companies' | 'find-companies' | null>(null);
   
   useEffect(() => {
     const currentPath = location.pathname;
@@ -282,11 +283,19 @@ const MainContent = () => {
   };
 
   const handleCompanyClick = (companyId: string) => {
+    // Remember from which list we navigated so back button works
+    const current = currentPage === 'companies' ? 'companies' : (currentPage === 'find-companies' ? 'find-companies' : null);
+    if (current) setLastCompanyListPage(current);
     setSelectedCompanyId(companyId);
     handlePageChange('company-profile');
   };
 
   const handleBackClick = () => {
+    // If viewing company profile, go back to the last list page if known
+    if (currentPage === 'company-profile' && lastCompanyListPage) {
+      handlePageChange(lastCompanyListPage);
+      return;
+    }
     handlePageChange('home');
     setSelectedJobId(null);
     setSelectedCompanyId(null);

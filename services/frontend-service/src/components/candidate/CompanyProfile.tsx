@@ -1,27 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { FiEdit, FiExternalLink, FiPlus, FiArrowRight, FiArrowLeft, FiShare2 } from 'react-icons/fi';
-import { FaHtml5, FaCss3Alt, FaJs, FaGem, FaTwitter, FaFacebookF, FaLinkedinIn, FaEnvelope, FaPhoneAlt, FaInstagram, FaStethoscope, FaSwimmingPool, FaVideo, FaMountain, FaCoffee, FaTrain } from 'react-icons/fa';
-import { SiFramer } from 'react-icons/si';
+import { FiExternalLink, FiArrowRight, FiArrowLeft, FiShare2 } from 'react-icons/fi';
+import { FaTwitter, FaLinkedinIn, FaEnvelope, FaPhoneAlt, FaInstagram, FaStethoscope } from 'react-icons/fa';
 import companyLogo from '../../assets/Nomad.png';
 import { TbFlame } from "react-icons/tb";
 import { PiUsersThree } from "react-icons/pi";
-import { IoLocationOutline, IoEarth } from "react-icons/io5";
+import { IoLocationOutline } from "react-icons/io5";
 import { BsBuildings } from "react-icons/bs";
 import work1 from '../../assets/work1.png';
 import work2 from '../../assets/work2.png';
 import work3 from '../../assets/work3.png';
 import work4 from '../../assets/work4.png';
 import { Footer } from './Footer';
-import api from '../../services/api';
+import companyApi, { Company as ApiCompany } from '../../services/companyApi';
 
 
 interface CompanyProfileProps {
   companyId?: string;
   onBack?: () => void;
+  backLabel?: string;
 }
 
 
-export const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId, onBack }) => {
+export const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId, onBack, backLabel }) => {
     const [showMoreJobs, setShowMoreJobs] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
     const [companyDetails, setCompanyDetails] = useState<any>(null);
@@ -34,9 +34,36 @@ export const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId, onBac
     const fetchCompanyProfile = async () => {
       setIsLoading(true);
       try {
-        const response = await api.get(`/companies/${companyId}/profile`);
-        setCompanyDetails(response.data.data);
-        setError(null);
+        const response = await companyApi.getCompanyById(companyId);
+        // API can return { success, data: { company } } or { success, data }
+        const apiCompany: ApiCompany | undefined =
+          (response?.data?.company as ApiCompany) || (response?.data as ApiCompany);
+        if (response?.success !== false && apiCompany) {
+          const mapped = {
+            companyName: apiCompany.company_name,
+            companyLogo: apiCompany.company_logo_url,
+            companyInfo: {
+              address: apiCompany.company_address,
+              industry: apiCompany.industry || 'N/A',
+              size: apiCompany.company_size || 'N/A',
+              website: apiCompany.company_website || '#',
+              location: apiCompany.company_address || 'N/A'
+            },
+            foundedDate: apiCompany.founded_year || 'N/A',
+            email: apiCompany.company_email || 'N/A',
+            phone: apiCompany.company_phone || 'N/A',
+            about: apiCompany.company_description || 'No description provided.',
+            socialLinks: {},
+            gallery: [],
+            team: [],
+            benefits: [],
+            openJobs: []
+          } as any;
+          setCompanyDetails(mapped);
+          setError(null);
+        } else {
+          setError('Company not found.');
+        }
       } catch (err) {
         setError('Failed to load company profile.');
         console.error(err);
@@ -49,20 +76,7 @@ export const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId, onBac
   }, [companyId]);
 
 
-  // Mock data - replace with actual API call
-  const companyDetails_mock = {
-    companyName: 'Nomad',
-    companyLogo: companyLogo,
-    companyInfo: {
-      address: 'District 1, Ho Chi Minh City, Vietnam',
-      industry: 'Social & Non-Profit',
-      size: '4000+',
-      website: 'https://nomad.com',
-    },
-    phone: '+84 123 456 789',
-    activeJobs: 15,
-    totalCandidates: 245,
-  };
+// Mock removed; using API-driven data
 
   const getTagStyle = (tag: string) => {
     switch (tag) {

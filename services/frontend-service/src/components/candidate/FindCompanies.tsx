@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Footer } from './Footer';
 import GroupUnderline from '../../assets/Group.png';
-import { companyApi, Company as ApiCompany } from '../../services/companyApi';
+import { companyApi, Company as ApiCompany, CompanySearchParams } from '../../services/companyApi';
 
 interface FindCompaniesProps {
   onCompanyClick?: (companyId: string) => void;
@@ -10,8 +11,10 @@ interface FindCompaniesProps {
 }
 
 export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick, companies }) => {
-  const [searchQuery, setSearchQuery] = useState('Fintech');
-  const [location, setLocation] = useState('Florence, Italy');
+  const routerLocation = useLocation();
+  const locationState = (routerLocation.state as { companies?: ApiCompany[]; category?: string } | null) || null;
+  const [searchQuery, setSearchQuery] = useState('');
+  const [userLocation, setUserLocation] = useState('');
   const [filters, setFilters] = useState({
     industry: [] as string[],
     companySize: [] as string[]
@@ -21,9 +24,12 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick, co
     companySize: false
   });
   // Initialize with companies passed from props if provided
-  const [apiCompanies, setApiCompanies] = useState<ApiCompany[]>(companies || []);
+  const [apiCompanies, setApiCompanies] = useState<ApiCompany[]>(locationState?.companies || companies || []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useState<CompanySearchParams>({ page: 1, limit: 8 });
+  const [pagination, setPagination] = useState({ page: 1, limit: 8, total: 0, totalPages: 0 });
+  const useExternalCompanies = Boolean((locationState?.companies && locationState.companies.length > 0) || (companies && companies.length > 0));
 
   const handleFilterChange = (filterType: keyof typeof filters, value: string) => {
     setFilters(prev => ({
@@ -66,11 +72,17 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick, co
     </div>
   );
 
-  // Fetch companies from API
+  // Fetch companies from API or use provided list
   useEffect(() => {
     // If parent provides companies, prefer them and skip fetching
-    if (companies && companies.length > 0) {
-      setApiCompanies(companies);
+    if (useExternalCompanies) {
+      const source = (locationState?.companies && locationState.companies.length > 0) ? locationState.companies : (companies || []);
+      setApiCompanies(source);
+      const total = source.length;
+      const totalPages = Math.max(1, Math.ceil(total / (searchParams.limit || 12)));
+      // Ensure current page is within bounds
+      const page = Math.min(searchParams.page || 1, totalPages);
+      setPagination({ page, limit: searchParams.limit || 12, total, totalPages });
       return;
     }
     const fetchCompanies = async () => {
@@ -79,8 +91,8 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick, co
         setError(null);
         
         const response = await companyApi.getAllCompanies({
-          page: 1,
-          limit: 50,
+          page: searchParams.page || 1,
+          limit: searchParams.limit || 12,
           search: searchQuery || undefined,
           industry: filters.industry.length > 0 ? filters.industry.join(',') : undefined,
           company_size: filters.companySize.length > 0 ? filters.companySize.join(',') : undefined
@@ -88,6 +100,7 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick, co
         
         if (response.success) {
           setApiCompanies(response.data || []);
+          setPagination(response.pagination || { page: searchParams.page || 1, limit: searchParams.limit || 12, total: response.data?.length || 0, totalPages: 1 });
         } else {
           setError('Failed to fetch companies');
         }
@@ -100,18 +113,30 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick, co
     };
 
     fetchCompanies();
-  }, [searchQuery, filters, companies]);
+  }, [searchQuery, filters, companies, locationState, searchParams.page, searchParams.limit, useExternalCompanies]);
 
   // Keep internal list in sync when parent passes companies
   useEffect(() => {
     if (companies && companies.length > 0) {
       setApiCompanies(companies);
+      const total = companies.length;
+      const totalPages = Math.max(1, Math.ceil(total / (searchParams.limit || 12)));
+      setPagination(prev => ({ ...prev, total, totalPages }));
     }
-  }, [companies]);
+  }, [companies, searchParams.limit]);
+
+  // Reset to page 1 when search/filter changes
+  useEffect(() => {
+    setSearchParams(prev => ({ ...prev, page: 1 }));
+  }, [searchQuery, filters]);
+
+  const handlePageChange = (newPage: number) => {
+    setSearchParams(prev => ({ ...prev, page: newPage }));
+  };
 
   const ApiCompanyCard = ({ company }: { company: ApiCompany }) => (
     <div 
-      className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group cursor-pointer text-left"
+      className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 transform hover:border-[#007BFF]/30 transition-all duration-200 group cursor-pointer text-left"
       onClick={() => onCompanyClick?.(company.company_id)}
     >
       <div className="flex items-start justify-between mb-4">
@@ -158,7 +183,7 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick, co
     </div>
   );
 
-  // Removed local mock Company card; component now focuses on API-driven companies
+  // No mock data; this component is API/prop driven only
 
   return (
     <>
@@ -207,8 +232,8 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick, co
                   <input
                     type="text"
                     placeholder="Florence, Italy"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
+                    value={userLocation}
+                    onChange={(e) => setUserLocation(e.target.value)}
                     className="w-full outline-none text-gray-900 placeholder-gray-500"
                   />
                 </div>
@@ -391,7 +416,7 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick, co
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">All Companies</h2>
-                  <p className="text-sm font-normal text-gray-500">Showing 73 results</p>
+                  <p className="text-sm font-normal text-gray-500">Showing {pagination.total} results</p>
                 </div>
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center space-x-2">
@@ -459,9 +484,12 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick, co
               )}
 
               {/* API Companies Grid */}
-              {!loading && !error && apiCompanies.length > 0 && (
+              {!loading && !error && (
                 <div className="grid md:grid-cols-2 gap-6 mb-8">
-                  {apiCompanies.map((company) => (
+                  {(useExternalCompanies
+                    ? apiCompanies.slice(((pagination.page - 1) * pagination.limit), (pagination.page * pagination.limit))
+                    : apiCompanies
+                  ).map((company) => (
                     <ApiCompanyCard key={company.company_id} company={company} />
                   ))}
                 </div>
@@ -470,23 +498,34 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick, co
 
 
               {/* Pagination */}
+              {pagination.totalPages > 1 && (
               <div className="flex items-center justify-center space-x-2">
-                <button className="p-2 text-gray-400 hover:text-gray-600">
+                <button className="p-2 text-gray-400 hover:text-gray-600" disabled={pagination.page <= 1} onClick={() => handlePageChange(Math.max(1, pagination.page - 1))}>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">1</button>
-                <button className="w-8 h-8 bg-[#007BFF] text-white rounded font-medium">2</button>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">3</button>
-                <span className="text-gray-400">...</span>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">10</button>
-                <button className="p-2 text-gray-400 hover:text-gray-600">
+                {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                  const start = Math.max(1, pagination.page - 2);
+                  const pageNum = start + i;
+                  if (pageNum <= pagination.totalPages) {
+                    return (
+                      <button key={pageNum} onClick={() => handlePageChange(pageNum)} className={`w-8 h-8 rounded ${pageNum === pagination.page ? 'bg-[#007BFF] text-white font-medium' : 'text-gray-600 hover:bg-gray-100'}`}>{pageNum}</button>
+                    );
+                  }
+                  return null;
+                })}
+                {pagination.page + 2 < pagination.totalPages && <span className="text-gray-400">...</span>}
+                {pagination.page !== pagination.totalPages && pagination.totalPages > 5 && (
+                  <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded" onClick={() => handlePageChange(pagination.totalPages)}>{pagination.totalPages}</button>
+                )}
+                <button className="p-2 text-gray-400 hover:text-gray-600" disabled={pagination.page >= pagination.totalPages} onClick={() => handlePageChange(Math.min(pagination.totalPages, pagination.page + 1))}>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
               </div>
+              )}
             </div>
           </div>
         </div>
