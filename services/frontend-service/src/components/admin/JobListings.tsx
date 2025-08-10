@@ -131,6 +131,7 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
+      case 'active': return 'border-green-500 text-green-600 bg-green-50';
       case 'approve': return 'border-green-500 text-green-500 bg-green-50';
       case 'flag': return 'border-blue-500 text-blue-500 bg-blue-50';
       case 'spam': return 'border-red-500 text-red-500 bg-red-50';
