@@ -1,0 +1,31 @@
+# Unified requirements for all AI services
+# Core FastAPI and server
+fastapi==0.115.0
+uvicorn==0.30.6
+python-dotenv==1.0.1
+pydantic==2.11.7
+python-multipart==0.0.12
+
+# Database
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.42
+pgvector==0.2.5
+
+# AI and ML
+sentence-transformers==3.1.1
+numpy==1.26.4
+groq==0.10.0
+
+# Language and text processing
+langdetect==1.0.9
+
+# HTTP clients
+httpx==0.24.1
+requests==2.32.4
+
+# PDF processing (for CV extraction)
+pdfplumber==0.11.4
+pdf2image==1.17.0
+
+# MongoDB (for CV extraction feedback)
+motor==3.7.0 
