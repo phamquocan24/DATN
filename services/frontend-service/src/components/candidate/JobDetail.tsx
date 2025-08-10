@@ -7,7 +7,7 @@ import work2 from '../../assets/work2.png';
 import work3 from '../../assets/work3.png';
 
 interface Job {
-  id: number;
+  id: string;
   title: string;
   company: string;
   location: string;
@@ -100,7 +100,7 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus })
                 {/* Header */}
                 <div className="flex justify-between items-center mb-6">
                     <button onClick={onBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium">
-                        <FiArrowLeft className="w-5 h-5" /> Back to job listings
+                        <FiArrowLeft className="w-5 h-5" /> Back to Find Jobs
                     </button>
                 </div>
 

@@ -154,7 +154,7 @@ BEGIN
             'Bachelor''s degree in Computer Science, Software Engineering, or related technical field',
             ARRAY['Vietnamese', 'English'],
             '2024-12-31',
-            'PUBLISHED',
+            'ACTIVE',
             NOW(),
             150
         ),
@@ -182,7 +182,7 @@ BEGIN
             'Bachelor''s degree in Computer Science, Information Technology, or related field',
             ARRAY['Vietnamese', 'English'],
             '2024-11-30',
-            'PUBLISHED',
+            'ACTIVE',
             NOW(),
             89
         ),
@@ -210,7 +210,7 @@ BEGIN
             'Bachelor''s degree in Marketing, Business Administration, Communications, or related field',
             ARRAY['Vietnamese', 'English'],
             '2024-12-15',
-            'PUBLISHED',
+            'ACTIVE',
             NOW(),
             67
         );

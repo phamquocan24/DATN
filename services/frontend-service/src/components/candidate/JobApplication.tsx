@@ -4,7 +4,7 @@ interface JobApplicationProps {
   isOpen: boolean;
   onClose: () => void;
   job: {
-    id: number;
+    id: string;
     title: string;
     company: string;
     location: string;

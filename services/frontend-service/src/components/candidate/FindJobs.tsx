@@ -2,11 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Footer } from './Footer';
 import GroupUnderline from '../../assets/Group.png';
 import candidateApi from '../../services/candidateApi'; // Sử dụng candidateApi
-import JobDetail from './JobDetail'; // Thêm JobDetail để xem chi tiết
+import { JobApplication } from './JobApplication';
+// import JobDetail from './JobDetail'; // Optional detail page
 
 
 interface Job {
-  id: number;
+  id: string;
   title: string;
   company: string;
   location: string;
@@ -32,9 +33,11 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
 
-  const [savedJobs, setSavedJobs] = useState<number[]>([]);
+  const [savedJobs, setSavedJobs] = useState<string[]>([]);
+  const [isApplicationOpen, setIsApplicationOpen] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [filters, setFilters] = useState({
     employmentType: [] as string[],
     categories: [] as string[],
@@ -48,8 +51,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
     salaryRange: false
   });
 
-  const [currentView, setCurrentView] = useState<'list' | 'detail'>('list');
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  // const [currentView, setCurrentView] = useState<'list' | 'detail'>('list');
 
   const fetchJobs = useCallback(async () => {
     setIsLoading(true);
@@ -75,20 +77,20 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
       }
 
       const formattedJobs = jobsArray.map((job: any, index: number) => ({
-        id: job.id || job._id,
+        id: (job.id || job._id || job.job_id || '').toString(),
         title: job.title,
         company: job.company?.name || 'Company',
         location: job.location || 'Location',
-        type: job.type || 'Full Time',
+        type: job.type || job.employment_type || 'Full Time',
         tags: [
           ...(job.skills?.slice(0, 2) || ['Business']),
           `Match: ${job.matchScore || Math.floor(Math.random() * 40) + 40}%`
         ],
-        logo: job.company?.name?.charAt(0) || 'C',
+        logo: (job.company?.name || job.title || 'C').charAt(0).toUpperCase(),
         logoColor: `bg-${['blue', 'green', 'purple', 'red', 'teal'][index % 5]}-500 text-white`,
         match: job.matchScore || Math.floor(Math.random() * 40) + 40,
         applied: job.applicationsCount || 0,
-        capacity: job.openPositions || 1,
+        capacity: job.openPositions || job.max_applications || 1,
         salary: job.salary,
         description: job.description || 'No description available.',
         requirements: job.requirements || 'No requirements listed.',
@@ -97,9 +99,12 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
       }));
 
       setJobs(formattedJobs);
-      // Only update total, not page/limit to avoid infinite loop
-      const newTotal = jobsData?.total || jobsArray.length;
-      setPagination(prev => ({ ...prev, total: newTotal }));
+      // Sync pagination with API response if available
+      const apiPage = jobsData?.pagination?.page ?? pagination.page;
+      const apiLimit = jobsData?.pagination?.limit ?? pagination.limit;
+      const apiTotal = jobsData?.pagination?.total ?? (jobsArray.length || 0);
+      const apiTotalPages = jobsData?.pagination?.totalPages ?? Math.max(1, Math.ceil(apiTotal / apiLimit));
+      setPagination({ page: apiPage, limit: apiLimit, total: apiTotal, totalPages: apiTotalPages });
       setError(null);
     } catch (err) {
       setError('Failed to fetch jobs.');
@@ -114,12 +119,66 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
     fetchJobs();
   }, [searchQuery, location, pagination.page, pagination.limit, filters]);
 
-  const toggleSavedJob = (jobId: number) => {
-    setSavedJobs(prev => 
-      prev.includes(jobId) 
-        ? prev.filter(id => id !== jobId)
-        : [...prev, jobId]
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1) return;
+    setPagination(prev => ({ ...prev, page: newPage }));
+  };
+
+  const renderPagination = () => {
+    if ((pagination.totalPages || 0) <= 1) return null;
+    const current = pagination.page;
+    const totalPages = pagination.totalPages || Math.max(1, Math.ceil((pagination.total || 0) / (pagination.limit || 10)));
+    const start = Math.max(1, current - 2);
+    const pages: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const p = start + i;
+      if (p <= totalPages) pages.push(p);
+    }
+    return (
+      <div className="flex items-center justify-center space-x-2">
+        <button className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50" disabled={current <= 1} onClick={() => handlePageChange(current - 1)}>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        {pages.map(p => (
+          <button key={p} onClick={() => handlePageChange(p)} className={`w-8 h-8 rounded ${p === current ? 'bg-[#007BFF] text-white font-medium' : 'text-gray-600 hover:bg-gray-100'}`}>{p}</button>
+        ))}
+        {current + 2 < totalPages && <span className="text-gray-400">...</span>}
+        {current !== totalPages && totalPages > 5 && (
+          <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded" onClick={() => handlePageChange(totalPages)}>{totalPages}</button>
+        )}
+        <button className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50" disabled={current >= totalPages} onClick={() => handlePageChange(current + 1)}>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
     );
+  };
+
+  const toggleSavedJob = async (jobId: string) => {
+    try {
+      if (savedJobs.includes(jobId)) {
+        await candidateApi.removeJobFromFavorites(jobId);
+        setSavedJobs(prev => prev.filter(id => id !== jobId));
+      } else {
+        await candidateApi.addJobToFavorites(jobId);
+        setSavedJobs(prev => [...prev, jobId]);
+      }
+    } catch (err) {
+      console.error('Failed to toggle favorite job', err);
+    }
+  };
+
+  const handleApply = (job: Job) => {
+    setSelectedJob(job);
+    setIsApplicationOpen(true);
+  };
+
+  const closeApply = () => {
+    setIsApplicationOpen(false);
+    setSelectedJob(null);
   };
 
   const handleFilterChange = (filterType: keyof typeof filters, value: string) => {
@@ -170,7 +229,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
 
   const JobCard = ({ job }: { job: Job }) => (
     <div 
-      className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group cursor-pointer text-left"
+      className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 transform hover:border-[#007BFF]/30 transition-all duration-200 group cursor-pointer text-left"
       onClick={() => onJobClick?.(job.id.toString())}
     >
       <div className="flex items-start justify-between mb-4">
@@ -190,9 +249,10 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
             e.stopPropagation();
             toggleSavedJob(job.id);
           }}
-          className="text-gray-400 hover:text-red-500 transition-colors"
+          className={`p-2 rounded-lg transition-colors ${savedJobs.includes(job.id) ? 'text-red-500 hover:bg-red-50' : 'text-gray-400 hover:bg-gray-100'}`}
+          aria-label={savedJobs.includes(job.id) ? 'Remove from favorites' : 'Add to favorites'}
         >
-          <svg className="w-5 h-5" fill={savedJobs.includes(job.id) ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5" fill={savedJobs.includes(job.id) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
           </svg>
         </button>
@@ -220,10 +280,10 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
         <span className="text-sm text-gray-500">
           {job.applied} applied of {job.capacity} capacity
         </span>
-        <button 
+        <button
           onClick={(e) => {
             e.stopPropagation();
-            onJobClick?.(job.id.toString());
+            handleApply(job);
           }}
           className="bg-[#007BFF] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#0056b3] transition-colors"
         >
@@ -536,7 +596,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
                 <div className="flex items-start justify-between mb-6">
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900">New Jobs</h2>
-                    <p className="text-sm text-gray-500 mt-1">Showing 73 results</p>
+                    <p className="text-sm text-gray-500 mt-1">Showing {pagination.total} results</p>
                   </div>
                   <div className="flex items-center space-x-4 ml-auto">
                     <div className="flex items-center space-x-2">
@@ -577,33 +637,15 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
                 </div>
               </div>
 
-              {/* Pagination */}
-              <div className="flex items-center justify-center space-x-2 mb-8">
-                <button className="p-2 text-gray-400 hover:text-gray-600">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <button className="w-8 h-8 bg-[#007BFF] text-white rounded font-medium">1</button>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">2</button>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">3</button>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">4</button>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">5</button>
-                <span className="text-gray-400">...</span>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">33</button>
-                <button className="p-2 text-gray-400 hover:text-gray-600">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
+              {/* Pagination (API-synced) */}
+              <div className="mb-8">{renderPagination()}</div>
 
               {/* Suitable Jobs Section */}
               <div>
                 <div className="flex items-start justify-between mb-6">
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900">Suitable Jobs</h2>
-                    <p className="text-sm text-gray-500 mt-1">Showing 73 results</p>
+                    <p className="text-sm text-gray-500 mt-1">Showing {pagination.total} results</p>
                   </div>
                   <div className="flex items-center space-x-4 ml-auto">
                     <div className="flex items-center space-x-2">
@@ -630,36 +672,27 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
                 </div>
 
                 <div className="space-y-4">
-                  {jobs.slice(5, 10).map((job) => (
+                  {jobs.map((job) => (
                     <JobCard key={job.id} job={job} />
                   ))}
                 </div>
               </div>
 
-              {/* Pagination */}
-              <div className="flex items-center justify-center space-x-2 mt-8">
-                <button className="p-2 text-gray-400 hover:text-gray-600">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <button className="w-8 h-8 bg-[#007BFF] text-white rounded font-medium">1</button>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">2</button>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">3</button>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">4</button>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">5</button>
-                <span className="text-gray-400">...</span>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">33</button>
-                <button className="p-2 text-gray-400 hover:text-gray-600">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
+              {/* Pagination (API-synced) */}
+              <div className="mt-8">{renderPagination()}</div>
             </div>
           </div>
         </div>
       </div>
+      
+      {/* Application Modal */}
+      {selectedJob && (
+        <JobApplication
+          isOpen={isApplicationOpen}
+          onClose={closeApply}
+          job={selectedJob as any}
+        />
+      )}
       
       {/* Footer */}
       <Footer />
