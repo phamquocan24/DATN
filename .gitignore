@@ -147,6 +147,8 @@ junit.xml
 uploads/
 /public/uploads/
 /services/business-service/uploads/
+/services/ai-service/*/uploads/
+/services/ai-service/extract_and_improve_cv/uploads/
 /frontend/public/uploads/
 
 # ===================================
@@ -186,7 +188,12 @@ venv.bak/
 # ===================================
 /services/ai-service/venv/
 /services/ai-service/.venv/
+/services/ai-service/ai_env/
 /services/ai-service/__pycache__/
+/services/ai-service/*/__pycache__/
+/services/ai-service/*/venv/
+/services/ai-service/*/.venv/
+/services/ai-service/.dependencies_installed
 
 # ===================================
 # Jupyter Notebook
@@ -291,6 +298,24 @@ firebase-debug.log
 firebase-debug.*.log
 
 # ===================================
+# AI Service specific
+# ===================================
+# Dataset files
+/services/ai-service/*/dataset/
+/services/ai-service/*/data/
+*.pkl
+*.model
+*.joblib
+
+# ML model files
+models/
+checkpoints/
+*.h5
+*.pt
+*.pth
+*.onnx
+
+# ===================================
 # Miscellaneous
 # ===================================
 *.error
@@ -357,6 +382,11 @@ setup-*.ps1
 database.env
 setup-database.sh
 setup-database.ps1
+
+# Database removed files (no longer needed)
+run-migration.js
+run-simple-migration.js
+check-schema.js
 
 # Docker files in root (keep service-specific ones)
 docker-compose.yml

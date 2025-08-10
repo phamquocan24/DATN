@@ -3,6 +3,7 @@
 require('dotenv').config({ path: require('path').resolve(__dirname, '../database.env') });
 
 const { dbConfig } = require('./config');
+const { createDatabase } = require('./create-database');
 const path = require('path');
 const winston = require('winston');
 
@@ -27,6 +28,7 @@ const logger = winston.createLogger({
 class DatabaseSetup {
   constructor() {
     this.commands = {
+      'create-db': this.createDatabaseOnly.bind(this),
       init: this.initialize.bind(this),
       migrate: this.migrate.bind(this),
       seed: this.seed.bind(this),
@@ -58,11 +60,30 @@ class DatabaseSetup {
   }
 
   /**
+   * Create database only (without migrations/seeds)
+   */
+  async createDatabaseOnly() {
+    try {
+      logger.info('🚀 Creating database...');
+      await createDatabase();
+      logger.info('✅ Database creation completed successfully');
+    } catch (error) {
+      logger.error('❌ Database creation failed:', error.message);
+      process.exit(1);
+    }
+  }
+
+  /**
    * Initialize database (migrations + seeds)
    */
   async initialize() {
     try {
       logger.info('🚀 Initializing database...');
+      
+      // First, ensure database exists
+      await createDatabase();
+      
+      // Then run migrations and seeds
       await dbConfig.initialize();
       logger.info('✅ Database initialization completed successfully');
     } catch (error) {
@@ -193,6 +214,7 @@ class DatabaseSetup {
 Usage: node setup.js [command] [options]
 
 Commands:
+  create-db Create database only (first-time setup)
   init      Initialize database (run migrations and seeds)
   migrate   Run database migrations only
   seed      Run database seeds only
@@ -205,7 +227,8 @@ Options:
   --force   Force operation without confirmation (use with caution)
 
 Examples:
-  node setup.js init                # Initialize database
+  node setup.js create-db          # Create database (first-time)
+  node setup.js init               # Initialize database
   node setup.js migrate            # Run migrations only
   node setup.js seed               # Run seeds only
   node setup.js reset              # Reset database
