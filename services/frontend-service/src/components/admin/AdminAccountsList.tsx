@@ -287,7 +287,7 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
 
   return (
     <AdminLayout>
-    <div className="p-8 bg-white">
+    <div className="p-8">
       {/* Top Admin Bar */}
       <div className="flex items-center justify-between mb-6">
         {/* User Info */}
@@ -373,18 +373,18 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
-        <table className="w-full min-w-[960px]">
+      <div className="bg-white rounded-lg border border-gray-200">
+        <table className="w-full">
           <thead>
             <tr className="border-b border-gray-200">
               <th className="w-6 p-4">
                 <input type="checkbox" className="rounded border-gray-300" />
               </th>
-              <th className="px-6 py-4 text-left font-medium text-gray-600">Full Name <FiChevronDown className="inline-block ml-1 text-gray-400" /></th>
-              <th className="px-6 py-4 text-left font-medium text-gray-600">Email <FiChevronDown className="inline-block ml-1 text-gray-400" /></th>
-              <th className="px-6 py-4 text-left font-medium text-gray-600">Status <FiChevronDown className="inline-block ml-1 text-gray-400" /></th>
-              <th className="px-6 py-4 text-left font-medium text-gray-600">Type <FiChevronDown className="inline-block ml-1 text-gray-400" /></th>
-              <th className="px-6 py-4 text-left font-medium text-gray-600">Action</th>
+              <th className="px-6 py-4 text-left font-medium text-gray-600 w-1/4">Full Name <FiChevronDown className="inline-block ml-1 text-gray-400" /></th>
+              <th className="px-6 py-4 text-left font-medium text-gray-600 w-1/4">Email <FiChevronDown className="inline-block ml-1 text-gray-400" /></th>
+              <th className="px-6 py-4 text-left font-medium text-gray-600 w-1/6">Status <FiChevronDown className="inline-block ml-1 text-gray-400" /></th>
+              <th className="px-6 py-4 text-left font-medium text-gray-600 w-1/6">Type <FiChevronDown className="inline-block ml-1 text-gray-400" /></th>
+              <th className="px-6 py-4 text-left font-medium text-gray-600 w-1/6">Action</th>
             </tr>
           </thead>
           <tbody>

@@ -2,7 +2,7 @@ import { useState, Fragment, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { FiX, FiCheck, FiFileText, FiThumbsUp, FiThumbsDown, FiAlertCircle } from 'react-icons/fi';
 import { IoSparklesOutline } from 'react-icons/io5';
-import api from '../../services/api';
+import aiApi from '../../services/aiApi';
 
 interface Resume {
   id: number;
@@ -58,21 +58,15 @@ export const EnhanceResumeModal: React.FC<EnhanceResumeModalProps> = ({ isOpen, 
       return;
     }
 
-    const formData = new FormData();
-    formData.append('cv', resume.file);
-    // Add other necessary fields if the API requires them
-    formData.append('company_name', resume.company); 
-    // formData.append('position', 'Software Engineer'); // Example, adjust as needed
-
     try {
-      const response = await api.post('/api/v1/cvs/enhance', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      const data = await aiApi.improveCv(resume.file, {
+        company: resume.company,
+        position: 'Software Engineer',
+        field: 'Software',
       });
 
-      if (response.data && response.data.suggestions) {
-        setSuggestions(response.data.suggestions);
+      if (data && data.description && data.matchScore) {
+        setSuggestions(data as any);
         setStep('preview');
       } else {
         // Fallback to mock data if API response is not as expected
