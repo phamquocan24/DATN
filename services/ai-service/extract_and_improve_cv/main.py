@@ -5,13 +5,19 @@ from groq import Groq
 import json
 import os
 import shutil
-from pdf2image import convert_from_path
+import fitz  # PyMuPDF
 import base64
 from pydantic import BaseModel
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
+import logging
+import traceback
 
 load_dotenv()
+
+# Setup logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -76,16 +82,16 @@ def extract_cv(cv_path, json_mau):
     return(response)
 
 
-# hàm để chuyển ảnh từ định dạng Image thành định dạng chuỗi base64
-def encode_image(image):
-    import io
-    buffered = io.BytesIO()
-    image.save(buffered, format="JPEG")
-    return base64.b64encode(buffered.getvalue()).decode('utf-8')
+# hàm để chuyển ảnh từ định dạng PyMuPDF pixmap thành định dạng chuỗi base64
+def encode_image(pixmap):
+    img_data = pixmap.tobytes("jpeg")
+    return base64.b64encode(img_data).decode('utf-8')
 
 
 #-------------------Hàm để yêu cầu cải thiện cv------------------------
 def improve_cv(cv_path, cong_ty_ung_tuyen:str, vi_tri_ung_tuyen:str, linh_vuc:str):
+    logger.info(f"Starting CV improvement for file: {cv_path}")
+    logger.info(f"Company: {cong_ty_ung_tuyen}, Position: {vi_tri_ung_tuyen}, Field: {linh_vuc}")
     cv_text = ""
     with pdfplumber.open(cv_path) as pdf:
         for page in pdf.pages:
@@ -118,16 +124,28 @@ def improve_cv(cv_path, cong_ty_ung_tuyen:str, vi_tri_ung_tuyen:str, linh_vuc:st
         }
     ]
 
-    # Store Pdf with convert_from_path function
-    images = convert_from_path(cv_path)
-
-    for image in images:
-        base64_image = encode_image(image)
+    # Chuyển PDF sang ảnh bằng PyMuPDF (fitz)
+    try:
+        doc = fitz.open(cv_path)
+        logger.info(f"Successfully opened PDF with {len(doc)} pages")
+        
+        for page in doc:
+            pix = page.get_pixmap()
+            base64_image = encode_image(pix)
+            content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{base64_image}",
+                }
+            })
+        doc.close()
+    except Exception as e:
+        logger.warning(f"Could not convert PDF to images using PyMuPDF: {e}")
+        logger.info("Continuing with text-only analysis...")
+        # Add a note that visual analysis is not available
         content.append({
-            "type": "image_url",
-            "image_url": {
-                "url": f"data:image/jpeg;base64,{base64_image}",
-            }
+            "type": "text", 
+            "text": "\n[Lưu ý: Không thể phân tích hình ảnh CV do lỗi chuyển đổi PDF. Chỉ phân tích nội dung text.]"
         })
 
     # Khởi tạo client
@@ -167,32 +185,92 @@ class Feedback(BaseModel):
 
 @app.post("/extract-cv")
 def extract_cv2(cv: UploadFile = File(...)):
-    if not cv.filename.endswith(".pdf"):
-        return JSONResponse(status_code=400, content={"message": "Chỉ hỗ trợ file PDF."})
-
-    file_path = os.path.join(UPLOAD_DIR, cv.filename)
-
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(cv.file, buffer)
-
     try:
+        # Validate file
+        if not cv.filename or not cv.filename.endswith(".pdf"):
+            return JSONResponse(status_code=400, content={"message": "Chỉ hỗ trợ file PDF."})
+
+        file_path = os.path.join(UPLOAD_DIR, cv.filename)
+
+        # Save uploaded file
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(cv.file, buffer)
+
+        # Extract CV data
         cv_extract = extract_cv(file_path, json_mau)
-        return(cv_extract)
+        
+        # Clean up uploaded file
+        try:
+            os.remove(file_path)
+        except:
+            pass  # Ignore cleanup errors
+            
+        return JSONResponse(status_code=200, content={"data": cv_extract})
+        
     except Exception as e:
-        return f"Lỗi khi trích xuất CV: {str(e)}"
+        # Clean up file if exists
+        try:
+            if 'file_path' in locals():
+                os.remove(file_path)
+        except:
+            pass
+        
+        logger.error(f"Error in extract_cv2: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return JSONResponse(status_code=500, content={"message": f"Lỗi khi trích xuất CV: {str(e)}"})
+    finally:
+        # Ensure file is closed
+        try:
+            cv.file.close()
+        except:
+            pass
 
 @app.post("/improve-cv")
 def improve_cv_api(cv: UploadFile = File(...), cong_ty_ung_tuyen: str=Form(...), vi_tri_ung_tuyen: str=Form(...), linh_vuc: str=Form(...)):
-    if not cv.filename.endswith(".pdf"):
-        return JSONResponse(status_code=400, content={"message": "Chỉ hỗ trợ file PDF."})
+    try:
+        # Validate file type
+        if not cv.filename or not cv.filename.endswith(".pdf"):
+            return JSONResponse(status_code=400, content={"message": "Chỉ hỗ trợ file PDF."})
 
-    file_path = os.path.join(UPLOAD_DIR, cv.filename)
+        # Validate form data
+        if not cong_ty_ung_tuyen.strip() or not vi_tri_ung_tuyen.strip() or not linh_vuc.strip():
+            return JSONResponse(status_code=400, content={"message": "Vui lòng điền đầy đủ thông tin công ty, vị trí và lĩnh vực."})
 
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(cv.file, buffer)
+        file_path = os.path.join(UPLOAD_DIR, cv.filename)
 
-    response = improve_cv(file_path, cong_ty_ung_tuyen, vi_tri_ung_tuyen, linh_vuc)
-    return(response)
+        # Save uploaded file
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(cv.file, buffer)
+
+        # Process CV improvement
+        response = improve_cv(file_path, cong_ty_ung_tuyen, vi_tri_ung_tuyen, linh_vuc)
+        
+        # Clean up uploaded file
+        try:
+            os.remove(file_path)
+        except:
+            pass  # Ignore cleanup errors
+            
+        return response
+        
+    except Exception as e:
+        # Clean up file if exists
+        try:
+            if 'file_path' in locals():
+                os.remove(file_path)
+        except:
+            pass
+        
+        logger.error(f"Error in improve_cv_api: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return JSONResponse(status_code=500, content={"message": f"Lỗi khi cải thiện CV: {str(e)}"})
+    finally:
+        # Ensure file is closed
+        try:
+            cv.file.close()
+        except:
+            pass
+
 
 @app.post("/feedback") #lưu trữ vào database
 async def save_feedback(feedback: Feedback):
