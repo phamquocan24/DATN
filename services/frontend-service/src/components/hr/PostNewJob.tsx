@@ -67,11 +67,11 @@ const JobInformation = ({ jobData, handleInputChange }: { jobData: any, handleIn
                 </select>
             </div>
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Work Type *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Work Arrangement *</label>
                 <p className="text-xs text-gray-500 mb-2">Select work arrangement.</p>
                 <select 
-                  name="work_type"
-                  value={jobData.work_type}
+                  name="remote_work_option"
+                  value={jobData.remote_work_option}
                   onChange={handleInputChange}
                   className="w-full border-gray-300 rounded-lg shadow-sm"
                   required
@@ -99,14 +99,28 @@ const JobInformation = ({ jobData, handleInputChange }: { jobData: any, handleIn
                 </select>
             </div>
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Location *</label>
-                <p className="text-xs text-gray-500 mb-2">Job location or "Remote" for remote positions.</p>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Work Arrangement *</label>
+                <p className="text-xs text-gray-500 mb-2">Describe the work arrangement for this position.</p>
                 <input 
                   type="text" 
-                  name="location"
-                  value={jobData.location}
+                  name="work_arrangement"
+                  value={jobData.work_arrangement}
                   onChange={handleInputChange}
-                  placeholder="e.g. Ho Chi Minh City, Vietnam" 
+                  placeholder="e.g. Office-based in District 1, HCMC or Remote Work" 
+                  className="w-full border-gray-300 rounded-lg shadow-sm"
+                  required
+                />
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Number of Positions *</label>
+                <p className="text-xs text-gray-500 mb-2">How many people do you need to hire for this position?</p>
+                <input 
+                  type="number" 
+                  name="max_applications"
+                  value={jobData.max_applications}
+                  onChange={handleInputChange}
+                  placeholder="1"
+                  min="1"
                   className="w-full border-gray-300 rounded-lg shadow-sm"
                   required
                 />
@@ -123,6 +137,28 @@ const JobInformation = ({ jobData, handleInputChange }: { jobData: any, handleIn
                   required
                 />
             </div>
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Job Category</label>
+                <p className="text-xs text-gray-500 mb-2">Select the job category for better filtering.</p>
+                <select 
+                  name="category"
+                  value={jobData.category}
+                  onChange={handleInputChange}
+                  className="w-full border-gray-300 rounded-lg shadow-sm"
+                >
+                    <option value="">Select a category</option>
+                    <option value="Technology">Technology</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Sales">Sales</option>
+                    <option value="Human Resources">Human Resources</option>
+                    <option value="Operations">Operations</option>
+                    <option value="Design">Design</option>
+                    <option value="Customer Service">Customer Service</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
             <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Salary Range</label>
                 <p className="text-xs text-gray-500 mb-2">Please specify the estimated salary range for the role. *You can leave this blank.</p>
@@ -236,16 +272,17 @@ const PostNewJob: React.FC = () => {
     requirements: '',
     benefits: '',
     employment_type: 'FULL_TIME',
-    work_type: 'ONSITE',
+    remote_work_option: 'ONSITE',
     salary_min: 0,
     salary_max: 0,
     currency: 'VND',
     experience_level: 'ENTRY',
-    location: '',
+    work_arrangement: '',
     application_deadline: '',
+    max_applications: 1,
+    category: '',
     skills: [] as string[],
     // Legacy fields for UI compatibility
-    category: '',
     responsibilities: '',
     whoYouAre: '',
     niceToHaves: '',
@@ -265,28 +302,29 @@ const PostNewJob: React.FC = () => {
     setIsSubmitting(true);
     setSubmitError(null);
     
-    // Validation
-    if (!jobData.title || !jobData.description || !jobData.requirements || !jobData.benefits || !jobData.location || !jobData.application_deadline) {
+    // Validation - check all required fields including work_arrangement
+    if (!jobData.title || !jobData.description || !jobData.requirements || !jobData.benefits || !jobData.work_arrangement || !jobData.application_deadline || !jobData.max_applications) {
       setSubmitError('Please fill in all required fields.');
       setIsSubmitting(false);
       return;
     }
 
     try {
-      // Format the data as per API requirements
+      // Format the data exactly as backend expects - now database has address column
       const payload = {
         job_title: jobData.title,
-        description: jobData.description,
-        requirements: jobData.requirements,
-        benefits: jobData.benefits,
+        job_description: jobData.description,
+        job_requirements: jobData.requirements,
+        job_benefits: jobData.benefits,
         employment_type: jobData.employment_type,
-        work_type: jobData.work_type,
+        work_type: jobData.remote_work_option,
+        work_location: jobData.work_arrangement,
         salary_min: Number(jobData.salary_min) || 0,
         salary_max: Number(jobData.salary_max) || 0,
         currency: jobData.currency,
-        experience_level: jobData.experience_level,
-        location: jobData.location,
-        application_deadline: jobData.application_deadline,
+        job_level: jobData.experience_level,
+        deadline: jobData.application_deadline,
+        number_of_positions: Number(jobData.max_applications) || 1,
       };
 
       console.log('Creating job with payload:', payload);

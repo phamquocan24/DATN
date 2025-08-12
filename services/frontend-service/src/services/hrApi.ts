@@ -25,7 +25,7 @@ export const hrApi = {
 
   // Job Management
   createJob: async (jobData: any) => {
-    const response = await apiClient.post('/api/v1/jobs', jobData);
+    const response = await apiClient.post('/jobs', jobData);
     return response.data;
   },
 
@@ -55,9 +55,14 @@ export const hrApi = {
   },
 
   getMyJobs: async (params?: {
+    search?: string;
+    employment_type?: string;
+    work_type?: string;
+    status?: string;
     page?: number;
     limit?: number;
-    status?: string;
+    orderBy?: string;
+    direction?: string;
   }) => {
     const response = await apiClient.get('/api/v1/jobs/my-jobs', { params });
     return response.data;
@@ -160,6 +165,30 @@ export const hrApi = {
   getProfile: async () => {
     const response = await apiClient.get('/user/profile');
     return response.data;
+  },
+
+  // Get current user's company profile
+  getMyCompanyProfile: async () => {
+    try {
+      // First get user profile to get company_id
+      const userProfile = await apiClient.get('/user/profile');
+      const user = userProfile.data?.data?.user || userProfile.data?.user || userProfile.data;
+      
+      console.log('User profile response:', userProfile.data); // Debug log
+      console.log('Extracted user:', user); // Debug log
+      
+      if (!user.recruiter_profile?.company_id) {
+        throw new Error('No company associated with this user. Please contact administrator to set up your company profile.');
+      }
+      
+      // Then get company details
+      const companyResponse = await apiClient.get(`/companies/${user.recruiter_profile.company_id}`);
+      console.log('Company response:', companyResponse.data); // Debug log
+      return companyResponse.data;
+    } catch (error) {
+      console.error('Error fetching company profile:', error);
+      throw error;
+    }
   },
 
   updateProfile: async (profileData: any) => {

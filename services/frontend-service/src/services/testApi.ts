@@ -145,8 +145,9 @@ export const testApi = {
   },
 
   // Get candidate test result details
-  getCandidateResult: async (testId: string, candidateId: string) => {
-    const response = await apiClient.get(`/api/v1/tests/${testId}/results/${candidateId}`);
+  getCandidateResult: async (testId: string, candidateId: string, applicationId?: string) => {
+    const params = applicationId ? { candidate_id: candidateId, application_id: applicationId } : { candidate_id: candidateId };
+    const response = await apiClient.get(`/api/v1/tests/${testId}/result`, { params });
     return response.data;
   },
 };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiArrowLeft, FiCheck, FiX } from 'react-icons/fi';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import testApi from '../../services/testApi';
 
 interface Question {
@@ -27,6 +27,7 @@ interface TestResult {
 const TestResultDetails: React.FC = () => {
     const navigate = useNavigate();
     const { id: testId, candidateId } = useParams<{ id: string; candidateId: string }>();
+    const [searchParams] = useSearchParams();
     const [testResult, setTestResult] = useState<TestResult | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -35,13 +36,26 @@ const TestResultDetails: React.FC = () => {
         if (testId && candidateId) {
             loadTestResult();
         }
-    }, [testId, candidateId]);
+    }, [testId, candidateId, searchParams]);
 
     const loadTestResult = async () => {
         try {
             setLoading(true);
-            const response = await testApi.getCandidateResult(testId!, candidateId!);
-            setTestResult(response);
+            const applicationId = searchParams.get('application_id');
+            
+            // Call API with application_id if available
+            const response = await testApi.getCandidateResult(testId!, candidateId!, applicationId || undefined);
+            
+            // Map backend data to frontend expected format
+            const mappedResult = {
+                ...response,
+                test_id: response.test_id || testId,
+                candidate_id: response.candidate_id || candidateId,
+                questions: response.questions || [],
+                answers: response.answers || {}
+            };
+            
+            setTestResult(mappedResult);
         } catch (err) {
             setError('Failed to load test result details');
             console.error('Error loading test result:', err);

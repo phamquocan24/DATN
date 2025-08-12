@@ -396,8 +396,16 @@ class TestController {
         });
       }
 
+      // Map frontend fields to match backend expectations
       const testData = {
-        ...value,
+        job_id: value.job_id,
+        test_name: value.test_name,
+        test_description: value.test_description,
+        test_type: value.test_type,
+        time_limit: value.time_limit,
+        passing_score: value.passing_score,
+        is_active: value.is_active,
+        questions: value.questions,
         created_by: req.user.user_id
       };
 

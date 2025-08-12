@@ -16,6 +16,7 @@ export { default as scheduleApi } from './scheduleApi';
 export { default as analyticsApi } from './analyticsApi';
 export { default as emailApi } from './emailApi';
 export { default as testApi } from './testApi';
+export { default as aiTestApi } from './aiTestApi';
 export { default as notificationApi } from './notificationApi';
 
 // API Hooks

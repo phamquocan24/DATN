@@ -14,6 +14,9 @@ interface TestDetails {
     created_at: string;
     updated_at: string;
     job_id: string;
+    job_title?: string;
+    company_name?: string;
+    company_id?: string;
     questions: any[];
 }
 
@@ -25,6 +28,7 @@ interface CandidateResult {
     status: 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'EXPIRED';
     submitted_at: string;
     avatar?: string;
+    application_id?: string;
 }
 
 const TestDetails: React.FC = () => {
@@ -53,7 +57,28 @@ const TestDetails: React.FC = () => {
         try {
             setLoading(true);
             const response = await testApi.getTestById(id!, true); // Include answers for HR
-            setTest(response);
+            
+            // Map backend field names to frontend expected names
+            const mappedTest = {
+                ...response,
+                id: response.test_id || response.id,
+                test_description: response.description || response.test_description,
+                time_limit: response.duration_minutes || response.time_limit,
+                questions: response.questions || [],
+                // Additional field mappings for completeness
+                test_name: response.test_name,
+                test_type: response.test_type || 'MULTIPLE_CHOICE',
+                passing_score: response.passing_score,
+                is_active: response.is_active,
+                created_at: response.created_at,
+                updated_at: response.updated_at,
+                job_id: response.job_id,
+                job_title: response.job_title,
+                company_name: response.company_name,
+                company_id: response.company_id
+            };
+            
+            setTest(mappedTest);
         } catch (err) {
             setError('Failed to load test details');
             console.error('Error loading test details:', err);
@@ -68,7 +93,20 @@ const TestDetails: React.FC = () => {
                 page: 1,
                 limit: 100
             });
-            setCandidates(response.data || response.results || []);
+            
+            // Map backend field names to frontend expected names
+            const mappedCandidates = (response.data || response.results || []).map((candidate: any) => ({
+                ...candidate,
+                id: candidate.test_result_id || candidate.id,
+                candidate_id: candidate.candidate_id,
+                candidate_name: candidate.candidate_name || candidate.full_name,
+                score: candidate.percentage_score || candidate.score,
+                status: candidate.status,
+                submitted_at: candidate.completed_at || candidate.submitted_at,
+                application_id: candidate.application_id
+            }));
+            
+            setCandidates(mappedCandidates);
         } catch (err) {
             console.error('Error loading test results:', err);
         }
@@ -182,11 +220,23 @@ const TestDetails: React.FC = () => {
                     </button>
                     <div>
                         <h2 className="text-2xl font-bold text-gray-800">{test.test_name}</h2>
-                        <p className="text-sm text-gray-500">
-                            Status: <span className={`font-semibold ${test.is_active ? 'text-green-500' : 'text-red-500'}`}>
-                                {test.is_active ? 'Active' : 'Inactive'}
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                            <span>
+                                Status: <span className={`font-semibold ${test.is_active ? 'text-green-500' : 'text-red-500'}`}>
+                                    {test.is_active ? 'Active' : 'Inactive'}
+                                </span>
                             </span>
-                        </p>
+                            {test.job_title && (
+                                <span>
+                                    Job: <span className="font-semibold text-gray-700">{test.job_title}</span>
+                                </span>
+                            )}
+                            {test.company_name && (
+                                <span>
+                                    Company: <span className="font-semibold text-gray-700">{test.company_name}</span>
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -303,7 +353,7 @@ const TestDetails: React.FC = () => {
                                         <td className="px-6 py-4">
                                             {candidate.status === 'COMPLETED' ? (
                                                 <button 
-                                                    onClick={() => navigate(`results/${candidate.candidate_id}`)} 
+                                                    onClick={() => navigate(`results/${candidate.candidate_id}?application_id=${candidate.application_id || ''}`)} 
                                                     className="text-[#007BFF] border border-[#007BFF] rounded-md px-3 py-1 hover:bg-blue-50"
                                                 >
                                                     View Answers

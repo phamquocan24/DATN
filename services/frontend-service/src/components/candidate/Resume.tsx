@@ -2,16 +2,19 @@ import { useState, useEffect } from 'react';
 import { Footer } from './Footer';
 import GroupUnderline from '../../assets/Group.png';
 import { EnhanceResumeModal } from './EnhanceResumeModal';
-import api from '../../services/api';
+import aiApi from '../../services/aiApi';
+import cvApi from '../../services/cvApi';
+import type { CV } from '../../services/cvApi';
 
-interface Resume {
-  id: number;
-  company: string;
-  jobCount: number;
-  description: string;
-  matchScore: number;
-  avatar: string;
-  hasEnhanced?: boolean;
+interface ResumeCardData {
+  id: string;
+  title: string;
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+  isPrimary: boolean;
+  createdAt: string;
+  extractedData?: any;
   file?: File;
 }
 
@@ -20,56 +23,128 @@ export const Resume: React.FC = () => {
   const [matchScore, setMatchScore] = useState('');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isEnhanceModalOpen, setIsEnhanceModalOpen] = useState(false);
-  const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
+  const [selectedResume, setSelectedResume] = useState<ResumeCardData | null>(null);
   
-  const [resumes, setResumes] = useState<Resume[]>([]);
-  const [isLoadingResumes, setIsLoadingResumes] = useState(true);
-  const [resumesError, setResumesError] = useState<string | null>(null);
+  const [cvs, setCvs] = useState<CV[]>([]);
+  const [isLoadingCvs, setIsLoadingCvs] = useState(true);
+  const [cvsError, setCvsError] = useState<string | null>(null);
 
   // States from EnhanceResume
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [extractedCvData, setExtractedCvData] = useState<any>(null);
+
+  const fetchCVs = async () => {
+    try {
+      setIsLoadingCvs(true);
+      setCvsError(null);
+      
+      // Debug: Check if user is authenticated
+      const token = localStorage.getItem('token');
+      console.log('Auth token exists:', !!token);
+      
+      const response = await cvApi.getMyCVs({ page: 1, limit: 20 });
+      setCvs(response.data);
+      
+    } catch (err: any) {
+      console.error('Fetch CVs Error:', err);
+      let errorMessage = 'Failed to load CVs. ';
+      
+      if (err.response?.status === 401 || err.response?.data?.error?.code === 'MISSING_TOKEN') {
+        errorMessage += 'Please log in to access your CVs.';
+        // Optionally redirect to login after a delay
+        setTimeout(() => {
+          if (window.location.pathname.includes('/resume')) {
+            window.location.href = '/login';
+          }
+        }, 3000);
+      } else if (err.response?.status === 403) {
+        errorMessage += 'You do not have permission to access CVs.';
+      } else if (err.response?.status >= 500) {
+        errorMessage += 'Server error. Please try again later.';
+      } else if (err.code === 'NETWORK_ERROR' || !err.response) {
+        errorMessage += 'Network error. Please check your connection and try again.';
+      } else {
+        errorMessage += 'Please try again later.';
+      }
+      
+      setCvsError(errorMessage);
+    } finally {
+      setIsLoadingCvs(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchResumes = async () => {
-      try {
-        setIsLoadingResumes(true);
-        const response = await api.get('/api/v1/cvs');
-        // Assuming the API returns an array of resumes in response.data
-        // You might need to adjust this based on your actual API response structure
-        setResumes(response.data.resumes || response.data); 
-      } catch (err: any) {
-        setResumesError('Failed to load resumes. Please try again later.');
-        console.error('Fetch Resumes Error:', err);
-      } finally {
-        setIsLoadingResumes(false);
-      }
-    };
-
-    fetchResumes();
+    fetchCVs();
   }, []);
 
-  const handleOpenEnhanceModal = (resume: Resume) => {
-    // We need to find the actual File object to pass to the modal.
-    // Since we only have one upload field, we'll associate the uploaded file
-    // with any resume that gets enhanced. This is a simplification.
-    // In a real-world scenario, you'd likely associate the uploaded file
-    // more directly with the resume it represents, perhaps by ID.
-    if (uploadedFile) {
-      setSelectedResume({ ...resume, file: uploadedFile });
-      setIsEnhanceModalOpen(true);
-    } else {
-      // If there's no file, we can't enhance. 
-      // We could show an error, or disable the "Enhanced resume" button.
-      // For now, let's alert the user.
-      alert("Please upload a resume first using the 'Add Your Resumes' section.");
-    }
+  const handleOpenEnhanceModal = (cv: CV) => {
+    const resumeData: ResumeCardData = {
+      id: cv.cv_id,
+      title: cv.cv_title,
+      fileName: cv.cv_file_name,
+      fileSize: cv.cv_file_size || 0,
+      fileType: cv.cv_file_type || 'pdf',
+      isPrimary: cv.is_primary || false,
+      createdAt: cv.created_at,
+      extractedData: extractedCvData,
+      file: uploadedFile || undefined
+    };
+    setSelectedResume(resumeData);
+    setIsEnhanceModalOpen(true);
   };
 
   const handleCloseEnhanceModal = () => {
     setIsEnhanceModalOpen(false);
     setSelectedResume(null);
+  };
+
+  const handleDeleteCV = async (cvId: string) => {
+    if (!confirm('Are you sure you want to delete this CV? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await cvApi.deleteCV(cvId);
+      
+      // Refresh CV list
+      await fetchCVs();
+      
+      setSuggestion('CV deleted successfully!');
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuggestion(null);
+      }, 3000);
+    } catch (error: any) {
+      console.error('Delete CV error:', error);
+      setError(error.response?.data?.error || error.message || 'Failed to delete CV');
+    }
+  };
+
+  const handleDownloadCV = (cv: CV) => {
+    // Open CV file in new tab for download
+    window.open(cv.cv_file_url, '_blank');
+  };
+
+  const handleSetPrimaryCV = async (cvId: string) => {
+    try {
+      await cvApi.updateCV(cvId, { is_primary: true });
+      
+      // Refresh CV list
+      await fetchCVs();
+      
+      setSuggestion('Primary CV updated successfully!');
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuggestion(null);
+      }, 3000);
+    } catch (error: any) {
+      console.error('Set primary CV error:', error);
+      setError(error.response?.data?.error || error.message || 'Failed to set primary CV');
+    }
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,94 +180,245 @@ export const Resume: React.FC = () => {
 
   const handleSubmit = async (file: File) => {
     if (!file) {
-      setError('Please upload your CV.');
+      setError('Please select a CV file to upload.');
       return;
     }
 
     setIsLoading(true);
     setError(null);
     setSuggestion(null);
-
-    const formData = new FormData();
-    formData.append('cv', file);
-    
-    // These fields are not in the new design, so we can send empty strings or remove them
-    // For now, let's keep the API call as it was in EnhanceResume, assuming the backend can handle empty values
-    formData.append('company_name', '');
-    formData.append('position', '');
-    formData.append('field', '');
+    setExtractedCvData(null);
 
     try {
-      await api.post('/api/v1/cvs', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      // Step 1: Extract CV data using AI service (parallel with file upload)
+      console.log('Starting CV processing...');
       
-      // Since the new design doesn't have a place to display suggestions,
-      // we might want to rethink this part. For now, let's just log it.
-      const mockSuggestion = 'Your CV has been successfully uploaded and is ready for improvement suggestions. Here are some general tips: 1. Tailor your CV to the job description. 2. Use action verbs to describe your accomplishments. 3. Quantify your achievements with numbers and data.';
-      setSuggestion(mockSuggestion);
-      console.log("Suggestion: ", mockSuggestion);
-      // Maybe open the modal with the suggestion? Or show a success notification.
-      // For now, we just update the state.
+      let extractedData = null;
+      let fileData = null;
+      
+      // Run AI extraction and file upload in parallel for better performance
+      const [extractResponse, uploadResponse] = await Promise.allSettled([
+        aiApi.extractCv(file),
+        cvApi.uploadFile(file)
+      ]);
+      
+      // Handle AI extraction result
+      if (extractResponse.status === 'fulfilled') {
+        try {
+          extractedData = typeof extractResponse.value.data === 'string' 
+            ? JSON.parse(extractResponse.value.data) 
+            : extractResponse.value.data;
+          setExtractedCvData(extractedData);
+          console.log('CV extraction successful:', extractedData);
+        } catch (parseError) {
+          console.error('Error parsing extracted CV data:', parseError);
+          extractedData = extractResponse.value.data;
+        }
+      } else {
+        console.warn('CV extraction failed:', extractResponse.reason);
+        // Continue without extraction data
+      }
+      
+      // Handle file upload result
+      if (uploadResponse.status === 'fulfilled') {
+        fileData = uploadResponse.value;
+        console.log('File upload successful:', fileData);
+      } else {
+        console.error('File upload failed:', uploadResponse.reason);
+        throw new Error('Failed to upload CV file. Please try again.');
+      }
+
+      // Step 2: Create CV entry in the system
+      const cvTitle = extractedData?.personal_info?.name 
+        ? `${extractedData.personal_info.name} - CV`
+        : `CV - ${new Date().toLocaleDateString()}`;
+        
+      const cvData = {
+        cv_title: cvTitle,
+        cv_file_url: fileData.data.url,
+        cv_file_name: fileData.data.fileName,
+        cv_file_size: fileData.data.fileSize,
+        cv_file_type: fileData.data.fileType,
+        is_primary: cvs.length === 0 // Set as primary if it's the first CV
+      };
+
+      console.log('Creating CV entry:', cvData);
+      await cvApi.createCV(cvData);
+      
+      // Step 3: Refresh CV list
+      await fetchCVs();
+      
+      // Success message
+      let successMessage = 'CV uploaded successfully! ';
+      
+      if (extractedData) {
+        successMessage += `\n\nKey information extracted:
+- Name: ${extractedData?.personal_info?.name || 'N/A'}
+- Email: ${extractedData?.personal_info?.email || 'N/A'}
+- Phone: ${extractedData?.personal_info?.phone || 'N/A'}
+- Skills: ${extractedData?.skills?.length ? extractedData.skills.slice(0, 3).join(', ') + (extractedData.skills.length > 3 ? '...' : '') : 'N/A'}
+
+Your CV is now ready for enhancement. Click "Enhance CV" to get AI-powered improvement suggestions.`;
+      } else {
+        successMessage += '\n\nYour CV has been uploaded and is available in your CV list. AI extraction was not available, but you can still use the enhancement features.';
+      }
+      
+      setSuggestion(successMessage);
 
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'An error occurred while enhancing the CV.';
+      console.error('CV processing error:', err);
+      let errorMessage = 'An error occurred while processing the CV.';
+      
+      if (err.response?.status === 401 || err.response?.data?.error?.code === 'MISSING_TOKEN') {
+        errorMessage = 'Authentication required. Please log in again.';
+        setTimeout(() => {
+          if (window.location.pathname.includes('/resume')) {
+            window.location.href = '/login';
+          }
+        }, 3000);
+      } else if (err.response?.status === 403) {
+        errorMessage = 'You do not have permission to upload CVs.';
+      } else if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
       setError(errorMessage);
-      console.error('CV Enhancement Error:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const ResumeCard = ({ resume }: { resume: Resume }) => (
-    <div className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group text-left">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center text-2xl">
-            {resume.avatar}
+  const CVCard = ({ cv }: { cv: CV }) => {
+    const [showActions, setShowActions] = useState(false);
+
+    const formatFileSize = (bytes: number) => {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
+    const formatDate = (dateString: string) => {
+      return new Date(dateString).toLocaleDateString();
+    };
+
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group text-left">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900">{cv.cv_title}</h3>
+              <p className="text-sm text-gray-500">{cv.cv_file_name}</p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-semibold text-gray-900">{resume.company}</h3>
+          <div className="flex items-center space-x-2">
+            {cv.is_primary && (
+              <span className="text-[#007BFF] text-xs bg-blue-100 px-2 py-1 rounded-full font-medium">
+                Primary
+              </span>
+            )}
+            <div className="relative">
+              <button 
+                onClick={() => setShowActions(!showActions)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                </svg>
+              </button>
+              
+              {showActions && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10">
+                  <button
+                    onClick={() => {
+                      handleDownloadCV(cv);
+                      setShowActions(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Download
+                  </button>
+                  
+                  {!cv.is_primary && (
+                    <button
+                      onClick={() => {
+                        handleSetPrimaryCV(cv.cv_id);
+                        setShowActions(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                      </svg>
+                      Set as Primary
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={() => {
+                      handleDeleteCV(cv.cv_id);
+                      setShowActions(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 flex items-center"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <span className="text-[#007BFF] text-sm font-medium">{resume.jobCount} Jobs</span>
-          <button className="text-gray-400 hover:text-gray-600">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+
+        <div className="text-sm text-gray-600 mb-4 space-y-1">
+          <p>File size: {formatFileSize(cv.cv_file_size || 0)}</p>
+          <p>Type: {cv.cv_file_type?.toUpperCase() || 'PDF'}</p>
+          <p>Uploaded: {formatDate(cv.created_at)}</p>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <span className="px-3 py-1 text-xs rounded-full font-medium bg-green-100 text-green-700">
+              Active
+            </span>
+          </div>
+          
+          <button 
+            onClick={() => handleOpenEnhanceModal(cv)}
+            className="bg-[#007BFF] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#0056b3] transition-colors flex items-center"
+          >
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
+            Enhance CV
           </button>
-        </div>
-      </div>
-
-      <p className="text-gray-600 text-sm mb-4 line-clamp-3 leading-relaxed">
-        {resume.description}
-      </p>
-
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <span className={`px-3 py-1 text-xs rounded-full font-medium ${
-            resume.matchScore >= 80 ? 'bg-green-100 text-green-700' :
-            resume.matchScore >= 60 ? 'bg-yellow-100 text-yellow-700' :
-            'bg-red-100 text-red-700'
-          }`}>
-            Match score: {resume.matchScore}%
-          </span>
         </div>
         
-        {resume.hasEnhanced && (
-          <button 
-            onClick={() => handleOpenEnhanceModal(resume)}
-            className="bg-[#007BFF] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#0056b3] transition-colors"
-          >
-            Enhanced resume
-          </button>
+        {/* Close dropdown when clicking outside */}
+        {showActions && (
+          <div 
+            className="fixed inset-0 z-0" 
+            onClick={() => setShowActions(false)}
+          />
         )}
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <>
@@ -270,19 +496,49 @@ export const Resume: React.FC = () => {
               </p>
             </div>
 
-            {isLoadingResumes ? (
-              <div className="text-center">
-                <p>Loading your resumes...</p>
-                {/* You can add a spinner here */}
+            {isLoadingCvs ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#007BFF] mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading your CVs...</p>
               </div>
-            ) : resumesError ? (
-              <div className="text-center text-red-500">
-                <p>{resumesError}</p>
+            ) : cvsError ? (
+              <div className="text-center text-red-500 py-8">
+                <svg className="w-12 h-12 mx-auto mb-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.98-.833-2.75 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <p className="text-lg font-medium mb-2">Failed to load CVs</p>
+                <p className="text-gray-600 mb-4">{cvsError}</p>
+                <div className="space-x-3">
+                  {cvsError.includes('log in') ? (
+                    <button 
+                      onClick={() => window.location.href = '/login'}
+                      className="px-4 py-2 bg-[#007BFF] text-white rounded-lg hover:bg-[#0056b3] font-medium"
+                    >
+                      Go to Login
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={fetchCVs}
+                      disabled={isLoadingCvs}
+                      className="px-4 py-2 bg-[#007BFF] text-white rounded-lg hover:bg-[#0056b3] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isLoadingCvs ? 'Loading...' : 'Try again'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : cvs.length === 0 ? (
+              <div className="text-center py-8">
+                <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <p className="text-lg font-medium text-gray-700 mb-2">No CVs found</p>
+                <p className="text-gray-500">Upload your first CV using the section below to get started.</p>
               </div>
             ) : (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {resumes.map((resume) => (
-                  <ResumeCard key={resume.id} resume={resume} />
+                {cvs.map((cv) => (
+                  <CVCard key={cv.cv_id} cv={cv} />
                 ))}
               </div>
             )}
@@ -310,11 +566,15 @@ export const Resume: React.FC = () => {
               </div>
               
               {isLoading ? (
-                 <p className="text-gray-600 font-medium mb-2">Uploading...</p>
+                <div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#007BFF] mx-auto mb-2"></div>
+                  <p className="text-gray-600 font-medium mb-2">Processing CV...</p>
+                  <p className="text-gray-500 text-sm">Extracting information and uploading...</p>
+                </div>
               ) : uploadedFile ? (
                 <div>
                   <p className="text-green-600 font-medium mb-2">
-                    File uploaded successfully!
+                    File processed successfully!
                   </p>
                   <p className="text-gray-600 text-sm">
                     {uploadedFile.name} ({(uploadedFile.size / 1024 / 1024).toFixed(2)} MB)
@@ -330,7 +590,7 @@ export const Resume: React.FC = () => {
                   </p>
                 </div>
               )}
-               {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+              {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
               
               <input
                 id="file-upload"
@@ -341,9 +601,54 @@ export const Resume: React.FC = () => {
               />
             </div>
             {suggestion && (
-                <div className="mt-10 p-6 bg-gray-50 rounded-lg">
-                    <h2 className="text-2xl font-bold mb-4">Suggestion</h2>
-                    <p className="text-gray-700 whitespace-pre-wrap">{suggestion}</p>
+                <div className="mt-10 p-6 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0">
+                        <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div className="ml-3 flex-1">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-lg font-bold text-green-800 mb-2">Success!</h3>
+                          <button
+                            onClick={() => setSuggestion(null)}
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                        <div className="text-green-700 whitespace-pre-wrap text-sm">{suggestion}</div>
+                      </div>
+                    </div>
+                </div>
+            )}
+            
+            {error && (
+                <div className="mt-10 p-6 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0">
+                        <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.98-.833-2.75 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                      </div>
+                      <div className="ml-3 flex-1">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-lg font-bold text-red-800 mb-2">Error</h3>
+                          <button
+                            onClick={() => setError(null)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                        <div className="text-red-700 text-sm">{error}</div>
+                      </div>
+                    </div>
                 </div>
             )}
           </div>

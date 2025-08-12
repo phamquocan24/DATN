@@ -61,8 +61,33 @@ const TestManagement: React.FC = () => {
                 search: searchTerm || undefined,
             });
             
-            setTests(response.data || response.tests || []);
-            setTotalTests(response.total || response.data?.length || 0);
+            // Map backend field names to frontend expected names
+            const mappedTests = (response.data || response.tests || []).map((test: any) => ({
+                ...test,
+                id: test.test_id || test.id,
+                test_description: test.description || test.test_description,
+                time_limit: test.duration_minutes || test.time_limit,
+                questions: [] // Will be loaded when needed
+            }));
+            
+            // Load questions count for each test
+            const testsWithQuestions = await Promise.all(
+                mappedTests.map(async (test) => {
+                    try {
+                        const testDetails = await testApi.getTestById(test.id, true);
+                        return {
+                            ...test,
+                            questions: testDetails.questions || []
+                        };
+                    } catch (err) {
+                        console.error(`Failed to load questions for test ${test.id}:`, err);
+                        return test; // Return test without questions if failed
+                    }
+                })
+            );
+            
+            setTests(testsWithQuestions);
+            setTotalTests(response.total || response.pagination?.total || testsWithQuestions.length);
         } catch (err) {
             setError('Failed to load tests');
             console.error('Error loading tests:', err);
@@ -264,9 +289,7 @@ const TestManagement: React.FC = () => {
                         )}
                     </tbody>
                 </table>
-                 <div className="text-center py-4">
-                    <button className="text-[#007BFF]">View All</button>
-                </div>
+
             </div>
 
             <CreateTestModal

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiX, FiPlus, FiTrash2, FiZap } from 'react-icons/fi';
 import testApi from '../../services/testApi';
 import hrApi from '../../services/hrApi';
+import aiTestApi from '../../services/aiTestApi';
+import aiServiceChecker from '../../utils/aiServiceChecker';
 
 interface Question {
   question_text: string;
@@ -20,7 +22,9 @@ interface CreateTestModalProps {
 const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTestCreated }) => {
   const [loading, setLoading] = useState(false);
   const [loadingJobs, setLoadingJobs] = useState(false);
+  const [loadingAI, setLoadingAI] = useState(false);
   const [jobs, setJobs] = useState<any[]>([]);
+  const [useAI, setUseAI] = useState(false);
   const [formData, setFormData] = useState({
     job_id: '',
     test_name: '',
@@ -112,6 +116,85 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
     setQuestions(prev => prev.filter((_, i) => i !== index));
   };
 
+  // AI Question Generation
+  const generateQuestionsWithAI = async () => {
+    if (!formData.job_id) {
+      alert('Please select a job first to generate AI questions');
+      return;
+    }
+
+    try {
+      setLoadingAI(true);
+      const response = await aiTestApi.generateInterviewQuestions(Number(formData.job_id));
+      
+      if (response.success && response.data) {
+        // Parse the AI response and convert to our Question format
+        const aiQuestions = parseAIQuestions(response.data);
+        
+        if (aiQuestions.length > 0) {
+          setQuestions(prev => [...prev, ...aiQuestions]);
+          alert(`🎉 Successfully generated ${aiQuestions.length} questions using AI!\n\nYou can review and edit them before creating the test.`);
+        } else {
+          alert('⚠️ AI service returned no questions.\n\nThis might happen if:\n- Job description is too brief\n- AI service needs more context\n\nTry creating questions manually or add more details to the job.');
+        }
+      } else {
+        throw new Error('AI service did not return valid data');
+      }
+    } catch (error: any) {
+      console.error('Error generating AI questions:', error);
+      
+      // Use AI service checker for better error messages
+      const errorMessage = aiServiceChecker.createErrorMessage(error);
+      alert(errorMessage);
+    } finally {
+      setLoadingAI(false);
+    }
+  };
+
+  // Parse AI response to our Question format
+  const parseAIQuestions = (aiResponse: any): Question[] => {
+    try {
+      // Handle different possible response formats
+      let questions: any[] = [];
+      
+      if (typeof aiResponse === 'string') {
+        // If response is a string, try to parse as JSON
+        try {
+          const parsed = JSON.parse(aiResponse);
+          questions = Array.isArray(parsed) ? parsed : [parsed];
+        } catch {
+          // If can't parse as JSON, create a simple essay question
+          return [{
+            question_text: aiResponse,
+            question_type: 'ESSAY' as const,
+            options: [],
+            correct_answer: 'Sample answer based on job requirements',
+            points: 10
+          }];
+        }
+      } else if (Array.isArray(aiResponse)) {
+        questions = aiResponse;
+      } else if (aiResponse.questions) {
+        questions = Array.isArray(aiResponse.questions) ? aiResponse.questions : [aiResponse.questions];
+      } else if (aiResponse.question) {
+        questions = [aiResponse.question];
+      } else {
+        questions = [aiResponse];
+      }
+
+      return questions.map((q: any, index: number) => ({
+        question_text: q.question_text || q.question || q.text || `AI Generated Question ${index + 1}`,
+        question_type: (q.question_type || q.type || 'ESSAY') as 'MULTIPLE_CHOICE' | 'ESSAY' | 'TRUE_FALSE',
+        options: q.options || q.choices || [],
+        correct_answer: q.correct_answer || q.answer || 'Please provide the expected answer',
+        points: q.points || q.score || 10
+      }));
+    } catch (error) {
+      console.error('Error parsing AI questions:', error);
+      return [];
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -175,7 +258,7 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
         ...formData,
         time_limit: Number(formData.time_limit),
         passing_score: Number(formData.passing_score),
-        created_by: currentUser.user_id, // Required by backend
+        // Remove created_by - backend will add it automatically from auth token
         questions: questions.map(q => ({
           question_text: q.question_text,
           question_type: q.question_type,
@@ -250,6 +333,7 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
       points: 5
     });
     setJobs([]);
+    setUseAI(false);
     onClose();
   };
 
@@ -386,11 +470,58 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
 
           {/* Questions Section */}
           <div className="border-t pt-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Questions ({questions.length})</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">Questions ({questions.length})</h3>
+              
+              {/* AI/Manual Toggle */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="useAI"
+                    checked={useAI}
+                    onChange={(e) => setUseAI(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="useAI" className="text-sm text-gray-700">
+                    Use AI to generate questions
+                  </label>
+                </div>
+                
+                {useAI && (
+                  <button
+                    type="button"
+                    onClick={generateQuestionsWithAI}
+                    disabled={loadingAI || !formData.job_id}
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={!formData.job_id ? 'Please select a job first' : ''}
+                  >
+                    <FiZap className={loadingAI ? 'animate-spin' : ''} />
+                    {loadingAI ? 'Generating...' : 'Generate AI Questions'}
+                  </button>
+                )}
+              </div>
+            </div>
             
-            {/* Add Question Form */}
-            <div className="bg-gray-50 p-4 rounded-lg mb-4">
-              <h4 className="font-medium text-gray-700 mb-3">Add New Question</h4>
+            {/* AI Service Status Indicator */}
+            {useAI && (
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
+                <div className="flex items-center gap-2 text-sm text-purple-700">
+                  <FiZap className="w-4 h-4" />
+                  <span className="font-medium">AI Mode Enabled</span>
+                </div>
+                <p className="text-xs text-purple-600 mt-1">
+                  AI questions will be generated based on the selected job description. 
+                  You can still add manual questions after generation.
+                </p>
+              </div>
+            )}
+
+            {/* Add Question Form - Always show, but with different styling if AI mode */}
+            <div className={`${useAI ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'} p-4 rounded-lg mb-4 border`}>
+              <h4 className="font-medium text-gray-700 mb-3">
+                {useAI ? 'Add Additional Manual Questions' : 'Add New Question'}
+              </h4>
               
               <div className="space-y-3">
                 <div>
@@ -523,11 +654,11 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
             </button>
             <button
               type="submit"
-              disabled={loading || loadingJobs || jobs.length === 0}
+              disabled={loading || loadingJobs || loadingAI || jobs.length === 0}
               className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               title={jobs.length === 0 ? 'No jobs available to create test for' : ''}
             >
-              {loading ? 'Creating...' : loadingJobs ? 'Loading Jobs...' : 'Create Test'}
+              {loading ? 'Creating...' : loadingJobs ? 'Loading Jobs...' : loadingAI ? 'Generating AI Questions...' : 'Create Test'}
             </button>
           </div>
         </form>

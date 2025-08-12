@@ -11,8 +11,8 @@ interface Job {
   created_at: string;
   application_deadline: string;
   employment_type: string;
-  applications_count?: number;
-  open_positions?: number;
+  application_count?: number; // Backend returns application_count
+  max_applications?: number; // Backend returns max_applications
   // Legacy fields for UI compatibility
   id?: number;
   role?: string;
@@ -21,6 +21,7 @@ interface Job {
   jobType?: string;
   applicants?: number;
   needs?: string;
+  statusDisplay?: string;
 }
 
 const JobManagement: React.FC = () => {
@@ -29,6 +30,12 @@ const JobManagement: React.FC = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState({
+    search: '',
+    employment_type: '',
+    work_type: '',
+    status: ''
+  });
 
   const pageOptions = [10, 20, 30];
   const pageSelectRef = useRef<HTMLDivElement>(null);
@@ -40,28 +47,77 @@ const JobManagement: React.FC = () => {
     const fetchJobs = async () => {
       setIsLoading(true);
       try {
-        const response = await hrApi.getMyJobs();
+        // Prepare filters for API call
+        const apiFilters = {
+          limit: jobsPerPage,
+          page: 1,
+          ...Object.fromEntries(
+            Object.entries(filters).filter(([, value]) => value !== '')
+          )
+        };
+        
+        const response = await hrApi.getMyJobs(apiFilters);
         const jobsArray = response?.data || response || [];
         
         // Transform API data to component format
-        const transformedJobs = jobsArray.map((job: any) => ({
-          job_id: job.job_id || job.id,
-          title: job.title,
-          status: job.status,
-          created_at: job.created_at,
-          application_deadline: job.application_deadline,
-          employment_type: job.employment_type,
-          applications_count: job.applications_count || 0,
-          open_positions: job.open_positions || 1,
-          // Legacy fields for UI compatibility
-          id: parseInt(job.job_id || job.id) || Math.random(),
-          role: job.title,
-          datePosted: new Date(job.created_at).toLocaleDateString() || 'N/A',
-          dueDate: new Date(job.application_deadline).toLocaleDateString() || 'N/A',
-          jobType: job.employment_type === 'FULL_TIME' ? 'Fulltime' : 'Freelance',
-          applicants: job.applications_count || 0,
-          needs: `${job.applications_count || 0}/${job.open_positions || 1}`
-        }));
+        const transformedJobs = jobsArray.map((job: any) => {
+          console.log('Raw job data from API:', job); // Debug log
+          
+          // Format dates safely
+          const formatDate = (dateString: string) => {
+            if (!dateString) return 'N/A';
+            try {
+              return new Date(dateString).toLocaleDateString();
+            } catch {
+              return 'N/A';
+            }
+          };
+
+          // Map employment type to display format
+          const getJobTypeDisplay = (empType: string) => {
+            switch (empType) {
+              case 'FULL_TIME': return 'Fulltime';
+              case 'PART_TIME': return 'Part-time';
+              case 'CONTRACT': return 'Contract';
+              case 'INTERNSHIP': return 'Internship';
+              case 'FREELANCE': return 'Freelance';
+              default: return empType || 'N/A';
+            }
+          };
+
+          // Map status from backend to display format
+          const getStatusDisplay = (status: string) => {
+            switch (status) {
+              case 'ACTIVE': return 'Live';
+              case 'PENDING': return 'Pending';
+              case 'PAUSED': return 'Paused';
+              case 'CLOSED': return 'Closed';
+              case 'DRAFT': return 'Draft';
+              default: return status || 'Unknown';
+            }
+          };
+
+          return {
+            job_id: job.job_id,
+            title: job.title,
+            status: job.status,
+            created_at: job.created_at,
+            application_deadline: job.application_deadline,
+            employment_type: job.employment_type,
+            application_count: job.application_count || 0, // Backend returns application_count, not applications_count
+            max_applications: job.max_applications || 1, // Backend returns max_applications, not open_positions
+            // Legacy fields for UI compatibility
+            id: parseInt(job.job_id?.replace(/-/g, '').slice(0, 8), 16) || Math.random(),
+            role: job.title,
+            datePosted: formatDate(job.created_at),
+            dueDate: formatDate(job.application_deadline),
+            jobType: getJobTypeDisplay(job.employment_type),
+            applicants: job.application_count || 0,
+            needs: `${job.application_count || 0}/${job.max_applications || 1}`,
+            // Add status display mapping
+            statusDisplay: getStatusDisplay(job.status)
+          };
+        });
         
         setJobs(transformedJobs);
         setError(null);
@@ -74,7 +130,7 @@ const JobManagement: React.FC = () => {
     };
 
     fetchJobs();
-  }, []);
+  }, [filters, jobsPerPage]);
 
 
   useEffect(() => {
@@ -148,7 +204,13 @@ const JobManagement: React.FC = () => {
               <tr key={job.job_id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => navigate(`/hr/job-management/${job.job_id}`)}>
                 <td className="px-4 py-4 font-medium">{job.role}</td>
                 <td className="px-4 py-4">
-                  <span className={`px-3 py-1 text-xs font-semibold rounded-full ${job.status === 'Live' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>{job.status}</span>
+                  <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                    job.statusDisplay === 'Live' || job.statusDisplay === 'Active' ? 'bg-green-100 text-green-600' :
+                    job.statusDisplay === 'Pending' ? 'bg-yellow-100 text-yellow-600' :
+                    job.statusDisplay === 'Paused' ? 'bg-blue-100 text-blue-600' :
+                    job.statusDisplay === 'Draft' ? 'bg-gray-100 text-gray-600' :
+                    'bg-red-100 text-red-600'
+                  }`}>{job.statusDisplay}</span>
                 </td>
                 <td className="px-4 py-4 text-gray-700">{job.datePosted}</td>
                 <td className="px-4 py-4 text-gray-700">{job.dueDate}</td>

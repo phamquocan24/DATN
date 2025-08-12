@@ -784,7 +784,7 @@ class JobController {
 
       const options = {
         ...value,
-        created_by: req.user.user_id,
+        created_by: req.user.recruiter_profile?.profile_id || req.user.user_id,
         status: ['PENDING', 'ACTIVE', 'PAUSED', 'CLOSED'] // Show all statuses for own jobs
       };
 
@@ -2071,7 +2071,7 @@ class JobController {
 
       const options = {
         ...value,
-        created_by: req.user.user_id,
+        created_by: req.user.recruiter_profile?.profile_id || req.user.user_id,
         status: ['PENDING', 'ACTIVE', 'PAUSED', 'CLOSED'] // Show all statuses for own jobs
       };
 
