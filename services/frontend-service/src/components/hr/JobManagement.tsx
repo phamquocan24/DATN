@@ -24,12 +24,26 @@ interface Job {
   statusDisplay?: string;
 }
 
+interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 const JobManagement: React.FC = () => {
   const [jobsPerPage, setJobsPerPage] = useState(10);
   const [isPageSelectOpen, setIsPageSelectOpen] = useState(false);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0
+  });
   const [filters, setFilters] = useState({
     search: '',
     employment_type: '',
@@ -43,21 +57,25 @@ const JobManagement: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState('2021-07-25');
   const dateInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    const fetchJobs = async () => {
-      setIsLoading(true);
-      try {
-        // Prepare filters for API call
-        const apiFilters = {
-          limit: jobsPerPage,
-          page: 1,
-          ...Object.fromEntries(
-            Object.entries(filters).filter(([, value]) => value !== '')
-          )
-        };
-        
-        const response = await hrApi.getMyJobs(apiFilters);
-        const jobsArray = response?.data || response || [];
+  const fetchJobs = async (page: number = currentPage) => {
+    setIsLoading(true);
+    try {
+      // Prepare filters for API call
+      const apiFilters = {
+        limit: jobsPerPage,
+        page: page,
+        ...Object.fromEntries(
+          Object.entries(filters).filter(([, value]) => value !== '')
+        )
+      };
+      
+      console.log('Fetching jobs with filters:', apiFilters); // Debug log
+      
+      const response = await hrApi.getMyJobs(apiFilters);
+      console.log('Full API response:', response); // Debug log
+      
+      const jobsArray = response?.data || response || [];
+      const paginationData = response?.pagination || null;
         
         // Transform API data to component format
         const transformedJobs = jobsArray.map((job: any) => {
@@ -120,6 +138,24 @@ const JobManagement: React.FC = () => {
         });
         
         setJobs(transformedJobs);
+        
+        // Update pagination state
+        if (paginationData) {
+          console.log('Setting pagination data:', paginationData); // Debug log
+          setPagination(paginationData);
+          setCurrentPage(paginationData.page);
+        } else {
+          // Fallback pagination if API doesn't return pagination data
+          const fallbackPagination = {
+            page: page,
+            limit: jobsPerPage,
+            total: transformedJobs.length,
+            totalPages: Math.ceil(transformedJobs.length / jobsPerPage)
+          };
+          setPagination(fallbackPagination);
+          setCurrentPage(page);
+        }
+        
         setError(null);
       } catch (err) {
         setError('Failed to load your jobs.');
@@ -129,8 +165,17 @@ const JobManagement: React.FC = () => {
       }
     };
 
-    fetchJobs();
+  useEffect(() => {
+    setCurrentPage(1); // Reset to page 1 when filters or jobsPerPage change
+    fetchJobs(1); // Always fetch page 1 when filters or jobsPerPage change
   }, [filters, jobsPerPage]);
+
+  // Separate effect for current page changes
+  useEffect(() => {
+    if (currentPage > 1) {
+      fetchJobs(currentPage);
+    }
+  }, [currentPage]);
 
 
   useEffect(() => {
@@ -230,8 +275,9 @@ const JobManagement: React.FC = () => {
         </table>
         
         <div className="px-4 py-3 flex items-center justify-between text-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-gray-600">View</span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600">View</span>
             <div ref={pageSelectRef} className="relative inline-block">
               <button
                 onClick={() => setIsPageSelectOpen(!isPageSelectOpen)}
@@ -245,7 +291,11 @@ const JobManagement: React.FC = () => {
                   {pageOptions.map((option) => (
                     <div
                       key={option}
-                      onClick={() => { setJobsPerPage(option); setIsPageSelectOpen(false); }}
+                      onClick={() => { 
+                        setJobsPerPage(option); 
+                        setCurrentPage(1); // Reset to page 1 when changing page size
+                        setIsPageSelectOpen(false); 
+                      }}
                       className="px-2 py-1 text-center cursor-pointer hover:bg-[#007BFF] hover:text-white"
                     >
                       {option}
@@ -255,14 +305,51 @@ const JobManagement: React.FC = () => {
               )}
             </div>
             <span className="text-gray-600 whitespace-nowrap">Applicants per page</span>
+            </div>
+            
+            {/* Pagination Info */}
+            <div className="text-gray-600">
+              Showing {((currentPage - 1) * pagination.limit) + 1}-{Math.min(currentPage * pagination.limit, pagination.total)} of {pagination.total} results
+            </div>
           </div>
           
           <div className="flex items-center gap-2">
-            <button className="min-w-[32px] h-8 px-2 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50">&lt;</button>
-            <button className="min-w-[32px] h-8 px-2 flex items-center justify-center bg-[#007BFF] text-white rounded">1</button>
-            <button className="min-w-[32px] h-8 px-2 flex items-center justify-center border border-[#007BFF] text-[#007BFF] rounded hover:bg-blue-50">2</button>
-            <button className="min-w-[32px] h-8 px-2 flex items-center justify-center border border-[#007BFF] text-[#007BFF] rounded hover:bg-blue-50">3</button>
-            <button className="min-w-[32px] h-8 px-2 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50">&gt;</button>
+            {/* Previous Page Button */}
+            <button 
+              onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+              disabled={currentPage <= 1}
+              className={`min-w-[32px] h-8 px-2 flex items-center justify-center border rounded hover:bg-gray-50 ${
+                currentPage <= 1 ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300 text-gray-700'
+              }`}
+            >
+              &lt;
+            </button>
+
+            {/* Page Numbers */}
+            {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(pageNum => (
+              <button
+                key={pageNum}
+                onClick={() => setCurrentPage(pageNum)}
+                className={`min-w-[32px] h-8 px-2 flex items-center justify-center rounded ${
+                  pageNum === currentPage
+                    ? 'bg-[#007BFF] text-white'
+                    : 'border border-[#007BFF] text-[#007BFF] hover:bg-blue-50'
+                }`}
+              >
+                {pageNum}
+              </button>
+            ))}
+
+            {/* Next Page Button */}
+            <button 
+              onClick={() => currentPage < pagination.totalPages && setCurrentPage(currentPage + 1)}
+              disabled={currentPage >= pagination.totalPages}
+              className={`min-w-[32px] h-8 px-2 flex items-center justify-center border rounded hover:bg-gray-50 ${
+                currentPage >= pagination.totalPages ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300 text-gray-700'
+              }`}
+            >
+              &gt;
+            </button>
           </div>
         </div>
       </div>

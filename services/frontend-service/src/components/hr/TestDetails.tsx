@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiArrowLeft, FiEdit, FiUser, FiBarChart2, FiCheckCircle, FiClock, FiTrash2, FiUserPlus, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit, FiUser, FiBarChart2, FiCheckCircle, FiClock, FiTrash2, FiUserPlus, FiX, FiEye, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
 import testApi from '../../services/testApi';
 
@@ -45,6 +45,7 @@ const TestDetails: React.FC = () => {
         candidate_id: '',
         application_id: ''
     });
+    const [showQuestions, setShowQuestions] = useState(false);
 
     useEffect(() => {
         if (id) {
@@ -58,24 +59,27 @@ const TestDetails: React.FC = () => {
             setLoading(true);
             const response = await testApi.getTestById(id!, true); // Include answers for HR
             
+            // Handle response data structure - API returns data in 'data' field
+            const testData = response.data || response;
+            
             // Map backend field names to frontend expected names
             const mappedTest = {
-                ...response,
-                id: response.test_id || response.id,
-                test_description: response.description || response.test_description,
-                time_limit: response.duration_minutes || response.time_limit,
-                questions: response.questions || [],
+                ...testData,
+                id: testData.test_id || testData.id,
+                test_description: testData.description || testData.test_description,
+                time_limit: testData.duration_minutes || testData.time_limit,
+                questions: testData.questions || [],
                 // Additional field mappings for completeness
-                test_name: response.test_name,
-                test_type: response.test_type || 'MULTIPLE_CHOICE',
-                passing_score: response.passing_score,
-                is_active: response.is_active,
-                created_at: response.created_at,
-                updated_at: response.updated_at,
-                job_id: response.job_id,
-                job_title: response.job_title,
-                company_name: response.company_name,
-                company_id: response.company_id
+                test_name: testData.test_name,
+                test_type: testData.test_type || 'MULTIPLE_CHOICE',
+                passing_score: testData.passing_score || 70,
+                is_active: testData.is_active !== undefined ? testData.is_active : true,
+                created_at: testData.created_at,
+                updated_at: testData.updated_at,
+                job_id: testData.job_id,
+                job_title: testData.job_title,
+                company_name: testData.company_name,
+                company_id: testData.company_id
             };
             
             setTest(mappedTest);
@@ -94,21 +98,27 @@ const TestDetails: React.FC = () => {
                 limit: 100
             });
             
+            // Handle response data structure - API may return data in different formats
+            const resultsData = response.data || response.results || response || [];
+            
             // Map backend field names to frontend expected names
-            const mappedCandidates = (response.data || response.results || []).map((candidate: any) => ({
+            const mappedCandidates = (Array.isArray(resultsData) ? resultsData : []).map((candidate: any) => ({
                 ...candidate,
-                id: candidate.test_result_id || candidate.id,
+                id: candidate.test_result_id || candidate.result_id || candidate.id,
                 candidate_id: candidate.candidate_id,
-                candidate_name: candidate.candidate_name || candidate.full_name,
-                score: candidate.percentage_score || candidate.score,
-                status: candidate.status,
+                candidate_name: candidate.candidate_name || candidate.full_name || 'Unknown Candidate',
+                score: candidate.percentage_score || candidate.score || 0,
+                status: candidate.status || 'ASSIGNED',
                 submitted_at: candidate.completed_at || candidate.submitted_at,
-                application_id: candidate.application_id
+                application_id: candidate.application_id,
+                avatar: candidate.avatar
             }));
             
             setCandidates(mappedCandidates);
         } catch (err) {
             console.error('Error loading test results:', err);
+            // Set empty array on error to prevent undefined issues
+            setCandidates([]);
         }
     };
 
@@ -306,6 +316,89 @@ const TestDetails: React.FC = () => {
                 </div>
             </div>
 
+            {/* Questions Section */}
+            <div className="bg-white p-6 rounded-lg border shadow-sm mb-8">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-semibold text-gray-700">Test Questions</h3>
+                    <button
+                        onClick={() => setShowQuestions(!showQuestions)}
+                        className="flex items-center gap-2 px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50"
+                    >
+                        <FiEye size={16} />
+                        {showQuestions ? 'Hide Questions' : 'Show Questions'}
+                        {showQuestions ? <FiChevronUp size={16} /> : <FiChevronDown size={16} />}
+                    </button>
+                </div>
+                
+                {showQuestions && (
+                    <div className="mt-6">
+                        {test.questions && test.questions.length > 0 ? (
+                            <div className="space-y-6">
+                                {test.questions.map((question: any, index: number) => (
+                                    <div key={question.question_id || question.id || index} className="border rounded-lg p-4 bg-gray-50">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <h4 className="font-semibold text-gray-800 flex-1">
+                                                {index + 1}. {question.question_text}
+                                            </h4>
+                                            <div className="flex items-center gap-2 ml-4">
+                                                <span className="text-sm px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                                                    {question.question_type || 'MULTIPLE_CHOICE'}
+                                                </span>
+                                                <span className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                                                    {question.points || 1} pts
+                                                </span>
+                                            </div>
+                                        </div>
+                                        
+                                        {question.question_type === 'MULTIPLE_CHOICE' && question.options ? (
+                                            <div className="space-y-2">
+                                                <p className="text-sm font-medium text-gray-600 mb-2">Options:</p>
+                                                {question.options.map((option: string, optionIndex: number) => (
+                                                    <div 
+                                                        key={optionIndex} 
+                                                        className={`p-3 rounded border ${
+                                                            option === question.correct_answer 
+                                                                ? 'bg-green-100 border-green-300 text-green-800' 
+                                                                : 'bg-white border-gray-200'
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center">
+                                                            <span className="font-medium mr-3 w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-sm">
+                                                                {String.fromCharCode(65 + optionIndex)}
+                                                            </span>
+                                                            <span className="flex-1">{option}</span>
+                                                            {option === question.correct_answer && (
+                                                                <span className="ml-2 text-green-600 font-semibold flex items-center gap-1">
+                                                                    <FiCheckCircle size={16} />
+                                                                    Correct Answer
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                <p className="text-sm font-medium text-gray-600">Expected Answer:</p>
+                                                <div className="p-3 bg-green-100 border border-green-300 rounded text-green-800">
+                                                    {question.correct_answer || 'No answer provided'}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                                <FiEye className="mx-auto text-gray-400 mb-2" size={24} />
+                                <p className="text-gray-500">No questions found for this test.</p>
+                                <p className="text-sm text-gray-400 mt-1">Questions may not have been loaded or created yet.</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+
              <div className="mt-8">
                 <h3 className="text-xl font-semibold mb-4">Candidates Results</h3>
                  <div className="bg-white rounded-lg border shadow-sm">
@@ -353,7 +446,18 @@ const TestDetails: React.FC = () => {
                                         <td className="px-6 py-4">
                                             {candidate.status === 'COMPLETED' ? (
                                                 <button 
-                                                    onClick={() => navigate(`results/${candidate.candidate_id}?application_id=${candidate.application_id || ''}`)} 
+                                                    onClick={() => {
+                                                        const resultUrl = `results/${candidate.candidate_id}`;
+                                                        const params = new URLSearchParams();
+                                                        if (candidate.application_id) {
+                                                            params.append('application_id', candidate.application_id);
+                                                        }
+                                                        if (candidate.id) {
+                                                            params.append('result_id', candidate.id);
+                                                        }
+                                                        const fullUrl = params.toString() ? `${resultUrl}?${params.toString()}` : resultUrl;
+                                                        navigate(fullUrl);
+                                                    }} 
                                                     className="text-[#007BFF] border border-[#007BFF] rounded-md px-3 py-1 hover:bg-blue-50"
                                                 >
                                                     View Answers

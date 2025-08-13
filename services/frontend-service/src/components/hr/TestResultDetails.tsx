@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiArrowLeft, FiCheck, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiCheck, FiX, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import testApi from '../../services/testApi';
 
@@ -42,17 +42,26 @@ const TestResultDetails: React.FC = () => {
         try {
             setLoading(true);
             const applicationId = searchParams.get('application_id');
+            const resultId = searchParams.get('result_id');
             
             // Call API with application_id if available
             const response = await testApi.getCandidateResult(testId!, candidateId!, applicationId || undefined);
             
+            // Handle response data structure - API may return data in 'data' field
+            const resultData = response.data || response;
+            
             // Map backend data to frontend expected format
             const mappedResult = {
-                ...response,
-                test_id: response.test_id || testId,
-                candidate_id: response.candidate_id || candidateId,
-                questions: response.questions || [],
-                answers: response.answers || {}
+                ...resultData,
+                test_id: resultData.test_id || testId,
+                test_name: resultData.test_name || 'Test',
+                candidate_id: resultData.candidate_id || candidateId,
+                candidate_name: resultData.candidate_name || resultData.full_name || 'Unknown Candidate',
+                score: resultData.percentage_score || resultData.score || 0,
+                status: resultData.status || 'COMPLETED',
+                submitted_at: resultData.completed_at || resultData.submitted_at || new Date().toISOString(),
+                questions: resultData.questions || [],
+                answers: resultData.answers || resultData.candidate_answers || {}
             };
             
             setTestResult(mappedResult);
@@ -117,64 +126,120 @@ const TestResultDetails: React.FC = () => {
             </div>
 
             <div className="bg-white p-6 rounded-lg border shadow-sm">
-                <h3 className="text-xl font-semibold mb-6 text-gray-700">{testResult.test_name} - Questions & Answers</h3>
+                <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-semibold text-gray-700">{testResult.test_name} - Questions & Answers</h3>
+                    <div className="flex items-center gap-4 text-sm">
+                        <div className="flex items-center gap-1 text-green-600">
+                            <FiCheckCircle size={16} />
+                            <span>Correct</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-red-600">
+                            <FiXCircle size={16} />
+                            <span>Incorrect</span>
+                        </div>
+                    </div>
+                </div>
                 <div className="space-y-8">
-                    {testResult.questions?.map((question, index) => {
-                        const userAnswer = testResult.answers[question.id];
+                    {testResult.questions && testResult.questions.length > 0 ? testResult.questions.map((question, index) => {
+                        const questionId = question.question_id || question.id;
+                        const userAnswer = testResult.answers[questionId];
                         const isCorrect = userAnswer === question.correct_answer;
                         
                         return (
-                            <div key={question.id} className="border-b pb-6 last:border-b-0">
+                            <div key={questionId} className="border rounded-lg p-6 bg-gray-50">
                                 <div className="flex justify-between items-start mb-4">
-                                    <p className="font-semibold text-gray-800 flex-1">
+                                    <h4 className="font-semibold text-gray-800 flex-1">
                                         {index + 1}. {question.question_text}
-                                    </p>
-                                    <div className="flex items-center gap-2 ml-4">
-                                        <span className={`px-2 py-1 text-xs font-semibold rounded ${
-                                            isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                    </h4>
+                                    <div className="flex items-center gap-3 ml-4">
+                                        <span className={`px-3 py-1 text-sm font-semibold rounded-full flex items-center gap-1 ${
+                                            isCorrect 
+                                                ? 'bg-green-100 text-green-700' 
+                                                : 'bg-red-100 text-red-700'
                                         }`}>
-                                            {isCorrect ? 'Correct' : 'Incorrect'}
+                                            {isCorrect ? (
+                                                <>
+                                                    <FiCheckCircle size={14} />
+                                                    Correct
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <FiXCircle size={14} />
+                                                    Incorrect
+                                                </>
+                                            )}
                                         </span>
-                                        <span className="text-sm text-gray-500">{question.points} pts</span>
+                                        <span className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                                            {question.points} pts
+                                        </span>
                                     </div>
                                 </div>
                                 
                                 {question.question_type === 'MULTIPLE_CHOICE' ? (
                                     <div className="space-y-3">
-                                        {question.options.map((option, optionIndex) => {
+                                        {(question.options || []).map((option, optionIndex) => {
                                             const isCorrect = option === question.correct_answer;
                                             const isUserAnswer = option === userAnswer;
                                             const isIncorrectUserAnswer = isUserAnswer && !isCorrect;
 
                                             return (
-                                                <div key={optionIndex} className={`flex items-center p-3 rounded-lg ${
-                                                    isCorrect ? 'bg-green-50 border border-green-200' : 
-                                                    isIncorrectUserAnswer ? 'bg-red-50 border border-red-200' : 'border'
+                                                <div key={optionIndex} className={`flex items-center p-3 rounded-lg border ${
+                                                    isCorrect ? 'bg-green-50 border-green-200' : 
+                                                    isIncorrectUserAnswer ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'
                                                 }`}>
-                                                    <span className={`font-medium ${
+                                                    <span className="font-medium mr-3 w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-sm">
+                                                        {String.fromCharCode(65 + optionIndex)}
+                                                    </span>
+                                                    <span className={`flex-1 font-medium ${
                                                         isCorrect ? 'text-green-700' : isIncorrectUserAnswer ? 'text-red-700' : 'text-gray-700'
                                                     }`}>{option}</span>
-                                                    {isCorrect && <FiCheck className="ml-auto text-green-600" />}
-                                                    {isIncorrectUserAnswer && <FiX className="ml-auto text-red-600" />}
+                                                    {isCorrect && (
+                                                        <span className="ml-2 text-green-600 font-semibold flex items-center gap-1">
+                                                            <FiCheckCircle size={16} />
+                                                            Correct
+                                                        </span>
+                                                    )}
+                                                    {isIncorrectUserAnswer && (
+                                                        <span className="ml-2 text-red-600 font-semibold flex items-center gap-1">
+                                                            <FiXCircle size={16} />
+                                                            Your Answer
+                                                        </span>
+                                                    )}
                                                 </div>
                                             );
                                         })}
                                     </div>
                                 ) : (
                                     <div className="space-y-3">
-                                        <div className="p-3 border rounded-lg">
-                                            <p className="text-sm text-gray-600 mb-2">Candidate's Answer:</p>
-                                            <p className="text-gray-800">{userAnswer || 'No answer provided'}</p>
+                                        <div className="p-4 border rounded-lg bg-white">
+                                            <p className="text-sm font-medium text-gray-600 mb-2 flex items-center gap-2">
+                                                {isCorrect ? (
+                                                    <FiCheckCircle className="text-green-600" size={16} />
+                                                ) : (
+                                                    <FiXCircle className="text-red-600" size={16} />
+                                                )}
+                                                Candidate's Answer:
+                                            </p>
+                                            <p className={`font-medium ${isCorrect ? 'text-green-700' : 'text-red-700'}`}>
+                                                {userAnswer || 'No answer provided'}
+                                            </p>
                                         </div>
-                                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                                            <p className="text-sm text-green-600 mb-2">Correct Answer:</p>
-                                            <p className="text-green-700">{question.correct_answer}</p>
+                                        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                                            <p className="text-sm font-medium text-green-600 mb-2 flex items-center gap-2">
+                                                <FiCheckCircle size={16} />
+                                                Correct Answer:
+                                            </p>
+                                            <p className="text-green-700 font-medium">{question.correct_answer}</p>
                                         </div>
                                     </div>
                                 )}
                             </div>
                         );
-                    })}
+                    }) : (
+                        <div className="text-center py-8">
+                            <p className="text-gray-500">No questions found for this test result.</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

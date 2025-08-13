@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiFilter, FiChevronDown, FiSearch, FiPlus } from 'react-icons/fi';
+import { FiFilter, FiChevronDown, FiSearch, FiPlus, FiEye, FiX } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import calendarIcon from '../../assets/scheme.png';
 import testApi from '../../services/testApi';
@@ -39,6 +39,8 @@ const TestManagement: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalTests, setTotalTests] = useState(0);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [selectedTest, setSelectedTest] = useState<Test | null>(null);
+    const [isQuestionsModalOpen, setIsQuestionsModalOpen] = useState(false);
 
     // Load tests when component mounts or page/search changes
     useEffect(() => {
@@ -67,24 +69,32 @@ const TestManagement: React.FC = () => {
                 id: test.test_id || test.id,
                 test_description: test.description || test.test_description,
                 time_limit: test.duration_minutes || test.time_limit,
-                questions: [] // Will be loaded when needed
+                questions: [] // Initialize as empty array
             }));
             
-            // Load questions count for each test
-            const testsWithQuestions = await Promise.all(
-                mappedTests.map(async (test) => {
-                    try {
-                        const testDetails = await testApi.getTestById(test.id, true);
-                        return {
-                            ...test,
-                            questions: testDetails.questions || []
-                        };
-                    } catch (err) {
-                        console.error(`Failed to load questions for test ${test.id}:`, err);
-                        return test; // Return test without questions if failed
-                    }
-                })
-            );
+            // Load questions count for each test in batches to avoid too many concurrent requests
+            const batchSize = 3;
+            const testsWithQuestions = [...mappedTests];
+            
+            for (let i = 0; i < testsWithQuestions.length; i += batchSize) {
+                const batch = testsWithQuestions.slice(i, i + batchSize);
+                
+                await Promise.all(
+                    batch.map(async (test, batchIndex) => {
+                        try {
+                            const testDetails = await testApi.getTestById(test.id, true);
+                            const actualIndex = i + batchIndex;
+                            testsWithQuestions[actualIndex] = {
+                                ...test,
+                                questions: testDetails.data?.questions || testDetails.questions || []
+                            };
+                        } catch (err) {
+                            console.error(`Failed to load questions for test ${test.id}:`, err);
+                            // Keep test with empty questions array if failed
+                        }
+                    })
+                );
+            }
             
             setTests(testsWithQuestions);
             setTotalTests(response.total || response.pagination?.total || testsWithQuestions.length);
@@ -140,6 +150,26 @@ const TestManagement: React.FC = () => {
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchTerm(e.target.value);
         setCurrentPage(1); // Reset to first page when searching
+    };
+
+    const handleViewQuestions = async (test: Test) => {
+        try {
+            // Load full test details with questions if not already loaded
+            if (!test.questions || test.questions.length === 0) {
+                const testDetails = await testApi.getTestById(test.id, true);
+                const updatedTest = {
+                    ...test,
+                    questions: testDetails.data?.questions || testDetails.questions || []
+                };
+                setSelectedTest(updatedTest);
+            } else {
+                setSelectedTest(test);
+            }
+            setIsQuestionsModalOpen(true);
+        } catch (err) {
+            console.error('Failed to load test questions:', err);
+            alert('Failed to load test questions. Please try again.');
+        }
     };
 
     const formatDuration = (timeInMinutes: number): string => {
@@ -277,12 +307,21 @@ const TestManagement: React.FC = () => {
                                     <td className="px-4 py-4">{formatDate(test.created_at)}</td>
                                     <td className="px-4 py-4">{formatDate(test.updated_at)}</td>
                                     <td className="px-4 py-4">
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); navigate(`/hr/test-management/${test.id}`)}} 
-                                            className="text-[#007BFF] border border-[#007BFF] rounded-md px-3 py-1 hover:bg-blue-50"
-                                        >
-                                            See Details
-                                        </button>
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); navigate(`/hr/test-management/${test.id}`)}} 
+                                                className="text-[#007BFF] border border-[#007BFF] rounded-md px-3 py-1 hover:bg-blue-50 text-sm"
+                                            >
+                                                See Details
+                                            </button>
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); handleViewQuestions(test)}} 
+                                                className="text-green-600 border border-green-600 rounded-md px-3 py-1 hover:bg-green-50 text-sm flex items-center gap-1"
+                                            >
+                                                <FiEye size={14} />
+                                                Questions
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))
@@ -300,6 +339,93 @@ const TestManagement: React.FC = () => {
                     loadTests(); // Reload tests after creating a new one
                 }}
             />
+
+            {/* Questions Modal */}
+            {isQuestionsModalOpen && selectedTest && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+                        <div className="flex justify-between items-center p-6 border-b">
+                            <h3 className="text-xl font-semibold text-gray-800">
+                                Questions - {selectedTest.test_name}
+                            </h3>
+                            <button 
+                                onClick={() => setIsQuestionsModalOpen(false)}
+                                className="p-2 hover:bg-gray-100 rounded-full"
+                            >
+                                <FiX className="w-5 h-5" />
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 overflow-y-auto max-h-[70vh]">
+                            {selectedTest.questions && selectedTest.questions.length > 0 ? (
+                                <div className="space-y-6">
+                                    {selectedTest.questions.map((question: any, index: number) => (
+                                        <div key={question.question_id || question.id || index} className="border rounded-lg p-4">
+                                            <div className="flex justify-between items-start mb-3">
+                                                <h4 className="font-semibold text-gray-800 flex-1">
+                                                    {index + 1}. {question.question_text}
+                                                </h4>
+                                                <div className="flex items-center gap-2 ml-4">
+                                                    <span className="text-sm text-gray-500">
+                                                        {question.question_type || 'MULTIPLE_CHOICE'}
+                                                    </span>
+                                                    <span className="text-sm font-medium text-blue-600">
+                                                        {question.points || 1} pts
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            
+                                            {question.question_type === 'MULTIPLE_CHOICE' && question.options ? (
+                                                <div className="space-y-2">
+                                                    <p className="text-sm font-medium text-gray-600 mb-2">Options:</p>
+                                                    {question.options.map((option: string, optionIndex: number) => (
+                                                        <div 
+                                                            key={optionIndex} 
+                                                            className={`p-2 rounded border ${
+                                                                option === question.correct_answer 
+                                                                    ? 'bg-green-50 border-green-200 text-green-700' 
+                                                                    : 'bg-gray-50 border-gray-200'
+                                                            }`}
+                                                        >
+                                                            <span className="font-medium mr-2">
+                                                                {String.fromCharCode(65 + optionIndex)}.
+                                                            </span>
+                                                            {option}
+                                                            {option === question.correct_answer && (
+                                                                <span className="ml-2 text-green-600 font-medium">✓ Correct</span>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    <p className="text-sm font-medium text-gray-600">Correct Answer:</p>
+                                                    <div className="p-2 bg-green-50 border border-green-200 rounded text-green-700">
+                                                        {question.correct_answer || 'No answer provided'}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-8">
+                                    <p className="text-gray-500">No questions found for this test.</p>
+                                </div>
+                            )}
+                        </div>
+                        
+                        <div className="flex justify-end p-6 border-t bg-gray-50">
+                            <button
+                                onClick={() => setIsQuestionsModalOpen(false)}
+                                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

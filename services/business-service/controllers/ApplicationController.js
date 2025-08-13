@@ -838,7 +838,11 @@ class ApplicationController {
         });
       }
 
-      const result = await this.applicationModel.getJobApplications(jobId, value);
+      const result = await this.applicationModel.getJobApplications(
+        jobId, 
+        req.user.recruiter_profile?.profile_id || req.user.user_id, 
+        value
+      );
 
       res.json({
         success: true,

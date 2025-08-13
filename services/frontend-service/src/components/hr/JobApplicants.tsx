@@ -4,6 +4,7 @@ import { FiSearch, FiFilter, FiMoreHorizontal, FiChevronLeft, FiChevronDown, FiU
 import JobDetailsTab from './JobDetailsTab'; 
 import AnalyticsTab from './AnalyticsTab'; 
 import api from '../../services/api';
+import hrApi from '../../services/hrApi';
 
 interface Applicant {
   id: number;
@@ -41,6 +42,25 @@ const JobApplicants: React.FC = () => {
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [jobTitle, setJobTitle] = useState<string>('Loading...');
+
+  // Fetch job title
+  useEffect(() => {
+    const fetchJobTitle = async () => {
+      if (!jobId) return;
+      try {
+        const response = await hrApi.getJobById(jobId, false);
+        if (response.success && response.data) {
+          setJobTitle(response.data.title);
+        }
+      } catch (err) {
+        console.error('Failed to fetch job title:', err);
+        setJobTitle('Job Details');
+      }
+    };
+
+    fetchJobTitle();
+  }, [jobId]);
 
   useEffect(() => {
     const fetchApplicants = async () => {
@@ -206,7 +226,7 @@ const JobApplicants: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <button onClick={() => navigate(-1)} className="flex items-center text-gray-500 hover:text-gray-700">
           <FiChevronLeft className="w-6 h-6" />
-          <span className="text-2xl font-semibold text-gray-800 ml-2">Social Media Assistant</span>
+          <span className="text-2xl font-semibold text-gray-800 ml-2">{jobTitle}</span>
         </button>
         {activeTab === 'Analytics' && (
           <div ref={exportRef} className="relative">
