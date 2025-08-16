@@ -1361,20 +1361,25 @@ const express = require('express');
 const router = express.Router();
 const userController = new UserController();
 
+// Import authentication middleware
+const { authenticateToken } = require('../modules/auth');
+
 // Define routes
 router.post('/register', userController.register.bind(userController));
 router.post('/login', userController.login.bind(userController));
 router.post('/refresh-token', userController.refreshToken.bind(userController));
-router.get('/profile', userController.getProfile.bind(userController));
-router.put('/profile', userController.updateProfile.bind(userController));
-router.post('/change-password', userController.changePassword.bind(userController));
-router.delete('/account', userController.deactivateAccount.bind(userController));
-router.get('/profile/suggestions', userController.getProfileSuggestions.bind(userController));
 
-// Admin routes
-router.get('/:id', userController.getUserById.bind(userController));
-router.get('/', userController.getUsers.bind(userController));
-router.put('/:id/status', userController.updateUserStatus.bind(userController));
-router.get('/admin/statistics', userController.getUserStatistics.bind(userController));
+// Protected routes requiring authentication
+router.get('/profile', authenticateToken, userController.getProfile.bind(userController));
+router.put('/profile', authenticateToken, userController.updateProfile.bind(userController));
+router.post('/change-password', authenticateToken, userController.changePassword.bind(userController));
+router.put('/deactivate', authenticateToken, userController.deactivateAccount.bind(userController));
+router.get('/profile/suggestions', authenticateToken, userController.getProfileSuggestions.bind(userController));
+
+// Admin routes (require authentication)
+router.get('/:id', authenticateToken, userController.getUserById.bind(userController));
+router.get('/', authenticateToken, userController.getUsers.bind(userController));
+router.put('/:id/status', authenticateToken, userController.updateUserStatus.bind(userController));
+router.get('/admin/statistics', authenticateToken, userController.getUserStatistics.bind(userController));
 
 module.exports = router; 

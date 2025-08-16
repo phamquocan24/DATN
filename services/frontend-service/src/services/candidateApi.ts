@@ -115,15 +115,26 @@ export const candidateApi = {
     return response.data;
   },
 
-  // Application Management
-  createApplication: async (applicationData: any) => {
-    const response = await apiClient.post('/applications', applicationData);
+  // Application Management - Business Service API
+  createApplication: async (applicationData: {
+    job_id: string;
+    cv_id?: string;
+    cover_letter?: string;
+    source?: 'DIRECT' | 'SOCIAL_MEDIA' | 'REFERRAL' | 'HEADHUNTER' | 'CAREER_FAIR';
+  }) => {
+    const response = await apiClient.post('/api/v1/applications', applicationData);
     return response.data;
   },
 
-  getMyApplications: async () => {
+  getMyApplications: async (params?: {
+    status?: 'PENDING' | 'REVIEWING' | 'SHORTLISTED' | 'INTERVIEWING' | 'TESTING' | 'OFFERED' | 'HIRED' | 'REJECTED';
+    page?: number;
+    limit?: number;
+    orderBy?: 'created_at' | 'updated_at';
+    direction?: 'ASC' | 'DESC';
+  }) => {
     try {
-      const response = await apiClient.get('/applications/my-applications');
+      const response = await apiClient.get('/api/v1/applications/my-applications', { params });
       return response.data;
     } catch (error: any) {
       // If user is not authenticated, return empty applications
@@ -135,13 +146,14 @@ export const candidateApi = {
     }
   },
 
-  withdrawApplication: async (applicationId: string) => {
-    const response = await apiClient.post(`/applications/${applicationId}/withdraw`);
+  withdrawApplication: async (applicationId: string, reason?: string) => {
+    const response = await apiClient.put(`/api/v1/applications/${applicationId}/withdraw`, { reason });
     return response.data;
   },
 
-  getApplicationById: async (applicationId: string) => {
-    const response = await apiClient.get(`/applications/${applicationId}`);
+  getApplicationById: async (applicationId: string, includeDetails?: boolean) => {
+    const params = includeDetails ? { include_details: includeDetails } : {};
+    const response = await apiClient.get(`/api/v1/applications/${applicationId}`, { params });
     return response.data;
   },
 
@@ -182,7 +194,7 @@ export const candidateApi = {
   // Profile Management
   getProfile: async () => {
     try {
-      const response = await apiClient.get('/user/profile');
+      const response = await apiClient.get('/users/profile');
       return response.data;
     } catch (error: any) {
       // If user is not authenticated, return empty profile
@@ -198,12 +210,12 @@ export const candidateApi = {
   },
 
   updateProfile: async (profileData: any) => {
-    const response = await apiClient.put('/user/profile', profileData);
+    const response = await apiClient.put('/api/v1/users/profile', profileData);
     return response.data;
   },
 
   getProfileSuggestions: async () => {
-    const response = await apiClient.get('/user/profile/suggestions');
+    const response = await apiClient.get('/users/profile/suggestions');
     return response.data;
   },
 
@@ -298,12 +310,12 @@ export const candidateApi = {
 
   // Settings
   changePassword: async (passwordData: any) => {
-    const response = await apiClient.post('/user/change-password', passwordData);
+    const response = await apiClient.post('/users/change-password', passwordData);
     return response.data;
   },
 
-  deactivateAccount: async () => {
-    const response = await apiClient.delete('/user/account');
+  deactivateAccount: async (reason?: string) => {
+    const response = await apiClient.put('/users/deactivate', { reason });
     return response.data;
   },
 
@@ -312,7 +324,7 @@ export const candidateApi = {
   // ======================
 
   // Get assigned tests for current candidate
-  getMyTests: async (params?: {
+  getMyAssignedTests: async (params?: {
     status?: 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'EXPIRED';
     page?: number;
     limit?: number;
@@ -330,13 +342,13 @@ export const candidateApi = {
   },
 
   // Start a test
-  startTest: async (testId: string) => {
+  startAssignedTest: async (testId: string) => {
     const response = await apiClient.post(`/api/v1/tests/${testId}/start`);
     return response.data;
   },
 
   // Submit test answers
-  submitTest: async (testId: string, answers: Record<string, string>) => {
+  submitAssignedTest: async (testId: string, answers: Record<string, string>) => {
     const response = await apiClient.post(`/api/v1/tests/${testId}/submit`, { answers });
     return response.data;
   },
@@ -357,8 +369,50 @@ export const candidateApi = {
   saveTestProgress: async (testId: string, answers: Record<string, string>) => {
     const response = await apiClient.post(`/api/v1/tests/${testId}/save-progress`, { answers });
     return response.data;
+  },
+
+  // ======================
+  // MATCH SCORE CALCULATION
+  // ======================
+
+  // Calculate match score between current candidate and a specific job
+  calculateMatchScore: async (jobId: string) => {
+    try {
+      const response = await apiClient.get(`/api/v1/applications/match-score/${jobId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Failed to calculate match score:', error);
+      throw error;
+    }
+  },
+
+  // Get available jobs for match calculation
+  getAvailableJobs: async (params?: {
+    page?: number;
+    limit?: number;
+    status?: 'ACTIVE';
+  }) => {
+    try {
+      const response = await apiClient.get('/api/v1/jobs', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('Failed to get available jobs:', error);
+      throw error;
+    }
+  },
+
+  // Create candidate profile if not exists
+  ensureCandidateProfile: async () => {
+    try {
+      const response = await apiClient.post('/api/v1/users/ensure-candidate-profile');
+      return response.data;
+    } catch (error: any) {
+      console.error('Failed to ensure candidate profile:', error);
+      throw error;
+    }
   }
 };
 
 // Export as default to match the import statements in components
 export default candidateApi;
+

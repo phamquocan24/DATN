@@ -4,13 +4,22 @@ import DashboardSidebar from './DashboardSidebar';
 import candidateApi from '../../services/candidateApi';
 
 interface Application {
-  id: number;
+  id: string;
+  application_id: string;
+  job_id: string;
+  candidate_id: string;
   company: string;
   role: string;
   dateApplied: string;
-  status: 'In Review' | 'Hired' | 'Mini-test' | 'Interviewing' | 'Rejected';
+  status: 'PENDING' | 'REVIEWING' | 'SHORTLISTED' | 'INTERVIEWING' | 'TESTING' | 'OFFERED' | 'HIRED' | 'REJECTED';
   logo: string;
   logoColor: string;
+  cv_id?: string;
+  cover_letter?: string;
+  applied_at?: string;
+  updated_at?: string;
+  job_title?: string;
+  company_name?: string;
 }
 
 const mockJobDetails = {
@@ -85,35 +94,47 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
 
   // Store selected application to access its status
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
-
+  const [withdrawingApplication, setWithdrawingApplication] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchApplications = async () => {
       setIsLoading(true);
       try {
-        const applicationsData = await candidateApi.getMyApplications();
+        const response = await candidateApi.getMyApplications({
+          orderBy: 'created_at',
+          direction: 'DESC'
+        });
         
-        // Handle different API response structures
-        const applicationsArray = Array.isArray(applicationsData)
-          ? applicationsData
-          : (applicationsData?.data || applicationsData?.applications || []);
+        // Handle business-service API response structure
+        const applicationsArray = Array.isArray(response)
+          ? response
+          : (response?.data || []);
         
         // Transform API data to match component interface
         const transformedApplications = applicationsArray.map((app: any) => ({
-          id: app.id || app._id,
-          company: app.job?.company?.name || app.company || 'Company',
-          position: app.job?.title || app.position || 'Position',
-          applicationDate: app.createdAt || app.applicationDate || new Date().toISOString(),
-          status: app.status || 'pending',
-          logo: (app.job?.company?.name || app.company || 'C').charAt(0).toUpperCase(),
-          logoColor: 'bg-blue-500 text-white'
+          id: app.application_id || app.id,
+          application_id: app.application_id,
+          job_id: app.job_id,
+          candidate_id: app.candidate_id,
+          company: app.job_title || app.company_name || app.job?.company?.name || 'Company',
+          role: app.job_title || app.position || app.job?.title || 'Position',
+          dateApplied: new Date(app.applied_at || app.created_at || Date.now()).toLocaleDateString(),
+          status: app.current_status || app.status || 'PENDING',
+          logo: (app.job_title || app.company_name || app.job?.company?.name || 'C').charAt(0).toUpperCase(),
+          logoColor: 'bg-blue-500 text-white',
+          cv_id: app.cv_id,
+          cover_letter: app.cover_letter,
+          applied_at: app.applied_at,
+          updated_at: app.updated_at,
+          job_title: app.job_title,
+          company_name: app.company_name
         }));
         
         setApplications(transformedApplications);
         setError(null);
       } catch (err) {
         setError('Failed to load applications.');
-        console.error(err);
+        console.error('Error fetching applications:', err);
       } finally {
         setIsLoading(false);
       }
@@ -125,7 +146,7 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
   // Convert Application to Job format for JobDetail
   const convertApplicationToJob = (application: Application): Job => {
     return {
-      id: application.id,
+      id: parseInt(application.id) || 0,
       title: application.role,
       company: application.company,
       location: 'Remote', // Default location, could be enhanced
@@ -154,29 +175,94 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
     setSelectedApplication(null);
   };
 
+  const handleWithdrawApplication = async (applicationId: string, reason?: string) => {
+    try {
+      setWithdrawingApplication(applicationId);
+      await candidateApi.withdrawApplication(applicationId, reason);
+      
+      // Refresh applications list
+      const response = await candidateApi.getMyApplications({
+        orderBy: 'created_at',
+        direction: 'DESC'
+      });
+      const applicationsArray = Array.isArray(response) ? response : (response?.data || []);
+      
+      const transformedApplications = applicationsArray.map((app: any) => ({
+        id: app.application_id || app.id,
+        application_id: app.application_id,
+        job_id: app.job_id,
+        candidate_id: app.candidate_id,
+        company: app.job_title || app.company_name || app.job?.company?.name || 'Company',
+        role: app.job_title || app.position || app.job?.title || 'Position',
+        dateApplied: new Date(app.applied_at || app.created_at || Date.now()).toLocaleDateString(),
+        status: app.current_status || app.status || 'PENDING',
+        logo: (app.job_title || app.company_name || app.job?.company?.name || 'C').charAt(0).toUpperCase(),
+        logoColor: 'bg-blue-500 text-white',
+        cv_id: app.cv_id,
+        cover_letter: app.cover_letter,
+        applied_at: app.applied_at,
+        updated_at: app.updated_at,
+        job_title: app.job_title,
+        company_name: app.company_name
+      }));
+      
+      setApplications(transformedApplications);
+      alert('Application withdrawn successfully');
+    } catch (error) {
+      console.error('Error withdrawing application:', error);
+      alert('Failed to withdraw application');
+    } finally {
+      setWithdrawingApplication(null);
+    }
+  };
+
   const statusTabs = [
-    { id: 'all', label: 'All', count: 45 },
-    { id: 'in-review', label: 'In Review', count: 34 },
-    { id: 'interviewing', label: 'Interviewing', count: 18 },
-    { id: 'mini-test', label: 'Mini-test', count: 5 },
-    { id: 'rejected', label: 'Rejected', count: 2 },
-    { id: 'hired', label: 'Hired', count: 1 }
+    { id: 'all', label: 'All', count: applications.length },
+    { id: 'pending', label: 'Pending', count: applications.filter(app => app.status === 'PENDING').length },
+    { id: 'reviewing', label: 'Reviewing', count: applications.filter(app => app.status === 'REVIEWING').length },
+    { id: 'interviewing', label: 'Interviewing', count: applications.filter(app => app.status === 'INTERVIEWING').length },
+    { id: 'testing', label: 'Testing', count: applications.filter(app => app.status === 'TESTING').length },
+    { id: 'rejected', label: 'Rejected', count: applications.filter(app => app.status === 'REJECTED').length },
+    { id: 'hired', label: 'Hired', count: applications.filter(app => app.status === 'HIRED').length }
   ];
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'In Review':
+      case 'PENDING':
+        return 'bg-gray-100 text-gray-700 border border-gray-200';
+      case 'REVIEWING':
         return 'bg-orange-100 text-orange-700 border border-orange-200';
-      case 'Hired':
-        return 'bg-green-100 text-green-700 border border-green-200';
-      case 'Mini-test':
+      case 'SHORTLISTED':
         return 'bg-blue-100 text-blue-700 border border-blue-200';
-      case 'Interviewing':
+      case 'INTERVIEWING':
         return 'bg-yellow-100 text-yellow-700 border border-yellow-200';
       case 'Rejected':
         return 'bg-red-100 text-red-700 border border-red-200';
       default:
         return 'bg-gray-100 text-gray-700 border border-gray-200';
+    }
+  };
+
+  const getStatusDisplayName = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return 'Pending';
+      case 'REVIEWING':
+        return 'Reviewing';
+      case 'SHORTLISTED':
+        return 'Shortlisted';
+      case 'INTERVIEWING':
+        return 'Interviewing';
+      case 'TESTING':
+        return 'Testing';
+      case 'OFFERED':
+        return 'Offered';
+      case 'HIRED':
+        return 'Hired';
+      case 'REJECTED':
+        return 'Rejected';
+      default:
+        return status;
     }
   };
 
@@ -189,8 +275,6 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
         onAgentAIClick={onAgentAIClick}
         onMyApplicationsClick={() => setActiveTab('applications')}
         onTestManagementClick={onTestManagementClick}
-        onFindJobsClick={onFindJobsClick}
-        onBrowseCompaniesClick={onBrowseCompaniesClick}
         onProfileClick={onProfileClick}
         onSettingsClick={onSettingsClick}
         onHelpCenterClick={onHelpCenterClick}
@@ -202,7 +286,7 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
           <JobDetail 
             job={selectedJob}
             onBack={handleBackToList}
-            applicationStatus={selectedApplication?.status}
+            applicationStatus={selectedApplication?.status as any}
           />
         ) : (
           <>
@@ -327,7 +411,7 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
                     ) : error ? (
                       <tr><td colSpan={6} className="text-center p-4 text-red-500">{error}</td></tr>
                     ) : applications
-                        .filter(app => selectedStatusTab === 'all' || app.status.toLowerCase().replace(' ', '-') === selectedStatusTab)
+                        .filter(app => selectedStatusTab === 'all' || app.status.toLowerCase() === selectedStatusTab.toUpperCase())
                         .map((application, index) => (
                       <tr 
                         key={application.id} 
@@ -357,10 +441,24 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(application.status)}`}>
-                            {application.status}
+                            {getStatusDisplayName(application.status)}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          {(application.status === 'PENDING' || application.status === 'REVIEWING') && (
+                            <button 
+                              className="text-red-600 hover:text-red-800 mr-3"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm('Are you sure you want to withdraw this application?')) {
+                                  handleWithdrawApplication(application.id, 'Candidate withdrew application');
+                                }
+                              }}
+                              disabled={withdrawingApplication === application.id}
+                            >
+                              {withdrawingApplication === application.id ? 'Withdrawing...' : 'Withdraw'}
+                            </button>
+                          )}
                           <button 
                             className="text-gray-400 hover:text-gray-600"
                             onClick={(e) => {

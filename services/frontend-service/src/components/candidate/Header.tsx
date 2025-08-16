@@ -4,7 +4,7 @@ import BellIcon from '../../assets/bell-outlined.png';
 import UserIcon from '../../assets/user-outlined.png';
 import NotificationPanel from './NotificationPanel';
 
-type CurrentPage = 'home' | 'find-jobs' | 'find-jobs-dashboard' | 'agent-ai' | 'favorite-jobs' | 'companies' | 'find-companies' | 'browse-companies' | 'job-detail' | 'company-profile' | 'resume' | 'profile' | 'dashboard' | 'my-applications' | 'test-management' | 'settings' | 'help-center';
+type CurrentPage = 'home' | 'find-jobs' | 'agent-ai' | 'favorite-jobs' | 'companies' | 'find-companies' | 'browse-companies' | 'job-detail' | 'company-profile' | 'resume' | 'profile' | 'dashboard' | 'my-applications' | 'test-management' | 'settings' | 'help-center';
 
 interface HeaderProps {
   onPageChange: (page: CurrentPage) => void;

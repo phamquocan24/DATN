@@ -427,10 +427,10 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
             <div className="mb-16">
               <div className="mb-8 text-left">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  {searchQuery ? `Search Results for "${searchQuery}"` : 'Companies from Database'}
+                  {searchQuery ? `Search Results for "${searchQuery}"` : 'Recommended Companies'}
                 </h2>
                 <p className="text-gray-600">
-                  {searchQuery ? 'Companies matching your search criteria' : 'Real companies from our platform'}
+                  {searchQuery ? 'Companies matching your search criteria' : 'Based on your profile, company preferences, and recent activity'}
                 </p>
               </div>
 

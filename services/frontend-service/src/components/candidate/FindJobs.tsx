@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Footer } from './Footer';
+import JobDetail from './JobDetail';
 import GroupUnderline from '../../assets/Group.png';
 import candidateApi from '../../services/candidateApi'; // Sử dụng candidateApi
 import favoritesService from '../../services/favoritesService';
@@ -20,6 +21,11 @@ interface Job {
   salary?: string;
   isNew?: boolean;
   isSaved?: boolean;
+  description?: string;
+  requirements?: string[];
+  benefits?: string[];
+  whoYouAre?: string[];
+  niceToHaves?: string[];
 }
 
 interface FindJobsProps {
@@ -33,6 +39,8 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
+  const [currentView, setCurrentView] = useState<'list' | 'detail'>('list');
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
 
   const [filters, setFilters] = useState({
@@ -88,9 +96,26 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
         capacity: job.openPositions || 1,
         salary: job.salary,
         description: job.description || 'No description available.',
-        requirements: job.requirements || 'No requirements listed.',
-        whoYouAre: job.qualifications || 'No qualifications listed.',
-        niceToHaves: job.niceToHave || 'No nice-to-haves listed.'
+        requirements: Array.isArray(job.requirements) 
+          ? job.requirements 
+          : typeof job.requirements === 'string' 
+            ? job.requirements.split('\n').filter((item: string) => item.trim())
+            : ['No requirements listed.'],
+        whoYouAre: Array.isArray(job.qualifications) 
+          ? job.qualifications 
+          : typeof job.qualifications === 'string' 
+            ? job.qualifications.split('\n').filter((item: string) => item.trim())
+            : ['No qualifications listed.'],
+        niceToHaves: Array.isArray(job.niceToHave) 
+          ? job.niceToHave 
+          : typeof job.niceToHave === 'string' 
+            ? job.niceToHave.split('\n').filter((item: string) => item.trim())
+            : ['No nice-to-haves listed.'],
+        benefits: Array.isArray(job.benefits) 
+          ? job.benefits 
+          : typeof job.benefits === 'string' 
+            ? job.benefits.split('\n').filter((item: string) => item.trim())
+            : ['Competitive salary', 'Health insurance', 'Flexible working hours']
       }));
 
       setJobs(formattedJobs);
@@ -131,6 +156,20 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
     setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page on new search
     fetchJobs();
   }
+
+  const handleJobClick = (job: Job) => {
+    setSelectedJob(job);
+    setCurrentView('detail');
+    // Also call the original onJobClick if provided
+    if (onJobClick && job.id) {
+      onJobClick(job.id.toString());
+    }
+  };
+
+  const handleBackToList = () => {
+    setCurrentView('list');
+    setSelectedJob(null);
+  };
 
   const FilterCheckbox = ({ 
     label, 
@@ -194,8 +233,8 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
 
     return (
       <div 
-        className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group cursor-pointer text-left"
-        onClick={() => onJobClick?.(job.id.toString())}
+        className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group cursor-pointer text-left"
+        onClick={() => handleJobClick(job)}
       >
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center space-x-3">
@@ -248,7 +287,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
           <button 
             onClick={(e) => {
               e.stopPropagation();
-              onJobClick?.(job.id.toString());
+              handleJobClick(job);
             }}
             className="bg-[#007BFF] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#0056b3] transition-colors"
           >
@@ -258,6 +297,16 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
       </div>
     );
   };
+
+  // Render JobDetail when detail view is active
+  if (currentView === 'detail' && selectedJob) {
+    return (
+      <JobDetail 
+        job={selectedJob}
+        onBack={handleBackToList}
+      />
+    );
+  }
 
   return (
     <>

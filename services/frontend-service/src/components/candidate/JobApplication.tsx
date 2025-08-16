@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import candidateApi from '../../services/candidateApi';
 
 interface JobApplicationProps {
   isOpen: boolean;
   onClose: () => void;
   job: {
-    id: number;
+    id: number | string;
     title: string;
     company: string;
     location: string;
@@ -27,6 +28,10 @@ export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose,
   });
 
   const [characterCount, setCharacterCount] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [availableCVs] = useState<any[]>([]); // TODO: Load CVs from API
+  const [selectedCVId, setSelectedCVId] = useState<string>('');
   const maxCharacters = 500;
 
   const handleInputChange = (field: string, value: string) => {
@@ -40,17 +45,56 @@ export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose,
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFormData(prev => ({ ...prev, resumeFile: e.target.files![0] }));
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission
-    console.log('Application submitted:', formData);
-    onClose();
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      // Prepare application data according to business-service API
+      const applicationData = {
+        job_id: job.id.toString(),
+        cv_id: selectedCVId || undefined,
+        cover_letter: formData.additionalInfo || undefined,
+        source: 'DIRECT' as const
+      };
+
+      // Submit application using the API
+      const response = await candidateApi.createApplication(applicationData);
+      
+      if (response.success) {
+        alert('Application submitted successfully!');
+        onClose();
+        
+        // Reset form
+        setFormData({
+          fullName: '',
+          email: '',
+          phone: '',
+          currentJobTitle: '',
+          linkedinUrl: '',
+          portfolioUrl: '',
+          additionalInfo: '',
+          resumeFile: null
+        });
+        setSelectedCVId('');
+        setCharacterCount(0);
+      } else {
+        setSubmitError(response.message || 'Failed to submit application');
+      }
+    } catch (error: any) {
+      console.error('Error submitting application:', error);
+      
+      if (error.response?.status === 400 && error.response?.data?.message?.includes('already applied')) {
+        setSubmitError('You have already applied for this job');
+      } else if (error.response?.status === 401) {
+        setSubmitError('Please log in to submit an application');
+      } else {
+        setSubmitError(error.response?.data?.message || 'Failed to submit application. Please try again.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -90,6 +134,22 @@ export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose,
                 <p className="text-sm text-gray-600 mb-6">
                   The following is required and will only be shared with {job.company}
                 </p>
+                
+                {/* Error Display */}
+                {submitError && (
+                  <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-red-800">{submitError}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Full Name */}
@@ -263,43 +323,41 @@ export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose,
                 </div>
               </div>
 
-              {/* Resume Upload */}
+              {/* CV Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Attach your resume
+                  Select CV (Optional)
                 </label>
-                <p className="text-sm text-gray-600 mb-3">or <span className="text-[#007BFF]">choose in collection</span></p>
+                <p className="text-sm text-gray-600 mb-3">Choose from your uploaded CVs</p>
                 
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                  <div className="flex items-center justify-center">
-                    <label className="cursor-pointer bg-white border border-gray-300 rounded-lg px-4 py-2 hover:bg-gray-50 flex items-center space-x-2">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                      </svg>
-                      <span className="text-sm text-gray-600">Attach Resume/CV</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.doc,.docx"
-                        onChange={handleFileChange}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                  {formData.resumeFile && (
-                    <p className="text-sm text-gray-600 mt-2 text-center">
-                      Selected: {formData.resumeFile.name}
-                    </p>
-                  )}
-                </div>
+                <select
+                  value={selectedCVId}
+                  onChange={(e) => setSelectedCVId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#007BFF] focus:border-[#007BFF]"
+                >
+                  <option value="">No CV selected</option>
+                  {availableCVs.map((cv) => (
+                    <option key={cv.id} value={cv.id}>
+                      {cv.original_name || cv.name || `CV ${cv.id}`}
+                    </option>
+                  ))}
+                </select>
+                
+                {availableCVs.length === 0 && (
+                  <p className="text-sm text-gray-500 mt-2">
+                    No CVs available. You can upload CVs in your profile.
+                  </p>
+                )}
               </div>
 
               {/* Submit Button */}
               <div className="pt-6">
                 <button
                   type="submit"
-                  className="w-full bg-[#007BFF] text-white py-3 px-4 rounded-lg font-medium hover:bg-[#0056b3] transition-colors"
+                  disabled={isSubmitting}
+                  className="w-full bg-[#007BFF] text-white py-3 px-4 rounded-lg font-medium hover:bg-[#0056b3] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Submit Application
+                  {isSubmitting ? 'Submitting...' : 'Submit Application'}
                 </button>
               </div>
 
