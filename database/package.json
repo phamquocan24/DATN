@@ -1,0 +1,54 @@
+{
+  "name": "cv-recruitment-database",
+  "version": "1.0.0",
+  "description": "PostgreSQL database setup for CV Recruitment System with UUID and vector embeddings",
+  "main": "config.js",
+  "scripts": {
+    "db:init": "node setup.js init",
+    "db:migrate": "node setup.js migrate",
+    "db:seed": "node setup.js seed",
+    "db:reset": "node setup.js reset",
+    "db:stats": "node setup.js stats",
+    "db:test": "node setup.js test",
+    "db:backup": "pg_dump $DATABASE_URL > backup_$(date +%Y%m%d_%H%M%S).sql",
+    "db:restore": "psql $DATABASE_URL < $1",
+    "db:console": "psql $DATABASE_URL"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^17.2.1",
+    "express-validator": "^7.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.3",
+    "uuid": "^9.0.1",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.2",
+    "supertest": "^6.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-org/cv-recruitment.git"
+  },
+  "keywords": [
+    "postgresql",
+    "database",
+    "recruitment",
+    "uuid",
+    "vector-embeddings",
+    "ai-matching",
+    "migrations"
+  ],
+  "author": "CV Recruitment Team",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/your-org/cv-recruitment/issues"
+  },
+  "homepage": "https://github.com/your-org/cv-recruitment#readme"
+}
