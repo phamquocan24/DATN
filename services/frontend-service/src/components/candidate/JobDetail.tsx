@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiArrowLeft, FiCheckCircle, FiHeart, FiUmbrella, FiTrendingUp, FiUsers, FiHome, FiTruck, FiGift, FiArrowRight, FiShare2, FiEye } from 'react-icons/fi';
 import JobApplication from './JobApplication';
+import candidateApi from '../../services/candidateApi';
 import nomadLogo from '../../assets/Nomad.png'; 
 import work1 from '../../assets/work1.png';
 import work2 from '../../assets/work2.png';
 import work3 from '../../assets/work3.png';
 
 interface Job {
-  id: number;
+  job_id: string; // Primary ID (UUID from database)
+  id?: number;    // Fallback for legacy data
   title: string;
   company: string;
   location: string;
@@ -39,13 +41,45 @@ interface SimilarJob {
 interface JobDetailProps {
   job: Job;
   onBack: () => void;
-  applicationStatus?: 'In Review' | 'Hired' | 'Mini-test' | 'Interviewing' | 'Rejected';
+  applicationStatus?: 'PENDING' | 'REVIEWING' | 'SHORTLISTED' | 'INTERVIEWING' | 'TESTING' | 'OFFERED' | 'HIRED' | 'REJECTED';
 }
 
-
-const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus }) => {
+const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: initialStatus }) => {
     const [isApplicationOpen, setIsApplicationOpen] = useState(false);
     const [isFavorited, setIsFavorited] = useState(false);
+    const [applicationStatus, setApplicationStatus] = useState<string | undefined>(initialStatus);
+    const [checkingApplication, setCheckingApplication] = useState(false);
+
+    // Check if user has already applied for this job
+    useEffect(() => {
+        checkApplicationStatus();
+    }, [job.job_id, job.id]);
+
+    const checkApplicationStatus = async () => {
+        setCheckingApplication(true);
+        try {
+            const response = await candidateApi.getMyApplications();
+            if (response.success && response.data) {
+                const jobId = job.job_id || (job.id ? job.id.toString() : null);
+                if (!jobId) {
+                    console.error('No valid job ID found in job object:', job);
+                    return;
+                }
+                const existingApplication = response.data.find((app: any) => 
+                    app.job_id === jobId || app.job?.job_id === jobId
+                );
+                
+                if (existingApplication) {
+                    setApplicationStatus(existingApplication.current_status || existingApplication.status);
+                }
+            }
+        } catch (error) {
+            console.error('Error checking application status:', error);
+            // Don't show error, just continue without status
+        } finally {
+            setCheckingApplication(false);
+        }
+    };
 
     const handleApplyClick = () => {
       setIsApplicationOpen(true);
@@ -53,6 +87,8 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus })
   
     const handleCloseApplication = () => {
       setIsApplicationOpen(false);
+      // Recheck application status after closing (in case user applied)
+      checkApplicationStatus();
     };
 
     const handleFavoriteClick = () => {
@@ -71,18 +107,47 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus })
 
     const getStatusButtonStyle = (status?: string) => {
         switch (status) {
-          case 'In Review':
-            return 'bg-orange-100 text-orange-700 border border-orange-200 cursor-not-allowed';
-          case 'Hired':
-            return 'bg-green-100 text-green-700 border border-green-200 cursor-not-allowed';
-          case 'Mini-test':
-            return 'bg-blue-100 text-blue-700 border border-blue-200 cursor-not-allowed';
-          case 'Interviewing':
+          case 'PENDING':
             return 'bg-yellow-100 text-yellow-700 border border-yellow-200 cursor-not-allowed';
-          case 'Rejected':
+          case 'REVIEWING':
+            return 'bg-orange-100 text-orange-700 border border-orange-200 cursor-not-allowed';
+          case 'SHORTLISTED':
+            return 'bg-blue-100 text-blue-700 border border-blue-200 cursor-not-allowed';
+          case 'INTERVIEWING':
+            return 'bg-purple-100 text-purple-700 border border-purple-200 cursor-not-allowed';
+          case 'TESTING':
+            return 'bg-indigo-100 text-indigo-700 border border-indigo-200 cursor-not-allowed';
+          case 'OFFERED':
+            return 'bg-green-100 text-green-700 border border-green-200 cursor-not-allowed';
+          case 'HIRED':
+            return 'bg-green-200 text-green-800 border border-green-300 cursor-not-allowed';
+          case 'REJECTED':
             return 'bg-red-100 text-red-700 border border-red-200 cursor-not-allowed';
           default:
-            return 'bg-[#007BFF] text-white hover:bg-[#0056b3] transition-colors';
+            return checkingApplication ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-[#007BFF] text-white hover:bg-[#0056b3] transition-colors';
+        }
+    };
+
+    const getStatusText = (status?: string) => {
+        switch (status) {
+          case 'PENDING':
+            return 'Application Pending';
+          case 'REVIEWING':
+            return 'Under Review';
+          case 'SHORTLISTED':
+            return 'Shortlisted';
+          case 'INTERVIEWING':
+            return 'Interviewing';
+          case 'TESTING':
+            return 'Testing Phase';
+          case 'OFFERED':
+            return 'Offer Extended';
+          case 'HIRED':
+            return 'Hired';
+          case 'REJECTED':
+            return 'Application Rejected';
+          default:
+            return checkingApplication ? 'Checking...' : 'Apply';
         }
     };
 
@@ -134,11 +199,11 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus })
                                 <FiHeart className={`w-6 h-6 ${isFavorited ? 'fill-current' : ''}`} />
                             </button>
                             <button 
-                                onClick={applicationStatus ? undefined : handleApplyClick}
-                                disabled={!!applicationStatus}
+                                onClick={applicationStatus || checkingApplication ? undefined : handleApplyClick}
+                                disabled={!!applicationStatus || checkingApplication}
                                 className={`px-8 py-3 rounded-lg text-lg ${getStatusButtonStyle(applicationStatus)}`}
                             >
-                                {applicationStatus || 'Apply'}
+                                {getStatusText(applicationStatus)}
                             </button>
                         </div>
                     </div>

@@ -5,7 +5,7 @@ import { EnhanceResumeModal } from './EnhanceResumeModal';
 import CVPreviewModal from './CVPreviewModal';
 import ProfileSuggestionsModal from './ProfileSuggestionsModal';
 import cvApi, { CVExtractResponse } from '../../services/cvApi';
-// import matchingApi from '../../services/matchingApi'; // Removed - using real API instead
+import { calculateMatchScoreFromText } from '../../services/matchingApi';
 import candidateApi from '../../services/candidateApi';
 // import api from '../../services/api'; // Commented out business service
 
@@ -433,8 +433,8 @@ export const Resume: React.FC = () => {
     }
   };
 
-  // Function to calculate matching scores with available jobs
-  const calculateJobMatchScores = async (_resumeId: string): Promise<MatchScore[]> => {
+  // Function to calculate matching scores with available jobs using AI service directly
+  const calculateJobMatchScores = async (resumeId: string): Promise<MatchScore[]> => {
     if (availableJobs.length === 0) {
       console.warn('No available jobs to calculate match scores');
       return [];
@@ -442,12 +442,44 @@ export const Resume: React.FC = () => {
 
     const matchScores: MatchScore[] = [];
     
+    // Get the resume data for the CV text
+    const resume = resumes.find(r => r.id === resumeId);
+    if (!resume?.extractedData) {
+      console.warn('No extracted CV data found for matching');
+      return [];
+    }
+
+    // Create CV text for matching
+    const cvText = `
+      Name: ${resume.extractedData.full_name}
+      Email: ${resume.extractedData.email}
+      Phone: ${resume.extractedData.phone}
+      Address: ${resume.extractedData.address}
+      Objective: ${resume.extractedData.objective}
+      Skills: ${resume.extractedData.skills?.map(s => s.skill_name).join(', ') || ''}
+      Education: ${resume.extractedData.education?.map(e => `${e.degree} in ${e.field} from ${e.school}`).join(', ') || ''}
+      Experience: ${resume.extractedData.experience?.map(e => `${e.position} at ${e.company}: ${e.description}`).join(', ') || ''}
+      Projects: ${resume.extractedData.projects?.map(p => `${p.name}: ${p.description}`).join(', ') || ''}
+      Certifications: ${resume.extractedData.certifications?.map(c => c.name).join(', ') || ''}
+      Languages: ${resume.extractedData.languages?.map(l => `${l.language} (${l.proficiency})`).join(', ') || ''}
+    `;
+    
     // Calculate match score with top 5 jobs to avoid too many API calls
     const jobsToMatch = availableJobs.slice(0, 5);
     
     for (const job of jobsToMatch) {
       try {
-        const response = await candidateApi.calculateMatchScore(job.id);
+        // Create job description text
+        const jobDescription = `
+          Title: ${job.title}
+          Company: ${job.company_name}
+          Location: ${job.location || 'Not specified'}
+          Employment Type: ${job.employment_type || 'Not specified'}
+          Salary: ${job.salary_min && job.salary_max ? `${job.salary_min} - ${job.salary_max}` : 'Not specified'}
+        `;
+        
+        // Use AI service directly for text-based matching
+        const response = await calculateMatchScoreFromText(cvText, jobDescription);
         
         if (response.success && response.data) {
           matchScores.push({
@@ -456,17 +488,19 @@ export const Resume: React.FC = () => {
             company_name: job.company_name,
             match_score: response.data.match_score || 0,
             match_grade: response.data.match_grade || 'POOR',
-            detailed_scores: response.data.detailed_scores
+            detailed_scores: {
+              skill_match: response.data.match_score * 0.8, // Approximate detailed scores
+              experience_match: response.data.match_score * 0.9,
+              education_match: response.data.match_score * 0.7,
+              location_match: 50, // Default location match
+              salary_match: 60 // Default salary match
+            }
           });
         }
       } catch (error: any) {
         console.warn(`Failed to calculate match score for job ${job.id}:`, error);
-        // Skip adding job if candidate profile not found
-        if (error.response?.status === 403 || error.response?.data?.message?.includes('Candidate profile not found')) {
-          console.warn('Skipping match calculation - candidate profile not found');
-          continue;
-        }
-        // Add a default low score for other errors
+        
+        // Add a default low score for errors
         matchScores.push({
           job_id: job.id,
           job_title: job.title,

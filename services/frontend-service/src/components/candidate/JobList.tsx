@@ -37,17 +37,18 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
 
         // Transform API data to match component interface
         const transformJob = (job: any, index: number) => ({
-          id: job.id || job._id,
+          job_id: job.job_id, // Primary ID from database
+          id: job.id || job._id, // Fallback for legacy data
           title: job.title || 'Job Title',
-          company: job.company?.name || job.companyName || 'Company',
-          location: job.location || 'Location',
-          type: job.type || job.jobType || 'Full Time',
+          company: job.company_name || job.company?.name || job.companyName || 'Company',
+          location: job.city_name || job.location || 'Location',
+          type: job.employment_type || job.type || job.jobType || 'Full Time',
           description: job.description || 'Job description not available.',
           tags: job.skills?.slice(0, 3) || job.tags?.slice(0, 3) || ['Business'],
-          logo: (job.company?.name || job.companyName || job.title || 'C').charAt(0).toUpperCase(),
+          logo: (job.company_name || job.company?.name || job.companyName || job.title || 'C').charAt(0).toUpperCase(),
           logoColor: `bg-${['blue', 'green', 'purple', 'red', 'teal', 'orange'][index % 6]}-500 text-white`,
-          applied: job.applicationsCount || job.applied || 0,
-          capacity: job.openPositions || job.capacity || 1
+          applied: job.application_count || job.applicationsCount || job.applied || 0,
+          capacity: job.max_applications || job.openPositions || job.capacity || 1
         });
 
         // Use first 4 jobs as featured (or could be jobs with featured flag)
@@ -329,7 +330,8 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
           isOpen={isApplicationOpen}
           onClose={handleCloseApplication}
           job={{
-            id: selectedJob.id,
+            job_id: selectedJob.job_id, // Primary ID from database
+            id: selectedJob.id, // Fallback for legacy data
             title: selectedJob.title,
             company: selectedJob.company,
             location: selectedJob.location,

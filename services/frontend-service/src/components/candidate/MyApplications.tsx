@@ -46,7 +46,8 @@ const mockJobDetails = {
 };
 
 interface Job {
-  id: number;
+  job_id: string; // Primary ID (UUID from database)
+  id?: number;    // Fallback for legacy data
   title: string;
   company: string;
   location: string;
@@ -146,7 +147,8 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
   // Convert Application to Job format for JobDetail
   const convertApplicationToJob = (application: Application): Job => {
     return {
-      id: parseInt(application.id) || 0,
+      job_id: application.job_id || application.id, // Use job_id from application
+      id: parseInt(application.id) || 0, // Fallback legacy ID
       title: application.role,
       company: application.company,
       location: 'Remote', // Default location, could be enhanced

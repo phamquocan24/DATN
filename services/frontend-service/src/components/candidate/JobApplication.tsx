@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import candidateApi from '../../services/candidateApi';
 
 interface JobApplicationProps {
   isOpen: boolean;
   onClose: () => void;
   job: {
-    id: number | string;
+    job_id: string; // Primary ID (UUID from database)
+    id?: number | string; // Fallback for legacy data
     title: string;
     company: string;
     location: string;
@@ -30,9 +31,57 @@ export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose,
   const [characterCount, setCharacterCount] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [availableCVs] = useState<any[]>([]); // TODO: Load CVs from API
+  const [availableCVs, setAvailableCVs] = useState<any[]>([]);
   const [selectedCVId, setSelectedCVId] = useState<string>('');
+  const [loadingCVs, setLoadingCVs] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(false);
   const maxCharacters = 500;
+
+  // Load available CVs and user profile when component opens
+  useEffect(() => {
+    if (isOpen) {
+      loadAvailableCVs();
+      loadUserProfile();
+    }
+  }, [isOpen]);
+
+  const loadAvailableCVs = async () => {
+    setLoadingCVs(true);
+    try {
+      const response = await candidateApi.getMyCVs();
+      if (response.success && response.data) {
+        setAvailableCVs(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading CVs:', error);
+      // Don't show error for CV loading failure
+    } finally {
+      setLoadingCVs(false);
+    }
+  };
+
+  const loadUserProfile = async () => {
+    setLoadingProfile(true);
+    try {
+      const response = await candidateApi.getProfile();
+      if (response.success && response.data) {
+        const profile = response.data;
+        // Auto-populate form fields with profile data
+        setFormData(prev => ({
+          ...prev,
+          fullName: profile.full_name || prev.fullName,
+          email: profile.email || prev.email,
+          phone: profile.phone_number || prev.phone,
+          currentJobTitle: profile.current_position || prev.currentJobTitle,
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+      // Don't show error to user, just continue without auto-fill
+    } finally {
+      setLoadingProfile(false);
+    }
+  };
 
   const handleInputChange = (field: string, value: string) => {
     if (field === 'additionalInfo') {
@@ -51,13 +100,30 @@ export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose,
     setSubmitError(null);
 
     try {
+      // Get the correct job ID - prioritize job_id, fallback to id
+      console.log('=== DEBUG JobApplication Submit ===');
+      console.log('Job object:', job);
+      console.log('job.job_id:', job.job_id);
+      console.log('job.id:', job.id);
+      
+      const jobId = job.job_id || (job.id ? job.id.toString() : null);
+      console.log('Final jobId:', jobId);
+      
+      if (!jobId) {
+        setSubmitError('Invalid job ID - no valid ID found in job object');
+        console.error('Job object:', job);
+        return;
+      }
+      
       // Prepare application data according to business-service API
       const applicationData = {
-        job_id: job.id.toString(),
+        job_id: jobId,
         cv_id: selectedCVId || undefined,
         cover_letter: formData.additionalInfo || undefined,
         source: 'DIRECT' as const
       };
+
+      console.log('Submitting application:', applicationData);
 
       // Submit application using the API
       const response = await candidateApi.createApplication(applicationData);
@@ -162,8 +228,9 @@ export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose,
                   required
                   value={formData.fullName}
                   onChange={(e) => handleInputChange('fullName', e.target.value)}
-                  placeholder="Enter your fullname"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#007BFF] focus:border-[#007BFF]"
+                  placeholder={loadingProfile ? "Loading profile..." : "Enter your fullname"}
+                  disabled={loadingProfile}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#007BFF] focus:border-[#007BFF] disabled:bg-gray-50"
                 />
               </div>
 
@@ -177,8 +244,9 @@ export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose,
                   required
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
-                  placeholder="Enter your email address"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#007BFF] focus:border-[#007BFF]"
+                  placeholder={loadingProfile ? "Loading profile..." : "Enter your email address"}
+                  disabled={loadingProfile}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#007BFF] focus:border-[#007BFF] disabled:bg-gray-50"
                 />
               </div>
 
@@ -192,8 +260,9 @@ export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose,
                   required
                   value={formData.phone}
                   onChange={(e) => handleInputChange('phone', e.target.value)}
-                  placeholder="Enter your phone number"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#007BFF] focus:border-[#007BFF]"
+                  placeholder={loadingProfile ? "Loading profile..." : "Enter your phone number"}
+                  disabled={loadingProfile}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#007BFF] focus:border-[#007BFF] disabled:bg-gray-50"
                 />
               </div>
 
@@ -206,8 +275,9 @@ export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose,
                   type="text"
                   value={formData.currentJobTitle}
                   onChange={(e) => handleInputChange('currentJobTitle', e.target.value)}
-                  placeholder="What's your current or previous job title?"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#007BFF] focus:border-[#007BFF]"
+                  placeholder={loadingProfile ? "Loading profile..." : "What's your current or previous job title?"}
+                  disabled={loadingProfile}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#007BFF] focus:border-[#007BFF] disabled:bg-gray-50"
                 />
               </div>
 
@@ -330,24 +400,45 @@ export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose,
                 </label>
                 <p className="text-sm text-gray-600 mb-3">Choose from your uploaded CVs</p>
                 
-                <select
-                  value={selectedCVId}
-                  onChange={(e) => setSelectedCVId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#007BFF] focus:border-[#007BFF]"
-                >
-                  <option value="">No CV selected</option>
-                  {availableCVs.map((cv) => (
-                    <option key={cv.id} value={cv.id}>
-                      {cv.original_name || cv.name || `CV ${cv.id}`}
-                    </option>
-                  ))}
-                </select>
-                
-                {availableCVs.length === 0 && (
-                  <p className="text-sm text-gray-500 mt-2">
-                    No CVs available. You can upload CVs in your profile.
-                  </p>
+                {loadingCVs ? (
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50">
+                    <span className="text-gray-500">Loading CVs...</span>
+                  </div>
+                ) : availableCVs.length > 0 ? (
+                  <select
+                    value={selectedCVId}
+                    onChange={(e) => setSelectedCVId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#007BFF] focus:border-[#007BFF]"
+                  >
+                    <option value="">No CV selected</option>
+                    {availableCVs.map((cv) => (
+                      <option key={cv.cv_id || cv.id} value={cv.cv_id || cv.id}>
+                        {cv.original_name || cv.name || cv.file_name || `CV ${cv.cv_id || cv.id}`}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-yellow-50 border-yellow-200">
+                    <div className="flex items-center text-yellow-800">
+                      <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <span className="font-medium">No CVs available</span>
+                    </div>
+                    <p className="text-sm text-yellow-700 mt-1">
+                      You need to upload a CV first before applying to jobs.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => window.open('/candidate/profile', '_blank')}
+                      className="mt-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-1 rounded text-sm transition-colors"
+                    >
+                      Go to Profile to Upload CV
+                    </button>
+                  </div>
                 )}
+                
+
               </div>
 
               {/* Submit Button */}

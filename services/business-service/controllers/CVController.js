@@ -76,12 +76,13 @@ const parseCVSchema = Joi.object({
 // Helper function to get candidate profile ID
 async function getCandidateProfileId(userId) {
   try {
-    const user = await User.findById(userId);
+    const userModel = new User();
+    const user = await userModel.findById(userId);
     if (!user || user.role !== 'CANDIDATE') {
       throw new Error('User is not a candidate');
     }
 
-    const profile = await User.getUserProfile(userId);
+    const profile = await userModel.getUserProfile(userId);
     if (!profile.candidate_profile) {
       throw new Error('Candidate profile not found');
     }
@@ -203,7 +204,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
     if (req.user.role === 'CANDIDATE') {
       // Candidates get their own CVs only
-      const candidateId = await getCandidateProfileId(req.user.user_id);
+      const candidateId = req.user.user_id;
       result = await cvModel.getCandidateCVs(candidateId, options);
     } else if (['RECRUITER', 'HR', 'ADMIN'].includes(req.user.role)) {
       // HR/Recruiters can search all CVs
@@ -343,7 +344,7 @@ router.post('/', authenticateToken, requireRole(['CANDIDATE']), async (req, res)
       });
     }
 
-    const candidateId = await getCandidateProfileId(req.user.user_id);
+    const candidateId = req.user.user_id;
 
     const cvData = {
       ...value,
@@ -439,7 +440,8 @@ router.get('/my-cvs', authenticateToken, requireRole(['CANDIDATE']), async (req,
   try {
     const { page = 1, limit = 10 } = req.query;
 
-    const candidateId = await getCandidateProfileId(req.user.user_id);
+    // Use user_id directly as candidate_id (based on actual database schema)
+    const candidateId = req.user.user_id;
 
     const options = {
       page: parseInt(page),
@@ -967,7 +969,7 @@ router.post('/search', authenticateToken, requireRole(['RECRUITER', 'HR', 'ADMIN
 // Get CV statistics (Candidates only)
 router.get('/my-cvs/stats', authenticateToken, requireRole(['CANDIDATE']), async (req, res) => {
   try {
-    const candidateId = await getCandidateProfileId(req.user.user_id);
+    const candidateId = req.user.user_id;
     const stats = await cvModel.getCVStats(candidateId);
 
     res.json({

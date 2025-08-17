@@ -1,4 +1,4 @@
-// import api from './api'; // Commented out - using direct fetch for AI service
+// Direct AI Service integration for CV-JD matching
 
 export interface SimpleMatchRequest {
   cv_text: string;
@@ -26,6 +26,25 @@ export interface MatchingResult {
   scores: MatchingScore;
   reasoning?: string;
   language_detected?: string;
+}
+
+// AI Service match request interface (matches AI service schema)
+export interface AIMatchRequest {
+  cv_id: string;
+  job_id: string;
+}
+
+// AI Service match response interface 
+export interface AIMatchResponse {
+  match_id: string;
+  job_id: string;
+  candidate_id: string;
+  cv_id: string;
+  overall_similarity: number;
+  mo_ta_ban_than_similarity: number;
+  ky_nang_similarity: number;
+  kinh_nghiem_similarity: number;
+  hoc_van_similarity: number;
 }
 
 // AI Service endpoints (port 8001 for JD-CV matching)
@@ -219,10 +238,123 @@ export const calculateTextBasedMatch = async (cv_text: string, job_text: string)
   }
 };
 
+/**
+ * Calculate match score directly with AI service using CV ID and Job ID
+ * This bypasses business service and calls AI service directly
+ */
+export const calculateDirectMatchScore = async (cvId: string, jobId: string): Promise<{
+  success: boolean;
+  data?: {
+    match_score: number;
+    match_grade: string;
+    detailed_scores: {
+      skill_match: number;
+      experience_match: number;
+      education_match: number;
+      overall_match: number;
+    };
+  };
+  error?: string;
+}> => {
+  try {
+    const response = await fetch(`${MATCHING_SERVICE_BASE_URL}/api/v1/ai/calculate-match`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        cv_id: cvId,
+        job_id: jobId,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result: AIMatchResponse = await response.json();
+    
+    // Convert AI service response to frontend format
+    const overallScore = Math.round(result.overall_similarity * 100);
+    
+    return {
+      success: true,
+      data: {
+        match_score: overallScore,
+        match_grade: overallScore >= 80 ? 'EXCELLENT' : 
+                    overallScore >= 70 ? 'VERY_GOOD' :
+                    overallScore >= 60 ? 'GOOD' :
+                    overallScore >= 50 ? 'FAIR' : 'POOR',
+        detailed_scores: {
+          skill_match: Math.round(result.ky_nang_similarity * 100),
+          experience_match: Math.round(result.kinh_nghiem_similarity * 100),
+          education_match: Math.round(result.hoc_van_similarity * 100),
+          overall_match: overallScore
+        }
+      }
+    };
+  } catch (error: any) {
+    console.error('Error calling AI service directly:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to calculate match score'
+    };
+  }
+};
+
+/**
+ * Calculate match score using CV text and job description (for cases without CV/Job IDs)
+ * This is useful when CV is not yet stored in database
+ */
+export const calculateMatchScoreFromText = async (
+  cvText: string, 
+  jobDescription: string,
+  jobRequirements?: string,
+  jobResponsibilities?: string
+): Promise<{
+  success: boolean;
+  data?: {
+    match_score: number;
+    match_grade: string;
+  };
+  error?: string;
+}> => {
+  try {
+    // Use the existing simple match calculation
+    const result = await calculateSimpleMatch({
+      cv_text: cvText,
+      job_description: jobDescription,
+      job_requirements: jobRequirements,
+      job_responsibilities: jobResponsibilities
+    });
+    
+    const matchScore = Math.round(result.scores.overall_similarity * 100);
+    
+    return {
+      success: true,
+      data: {
+        match_score: matchScore,
+        match_grade: matchScore >= 80 ? 'EXCELLENT' : 
+                    matchScore >= 70 ? 'VERY_GOOD' :
+                    matchScore >= 60 ? 'GOOD' :
+                    matchScore >= 50 ? 'FAIR' : 'POOR'
+      }
+    };
+  } catch (error: any) {
+    console.error('Error calculating match from text:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to calculate match score from text'
+    };
+  }
+};
+
 export default {
   calculateSimpleMatch,
   calculateDatabaseMatch,
   getJobRecommendations,
   checkMatchingServiceHealth,
   calculateTextBasedMatch,
+  calculateDirectMatchScore,
+  calculateMatchScoreFromText,
 };

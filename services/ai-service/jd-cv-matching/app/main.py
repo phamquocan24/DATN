@@ -194,8 +194,8 @@ async def calculate_match(request: MatchRequest):
 
 @app.get("/api/v1/ai/similarity")
 async def get_similarity(
-    cv_id: int = Query(...),
-    job_id: int = Query(...),
+    cv_id: str = Query(...),  # Changed from int to str to accept UUID
+    job_id: str = Query(...),  # Changed from int to str to accept UUID  
     section_type: str = Query("full_text")
 ):
     conn = get_db_connection()
@@ -241,7 +241,7 @@ async def get_similarity(
 
 
 @app.get("/api/v1/ai/job-recommendations/{candidate_id}")
-async def recommend_jobs(candidate_id: int, top_k: int = Query(5, ge=1, le=50)):
+async def recommend_jobs(candidate_id: str, top_k: int = Query(5, ge=1, le=50)):  # Changed from int to str
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -346,7 +346,7 @@ async def recommend_jobs(candidate_id: int, top_k: int = Query(5, ge=1, le=50)):
 
 
 @app.get("/api/v1/ai/match-analysis/{application_id}")
-async def match_reasoning(application_id: int):
+async def match_reasoning(application_id: str):  # Changed from int to str
     conn = get_db_connection()
     cursor = conn.cursor()
 

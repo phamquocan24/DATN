@@ -7,7 +7,8 @@ import favoritesService from '../../services/favoritesService';
 
 
 interface Job {
-  id: number;
+  job_id: string; // Primary ID (UUID from database)
+  id?: number;    // Fallback for legacy data
   title: string;
   company: string;
   location: string;
@@ -80,11 +81,12 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
       }
 
       const formattedJobs = jobsArray.map((job: any, index: number) => ({
-        id: job.id || job._id,
+        job_id: job.job_id, // Primary ID from database
+        id: job.id || job._id, // Fallback for legacy data
         title: job.title,
-        company: job.company?.name || 'Company',
-        location: job.location || 'Location',
-        type: job.type || 'Full Time',
+        company: job.company_name || job.company?.name || 'Company',
+        location: job.city_name || job.location || 'Location',
+        type: job.employment_type || job.type || 'Full Time',
         tags: [
           ...(job.skills?.slice(0, 2) || ['Business']),
           `Match: ${job.matchScore || Math.floor(Math.random() * 40) + 40}%`

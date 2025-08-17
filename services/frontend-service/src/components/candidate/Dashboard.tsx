@@ -6,7 +6,8 @@ import Avatar from '../../assets/Avatar17.png';
 import DashboardSidebar from './DashboardSidebar';
 
 interface Job {
-  id: number;
+  job_id: string; // Primary ID (UUID from database)
+  id?: number;    // Fallback for legacy data
   title: string;
   company: string;
   location: string;
@@ -166,7 +167,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const suggestedJobs: Job[] = [
     {
-      id: 1,
+      job_id: '18af5b7a-994b-492e-8617-412130e9f2ef', // Sample UUID from database
+      id: 1, // Fallback legacy ID
       title: 'Social Media Assistant',
       company: 'Nomad',
       location: 'Paris, France',
@@ -180,7 +182,8 @@ const Dashboard: React.FC<DashboardProps> = ({
       salary: '$40,000 - $60,000'
     },
     {
-      id: 2,
+      job_id: '42476a5c-3baf-49a4-9a11-e690f4866579', // Sample UUID from database
+      id: 2, // Fallback legacy ID
       title: 'Brand Designer',
       company: 'Dropbox',
       location: 'San Francisco, USA',
@@ -194,7 +197,8 @@ const Dashboard: React.FC<DashboardProps> = ({
       salary: '$50,000 - $70,000'
     },
     {
-      id: 3,
+      job_id: '021adde0-a17e-486f-af34-a34b34d4a0ae', // Sample UUID from database
+      id: 3, // Fallback legacy ID
       title: 'Lead Engineer',
       company: 'Canva',
       location: 'Ankara, Turkey',

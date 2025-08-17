@@ -372,19 +372,10 @@ export const candidateApi = {
   },
 
   // ======================
-  // MATCH SCORE CALCULATION
+  // MATCH SCORE CALCULATION - REMOVED
   // ======================
-
-  // Calculate match score between current candidate and a specific job
-  calculateMatchScore: async (jobId: string) => {
-    try {
-      const response = await apiClient.get(`/api/v1/applications/match-score/${jobId}`);
-      return response.data;
-    } catch (error: any) {
-      console.error('Failed to calculate match score:', error);
-      throw error;
-    }
-  },
+  // Note: Match score calculation has been moved to matchingApi.ts to call AI service directly
+  // This reduces dependency on business service for CV-JD matching
 
   // Get available jobs for match calculation
   getAvailableJobs: async (params?: {
