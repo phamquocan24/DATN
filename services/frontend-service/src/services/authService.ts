@@ -7,6 +7,8 @@ export interface User {
   role: 'ADMIN' | 'CANDIDATE' | 'RECRUITER';
   name: string;
   profile?: any;
+  candidate_profile_id?: string;
+  company_id?: string;
 }
 
 export interface AuthResponse {

@@ -1,18 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import Avatar from '../../assets/Avatar17.png';
 
-interface TestApplication {
-  id: number;
-  company: string;
-  role: string;
-  dateApplied: string;
-  status: 'Opening' | 'Closed';
-  logo: string;
-  logoColor: string;
+interface TestAssignment {
+  result_id: string;
+  test_id: string;
+  application_id: string;
+  test_name: string;
+  test_description: string;
+  time_limit: number;
+  passing_score: number;
+  job_title: string;
+  company_name: string;
+  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'TIMEOUT' | 'ABANDONED';
+  created_at: string; // For assigned date
+  start_time?: string; // For started date  
+  submit_time?: string; // For completed date
+  total_score?: number;
+  percentage?: number; // Database column name
+  passed?: boolean;
+  time_taken_seconds?: number;
 }
 
 interface TestSuccessProps {
-  test: TestApplication;
+  test: TestAssignment;
   onHome: () => void;
   onBackToList: () => void;
 }
@@ -25,8 +35,21 @@ const TestSuccess: React.FC<TestSuccessProps> = ({
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [showAnimation, setShowAnimation] = useState(false);
 
-  // Simulate elapsed time (in real app, this would be tracked from start)
-  const completionTime = "23:043"; // 23 minutes, 43 seconds
+  // Calculate actual completion time from test data
+  const getCompletionTime = () => {
+    if (test.start_time && test.submit_time) {
+      const startTime = new Date(test.start_time).getTime();
+      const endTime = new Date(test.submit_time).getTime();
+      const timeDiff = Math.floor((endTime - startTime) / 1000); // in seconds
+      return timeDiff;
+    }
+    if (test.time_taken_seconds) {
+      return test.time_taken_seconds;
+    }
+    return 0;
+  };
+
+  const actualCompletionTime = getCompletionTime();
 
   useEffect(() => {
     // Start animation after component mounts
@@ -35,18 +58,18 @@ const TestSuccess: React.FC<TestSuccessProps> = ({
     // Animate elapsed time counter
     let counter = 0;
     const increment = () => {
-      if (counter < 1403) { // 23:43 in seconds
+      if (counter < actualCompletionTime) {
         setTimeElapsed(counter);
-        counter += 5;
+        counter += Math.max(1, Math.floor(actualCompletionTime / 50));
         setTimeout(increment, 50);
       } else {
-        setTimeElapsed(1403);
+        setTimeElapsed(actualCompletionTime);
       }
     };
     increment();
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [actualCompletionTime]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -74,22 +97,28 @@ const TestSuccess: React.FC<TestSuccessProps> = ({
         {/* Test Info */}
         <div className="p-4">
           <div className="flex items-center space-x-3 mb-4">
-            <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold ${test.logoColor}`}>
-              {test.logo}
+            <div className="w-12 h-12 rounded-lg flex items-center justify-center font-bold bg-blue-500 text-white">
+              {test.company_name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2)}
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">{test.company}</h3>
-              <p className="text-sm text-gray-500">{test.role}</p>
+              <h3 className="font-semibold text-gray-900">{test.company_name}</h3>
+              <p className="text-sm text-gray-500">{test.test_name}</p>
             </div>
           </div>
 
           {/* Completion Status */}
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+          <div className={`border rounded-lg p-3 mb-4 ${
+            test.passed 
+              ? 'bg-green-50 border-green-200' 
+              : 'bg-yellow-50 border-yellow-200'
+          }`}>
             <div className="flex items-center space-x-2">
-              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className={`w-5 h-5 ${test.passed ? 'text-green-600' : 'text-yellow-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              <span className="text-green-700 font-medium text-sm">Assessment Completed</span>
+              <span className={`font-medium text-sm ${test.passed ? 'text-green-700' : 'text-yellow-700'}`}>
+                Assessment Completed {test.passed ? '- Passed' : '- Review Pending'}
+              </span>
             </div>
           </div>
 
@@ -97,15 +126,23 @@ const TestSuccess: React.FC<TestSuccessProps> = ({
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Time Taken:</span>
-              <span className="text-sm font-medium">{completionTime}</span>
+              <span className="text-sm font-medium">{formatTime(actualCompletionTime)}</span>
             </div>
+            {test.percentage !== undefined && (
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">Score:</span>
+                <span className="text-sm font-medium">{test.percentage}%</span>
+              </div>
+            )}
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Questions:</span>
-              <span className="text-sm font-medium">3/3</span>
+              <span className="text-sm text-gray-600">Passing Score:</span>
+              <span className="text-sm font-medium">{test.passing_score}%</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Status:</span>
-              <span className="text-sm font-medium text-green-600">Submitted</span>
+              <span className={`text-sm font-medium ${test.passed ? 'text-green-600' : 'text-yellow-600'}`}>
+                {test.status}
+              </span>
             </div>
           </div>
         </div>
@@ -126,9 +163,9 @@ const TestSuccess: React.FC<TestSuccessProps> = ({
       <div className="flex-1 p-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">{test.role}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{test.test_name}</h1>
           <div className="flex items-center space-x-2 text-sm text-gray-600">
-            <span>Timer</span>
+            <span>Final Time</span>
             <div className="bg-white border border-gray-300 rounded-lg px-3 py-1">
               <span className="font-mono text-lg">{formatTime(timeElapsed)}</span>
               <span className="text-xs ml-1">min</span>

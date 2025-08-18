@@ -92,6 +92,12 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
   const [applications, setApplications] = useState<Application[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0
+  });
 
   // Store selected application to access its status
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
@@ -102,6 +108,9 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
       setIsLoading(true);
       try {
         const response = await candidateApi.getMyApplications({
+          page: pagination.page,
+          limit: pagination.limit,
+          status: selectedStatusTab !== 'all' ? selectedStatusTab.toUpperCase() as any : undefined,
           orderBy: 'created_at',
           direction: 'DESC'
         });
@@ -110,6 +119,11 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
         const applicationsArray = Array.isArray(response)
           ? response
           : (response?.data || []);
+        
+        // Update pagination if available
+        if (response?.pagination) {
+          setPagination(response.pagination);
+        }
         
         // Transform API data to match component interface
         const transformedApplications = applicationsArray.map((app: any) => ({
@@ -142,7 +156,7 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
     };
 
     fetchApplications();
-  }, []);
+  }, [pagination.page, pagination.limit, selectedStatusTab]);
 
   // Convert Application to Job format for JobDetail
   const convertApplicationToJob = (application: Application): Job => {
@@ -184,6 +198,9 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
       
       // Refresh applications list
       const response = await candidateApi.getMyApplications({
+        page: pagination.page,
+        limit: pagination.limit,
+        status: selectedStatusTab !== 'all' ? selectedStatusTab.toUpperCase() as any : undefined,
         orderBy: 'created_at',
         direction: 'DESC'
       });
@@ -271,16 +288,18 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <DashboardSidebar 
-        activeTab={activeTab}
-        onDashboardClick={onDashboardClick}
-        onAgentAIClick={onAgentAIClick}
-        onMyApplicationsClick={() => setActiveTab('applications')}
-        onTestManagementClick={onTestManagementClick}
-        onProfileClick={onProfileClick}
-        onSettingsClick={onSettingsClick}
-        onHelpCenterClick={onHelpCenterClick}
-      />
+                <DashboardSidebar
+            activeTab={activeTab}
+            isCollapsed={false}
+            onToggleSidebar={() => {}}
+            onDashboardClick={onDashboardClick}
+            onAgentAIClick={onAgentAIClick}
+            onMyApplicationsClick={() => setActiveTab('applications')}
+            onTestManagementClick={onTestManagementClick}
+            onProfileClick={onProfileClick}
+            onSettingsClick={onSettingsClick}
+            onHelpCenterClick={onHelpCenterClick}
+          />
 
       {/* Main Content */}
       <div className="flex-1 p-8">
@@ -352,7 +371,10 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
                   {statusTabs.map((tab) => (
                     <button
                       key={tab.id}
-                      onClick={() => setSelectedStatusTab(tab.id)}
+                      onClick={() => {
+                        setSelectedStatusTab(tab.id);
+                        setPagination(prev => ({ ...prev, page: 1 })); // Reset to page 1 when changing status
+                      }}
                       className={`py-2 px-1 border-b-2 font-medium text-sm ${
                         selectedStatusTab === tab.id
                           ? 'border-[#007BFF] text-[#007BFF]'
@@ -412,9 +434,7 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
                       <tr><td colSpan={6} className="text-center p-4">Loading...</td></tr>
                     ) : error ? (
                       <tr><td colSpan={6} className="text-center p-4 text-red-500">{error}</td></tr>
-                    ) : applications
-                        .filter(app => selectedStatusTab === 'all' || app.status.toLowerCase() === selectedStatusTab.toUpperCase())
-                        .map((application, index) => (
+                    ) : applications.map((application, index) => (
                       <tr 
                         key={application.id} 
                         className="hover:bg-gray-50 cursor-pointer transition-colors"
@@ -479,31 +499,69 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
               </div>
 
               {/* Pagination */}
-              <div className="px-6 py-3 border-t border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <button className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
-                    </button>
-                    <div className="flex items-center space-x-1">
-                      <button className="px-3 py-1 text-sm font-medium text-white bg-[#007BFF] rounded">1</button>
-                      <button className="px-3 py-1 text-sm font-medium text-gray-700 hover:text-gray-900">2</button>
-                      <button className="px-3 py-1 text-sm font-medium text-gray-700 hover:text-gray-900">3</button>
-                      <button className="px-3 py-1 text-sm font-medium text-gray-700 hover:text-gray-900">4</button>
-                      <button className="px-3 py-1 text-sm font-medium text-gray-700 hover:text-gray-900">5</button>
-                      <span className="px-2 text-sm text-gray-500">...</span>
-                      <button className="px-3 py-1 text-sm font-medium text-gray-700 hover:text-gray-900">33</button>
+              {pagination.totalPages > 1 && (
+                <div className="px-6 py-3 border-t border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-700">
+                      Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} applications
                     </div>
-                    <button className="p-2 text-gray-400 hover:text-gray-600">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                        disabled={pagination.page <= 1}
+                        className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                      </button>
+                      <div className="flex items-center space-x-1">
+                        {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                          const pageNum = i + 1;
+                          const isCurrentPage = pageNum === pagination.page;
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setPagination(prev => ({ ...prev, page: pageNum }))}
+                              className={`px-3 py-1 text-sm font-medium rounded ${
+                                isCurrentPage
+                                  ? 'text-white bg-[#007BFF]'
+                                  : 'text-gray-700 hover:text-gray-900'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                        {pagination.totalPages > 5 && (
+                          <>
+                            <span className="px-2 text-sm text-gray-500">...</span>
+                            <button
+                              onClick={() => setPagination(prev => ({ ...prev, page: pagination.totalPages }))}
+                              className={`px-3 py-1 text-sm font-medium rounded ${
+                                pagination.page === pagination.totalPages
+                                  ? 'text-white bg-[#007BFF]'
+                                  : 'text-gray-700 hover:text-gray-900'
+                              }`}
+                            >
+                              {pagination.totalPages}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      <button 
+                        onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                        disabled={pagination.page >= pagination.totalPages}
+                        className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </>
         )}

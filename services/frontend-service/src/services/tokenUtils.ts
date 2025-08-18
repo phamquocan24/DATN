@@ -4,6 +4,8 @@ export interface DecodedToken {
   email: string;
   role: string;
   full_name?: string;
+  candidate_profile_id?: string;
+  company_id?: string;
   type: 'access' | 'refresh';
   iat: number;
   exp: number;
@@ -55,6 +57,24 @@ export function getTokenTimeToExpiry(token: string): number {
   
   const currentTime = Math.floor(Date.now() / 1000);
   return Math.max(0, decoded.exp - currentTime);
+}
+
+// Get candidate profile ID from token
+export function getCandidateProfileId(): string | null {
+  const token = localStorage.getItem('token');
+  if (!token) return null;
+  
+  const decoded = decodeToken(token);
+  return decoded?.candidate_profile_id || null;
+}
+
+// Get company ID from token  
+export function getCompanyId(): string | null {
+  const token = localStorage.getItem('token');
+  if (!token) return null;
+  
+  const decoded = decodeToken(token);
+  return decoded?.company_id || null;
 }
 
 // Clear all auth-related data from localStorage

@@ -1,27 +1,51 @@
 import React, { useState, useEffect } from 'react';
 import Avatar from '../../assets/Avatar17.png';
+import candidateApi from '../../services/candidateApi';
 
-interface TestApplication {
-  id: number;
-  company: string;
-  role: string;
-  dateApplied: string;
-  status: 'Opening' | 'Closed';
-  logo: string;
-  logoColor: string;
+interface TestAssignment {
+  result_id: string;
+  test_id: string;
+  application_id: string;
+  test_name: string;
+  test_description: string;
+  time_limit: number;
+  passing_score: number;
+  job_title: string;
+  company_name: string;
+  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'TIMEOUT' | 'ABANDONED';
+  created_at: string; // For assigned date
+  start_time?: string; // For started date  
+  submit_time?: string; // For completed date
+  total_score?: number;
+  percentage?: number; // Database column name
+  passed?: boolean;
+  time_taken_seconds?: number;
 }
 
 interface TestTakingProps {
-  test: TestApplication;
+  test: TestAssignment;
   onComplete: () => void;
   onBack: () => void;
 }
 
 interface Question {
-  id: number;
-  question: string;
+  question_id: string;
+  question_text: string;
+  question_type: string;
   options: string[];
-  correctAnswer: number;
+  points: number;
+  order_index: number;
+}
+
+interface TestDetail {
+  test_id: string;
+  test_name: string;
+  test_description: string;
+  time_limit: number;
+  passing_score: number;
+  job_title: string;
+  company_name: string;
+  questions: Question[];
 }
 
 const TestTaking: React.FC<TestTakingProps> = ({
@@ -30,46 +54,33 @@ const TestTaking: React.FC<TestTakingProps> = ({
   onBack
 }) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<{ [key: number]: number }>({});
-  const [timeLeft, setTimeLeft] = useState(600); // 10 minutes in seconds
+  const [selectedAnswers, setSelectedAnswers] = useState<{ [key: string]: string }>({});
+  const [timeLeft, setTimeLeft] = useState(0);
   const [canSubmit, setCanSubmit] = useState(false);
+  const [testDetail, setTestDetail] = useState<TestDetail | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Sample questions - in real app, these would be fetched based on test
-  const questions: Question[] = [
-    {
-      id: 1,
-      question: "What is the purpose of HDR technology?",
-      options: [
-        "To reduce the file size of images and videos.",
-        "To speed up 3D rendering performance.",
-        "To support higher video resolutions.",
-        "To display more colors in images and videos"
-      ],
-      correctAnswer: 2
-    },
-    {
-      id: 2,
-      question: "Which React hook is used for side effects?",
-      options: [
-        "useState",
-        "useEffect",
-        "useContext",
-        "useReducer"
-      ],
-      correctAnswer: 1
-    },
-    {
-      id: 3,
-      question: "What does CSS Grid provide?",
-      options: [
-        "Animation capabilities",
-        "Two-dimensional layout system",
-        "Color management",
-        "Font styling"
-      ],
-      correctAnswer: 1
-    }
-  ];
+  // Fetch test details when component mounts
+  useEffect(() => {
+    const fetchTestDetail = async () => {
+      setIsLoading(true);
+      try {
+        const response = await candidateApi.getTestById(test.test_id);
+        setTestDetail(response.data);
+        setTimeLeft(response.data.time_limit * 60); // Convert minutes to seconds
+        setError(null);
+      } catch (err) {
+        setError('Failed to load test details.');
+        console.error('Error fetching test details:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTestDetail();
+  }, [test.test_id]);
 
   // Timer countdown
   useEffect(() => {
@@ -84,8 +95,10 @@ const TestTaking: React.FC<TestTakingProps> = ({
 
   // Check if all questions are answered
   useEffect(() => {
-    setCanSubmit(Object.keys(selectedAnswers).length === questions.length);
-  }, [selectedAnswers, questions.length]);
+    if (testDetail) {
+      setCanSubmit(Object.keys(selectedAnswers).length === testDetail.questions.length);
+    }
+  }, [selectedAnswers, testDetail]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -93,15 +106,15 @@ const TestTaking: React.FC<TestTakingProps> = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(3, '0')}`;
   };
 
-  const handleAnswerSelect = (questionId: number, answerIndex: number) => {
+  const handleAnswerSelect = (questionId: string, answer: string) => {
     setSelectedAnswers(prev => ({
       ...prev,
-      [questionId]: answerIndex
+      [questionId]: answer
     }));
   };
 
   const handleNext = () => {
-    if (currentQuestion < questions.length - 1) {
+    if (testDetail && currentQuestion < testDetail.questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     }
   };
@@ -112,12 +125,52 @@ const TestTaking: React.FC<TestTakingProps> = ({
     }
   };
 
-  const handleFinish = () => {
-    // Here you would typically submit the answers to a backend
-    onComplete();
+  const handleFinish = async () => {
+    if (!testDetail || isSubmitting) return;
+    
+    setIsSubmitting(true);
+    try {
+      // Use application_id from test assignment
+      await candidateApi.submitTest(test.test_id, { answers: selectedAnswers }, test.application_id);
+      onComplete();
+    } catch (err) {
+      setError('Failed to submit test. Please try again.');
+      console.error('Error submitting test:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const currentQuestionData = questions[currentQuestion];
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#007BFF] mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading test...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error || !testDetail) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-500 mb-4">{error || 'Test not found'}</p>
+          <button 
+            onClick={onBack}
+            className="px-4 py-2 bg-[#007BFF] text-white rounded-lg hover:bg-[#0056b3]"
+          >
+            Back to Tests
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const currentQuestionData = testDetail.questions[currentQuestion];
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -139,12 +192,12 @@ const TestTaking: React.FC<TestTakingProps> = ({
         {/* Test Info */}
         <div className="p-4 text-left">
           <div className="flex items-center space-x-3 mb-4">
-            <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold ${test.logoColor}`}>
-              {test.logo}
+            <div className="w-12 h-12 rounded-lg flex items-center justify-center font-bold bg-blue-500 text-white">
+              {test.company_name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2)}
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">{test.company}</h3>
-              <p className="text-sm text-gray-500">{test.role}</p>
+              <h3 className="font-semibold text-gray-900">{test.company_name}</h3>
+              <p className="text-sm text-gray-500">{test.test_name}</p>
             </div>
           </div>
 
@@ -152,26 +205,26 @@ const TestTaking: React.FC<TestTakingProps> = ({
           <div className="mb-4">
             <div className="flex justify-between text-sm text-gray-600 mb-2">
               <span>Progress</span>
-              <span>{currentQuestion + 1} of {questions.length}</span>
+              <span>{currentQuestion + 1} of {testDetail.questions.length}</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div 
                 className="bg-[#007BFF] h-2 rounded-full transition-all duration-300"
-                style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
+                style={{ width: `${((currentQuestion + 1) / testDetail.questions.length) * 100}%` }}
               ></div>
             </div>
           </div>
 
           {/* Question Navigation */}
           <div className="grid grid-cols-3 gap-2">
-            {questions.map((_, index) => (
+            {testDetail.questions.map((question, index) => (
               <button
-                key={index}
+                key={question.question_id}
                 onClick={() => setCurrentQuestion(index)}
                 className={`w-8 h-8 rounded-lg text-sm font-medium ${
                   index === currentQuestion
                     ? 'bg-[#007BFF] text-white'
-                    : selectedAnswers[questions[index].id] !== undefined
+                    : selectedAnswers[question.question_id] !== undefined
                     ? 'bg-green-100 text-green-700'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
@@ -198,7 +251,7 @@ const TestTaking: React.FC<TestTakingProps> = ({
       <div className="flex-1 p-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">{test.role}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{testDetail.test_name}</h1>
           <div className="flex items-center space-x-2 text-sm text-gray-600">
             <span>Timer</span>
             <div className="bg-white border border-gray-300 rounded-lg px-3 py-1">
@@ -212,7 +265,7 @@ const TestTaking: React.FC<TestTakingProps> = ({
         {/* Instructions */}
         <div className="mb-8 text-left">
           <p className="text-gray-600">
-            Click the finish button below to submit assessment, you can go back at any time to edit your answers.
+            {testDetail.test_description || 'Click the finish button below to submit assessment, you can go back at any time to edit your answers.'}
           </p>
         </div>
 
@@ -221,7 +274,7 @@ const TestTaking: React.FC<TestTakingProps> = ({
           <div className="mb-6">
             <p className="text-sm text-gray-500 mb-2">Question {currentQuestion + 1}</p>
             <h2 className="text-xl font-semibold text-gray-900 mb-6">
-              {currentQuestionData.question}
+              {currentQuestionData.question_text}
             </h2>
           </div>
 
@@ -231,25 +284,25 @@ const TestTaking: React.FC<TestTakingProps> = ({
               <label
                 key={index}
                 className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${
-                  selectedAnswers[currentQuestionData.id] === index
+                  selectedAnswers[currentQuestionData.question_id] === option
                     ? 'border-[#007BFF] bg-blue-50'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
                 <input
                   type="radio"
-                  name={`question-${currentQuestionData.id}`}
-                  value={index}
-                  checked={selectedAnswers[currentQuestionData.id] === index}
-                  onChange={() => handleAnswerSelect(currentQuestionData.id, index)}
+                  name={`question-${currentQuestionData.question_id}`}
+                  value={option}
+                  checked={selectedAnswers[currentQuestionData.question_id] === option}
+                  onChange={() => handleAnswerSelect(currentQuestionData.question_id, option)}
                   className="sr-only"
                 />
                 <div className={`w-4 h-4 rounded-full border-2 mr-4 flex items-center justify-center ${
-                  selectedAnswers[currentQuestionData.id] === index
+                  selectedAnswers[currentQuestionData.question_id] === option
                     ? 'border-[#007BFF] bg-[#007BFF]'
                     : 'border-gray-300'
                 }`}>
-                  {selectedAnswers[currentQuestionData.id] === index && (
+                  {selectedAnswers[currentQuestionData.question_id] === option && (
                     <div className="w-2 h-2 rounded-full bg-white"></div>
                   )}
                 </div>
@@ -273,7 +326,7 @@ const TestTaking: React.FC<TestTakingProps> = ({
           </button>
 
           <div className="flex space-x-4">
-            {currentQuestion < questions.length - 1 ? (
+            {currentQuestion < testDetail.questions.length - 1 ? (
               <button
                 onClick={handleNext}
                 className="flex items-center space-x-2 px-6 py-3 bg-[#007BFF] text-white rounded-lg hover:bg-[#0056b3]"
@@ -286,10 +339,14 @@ const TestTaking: React.FC<TestTakingProps> = ({
             ) : (
               <button
                 onClick={handleFinish}
-                disabled={!canSubmit}
-                className="px-8 py-3 bg-gray-400 text-white rounded-lg hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!canSubmit || isSubmitting}
+                className={`px-8 py-3 rounded-lg font-medium transition-colors ${
+                  canSubmit && !isSubmitting
+                    ? 'bg-green-600 text-white hover:bg-green-700'
+                    : 'bg-gray-400 text-white cursor-not-allowed'
+                }`}
               >
-                Finish
+                {isSubmitting ? 'Submitting...' : 'Finish'}
               </button>
             )}
           </div>

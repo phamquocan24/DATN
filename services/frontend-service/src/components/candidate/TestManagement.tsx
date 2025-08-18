@@ -5,14 +5,24 @@ import TestClosed from './TestClosed';
 import DashboardSidebar from './DashboardSidebar';
 import candidateApi from '../../services/candidateApi';
 
-interface TestApplication {
-  id: number;
-  company: string;
-  role: string;
-  dateApplied: string;
-  status: 'Opening' | 'Closed';
-  logo: string;
-  logoColor: string;
+interface TestAssignment {
+  result_id: string;
+  test_id: string;
+  application_id: string;
+  test_name: string;
+  test_description: string;
+  time_limit: number;
+  passing_score: number;
+  job_title: string;
+  company_name: string;
+  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'TIMEOUT' | 'ABANDONED';
+  created_at: string; // For assigned date
+  start_time?: string; // For started date  
+  submit_time?: string; // For completed date
+  total_score?: number;
+  percentage?: number; // Database column name
+  passed?: boolean;
+  time_taken_seconds?: number;
 }
 
 interface TestManagementProps {
@@ -40,34 +50,31 @@ const TestManagement: React.FC<TestManagementProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState('test-management');
   const [currentView, setCurrentView] = useState<'list' | 'taking' | 'success' | 'closed'>('list');
-  const [selectedTest, setSelectedTest] = useState<TestApplication | null>(null);
+  const [selectedTest, setSelectedTest] = useState<TestAssignment | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [testApplications, setTestApplications] = useState<TestApplication[]>([]);
+  const [testAssignments, setTestAssignments] = useState<TestAssignment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0
+  });
 
   useEffect(() => {
     const fetchTests = async () => {
       setIsLoading(true);
       try {
-        const testsData = await candidateApi.getMyTests();
+        const response = await candidateApi.getMyTests({
+          page: pagination.page,
+          limit: pagination.limit,
+          status: undefined // No filter for now
+        });
         
-        // Transform API data to match component interface
-        const transformedTests = testsData.map((test: any) => ({
-          id: test.id || test._id,
-          jobTitle: test.job?.title || test.jobTitle || 'Test',
-          company: test.job?.company?.name || test.company || 'Company',
-          type: test.type || 'Technical',
-          status: test.status === 'active' ? 'Opening' : 'Closed',
-          duration: test.duration || '30 min',
-          questions: test.questionsCount || test.questions?.length || 0,
-          progress: test.completed ? 100 : 0,
-          score: test.score || null,
-          submittedAt: test.submittedAt,
-          dueDate: test.dueDate
-        }));
-        
-        setTestApplications(transformedTests);
+        // Use actual API response data structure
+        setTestAssignments(response.data);
+        setPagination(response.pagination);
         setError(null);
       } catch (err) {
         setError('Failed to load tests.');
@@ -78,12 +85,14 @@ const TestManagement: React.FC<TestManagementProps> = ({
     };
 
     fetchTests();
-  }, []);
+  }, [pagination.page, pagination.limit]);
 
-  const handleTestClick = (test: TestApplication) => {
+  const handleTestClick = (test: TestAssignment) => {
     setSelectedTest(test);
-    if (test.status === 'Opening') {
+    if (test.status === 'NOT_STARTED' || test.status === 'IN_PROGRESS') {
       setCurrentView('taking');
+    } else if (test.status === 'COMPLETED') {
+      setCurrentView('success');
     } else {
       setCurrentView('closed');
     }
@@ -144,12 +153,12 @@ const TestManagement: React.FC<TestManagementProps> = ({
       {/* Sidebar */}
       <DashboardSidebar 
         activeTab={activeTab}
+        isCollapsed={false}
+        onToggleSidebar={() => {}}
         onDashboardClick={onDashboardClick}
         onAgentAIClick={onAgentAIClick}
         onMyApplicationsClick={onMyApplicationsClick}
         onTestManagementClick={() => setActiveTab('test-management')}
-        onFindJobsClick={onFindJobsClick}
-        onBrowseCompaniesClick={onBrowseCompaniesClick}
         onProfileClick={onProfileClick}
         onSettingsClick={onSettingsClick}
         onHelpCenterClick={onHelpCenterClick}
@@ -215,7 +224,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8">
               <button className="py-2 px-1 border-b-2 border-[#007BFF] text-[#007BFF] font-medium text-sm">
-                All Tests (5)
+                All Tests ({pagination.total})
               </button>
             </nav>
           </div>
@@ -267,73 +276,131 @@ const TestManagement: React.FC<TestManagementProps> = ({
                   <tr><td colSpan={6} className="text-center p-4">Loading tests...</td></tr>
                 ) : error ? (
                   <tr><td colSpan={6} className="text-center p-4 text-red-500">{error}</td></tr>
-                ) : testApplications.map((test, index) => (
-                  <tr key={test.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {index + 1}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium ${test.logoColor} mr-3`}>
-                          {test.logo}
+                ) : testAssignments.map((test, index) => {
+                  // Get company initials for logo
+                  const companyInitials = test.company_name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
+                  const logoColors = ['bg-blue-500 text-white', 'bg-green-500 text-white', 'bg-purple-500 text-white', 'bg-red-500 text-white'];
+                  const logoColor = logoColors[index % logoColors.length];
+                  
+                  return (
+                    <tr key={test.result_id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {(pagination.page - 1) * pagination.limit + index + 1}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-medium ${logoColor} mr-3`}>
+                            {companyInitials}
+                          </div>
+                          <span className="text-sm font-medium text-gray-900">{test.company_name}</span>
                         </div>
-                        <span className="text-sm font-medium text-gray-900">{test.company}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {test.role}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {test.dateApplied}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${
-                        test.status === 'Opening' 
-                          ? 'bg-green-100 text-green-800 border border-green-200' 
-                          : 'bg-red-100 text-red-800 border border-red-200'
-                      }`}>
-                        {test.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button 
-                        onClick={() => handleTestClick(test)}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                          test.status === 'Opening'
-                            ? 'bg-[#007BFF] text-white hover:bg-[#0056b3]'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300 border border-gray-300'
-                        }`}
-                      >
-                        {test.status === 'Opening' ? 'Take Test' : 'View Test'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {test.test_name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {new Date(test.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${
+                          test.status === 'NOT_STARTED' || test.status === 'IN_PROGRESS'
+                            ? 'bg-green-100 text-green-800 border border-green-200' 
+                            : test.status === 'COMPLETED'
+                            ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                            : 'bg-red-100 text-red-800 border border-red-200'
+                        }`}>
+                          {test.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button 
+                          onClick={() => handleTestClick(test)}
+                          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                            test.status === 'NOT_STARTED' || test.status === 'IN_PROGRESS'
+                              ? 'bg-[#007BFF] text-white hover:bg-[#0056b3]'
+                              : test.status === 'COMPLETED'
+                              ? 'bg-green-600 text-white hover:bg-green-700'
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300 border border-gray-300'
+                          }`}
+                        >
+                          {test.status === 'NOT_STARTED' || test.status === 'IN_PROGRESS' 
+                            ? 'Take Test' 
+                            : test.status === 'COMPLETED'
+                            ? 'View Results'
+                            : 'View Test'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           {/* Pagination */}
-          <div className="px-6 py-3 border-t border-gray-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <button className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <div className="flex items-center space-x-1">
-                  <button className="px-3 py-1 text-sm font-medium text-white bg-[#007BFF] rounded">1</button>
-                  <button className="px-3 py-1 text-sm font-medium text-gray-700 hover:text-gray-900">2</button>
+          {pagination.totalPages > 1 && (
+            <div className="px-6 py-3 border-t border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-700">
+                  Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} tests
                 </div>
-                <button className="p-2 text-gray-400 hover:text-gray-600">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button 
+                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                    disabled={pagination.page <= 1}
+                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <div className="flex items-center space-x-1">
+                    {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                      const pageNum = i + 1;
+                      const isCurrentPage = pageNum === pagination.page;
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setPagination(prev => ({ ...prev, page: pageNum }))}
+                          className={`px-3 py-1 text-sm font-medium rounded ${
+                            isCurrentPage
+                              ? 'text-white bg-[#007BFF]'
+                              : 'text-gray-700 hover:text-gray-900'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                    {pagination.totalPages > 5 && (
+                      <>
+                        <span className="px-2 text-sm text-gray-500">...</span>
+                        <button
+                          onClick={() => setPagination(prev => ({ ...prev, page: pagination.totalPages }))}
+                          className={`px-3 py-1 text-sm font-medium rounded ${
+                            pagination.page === pagination.totalPages
+                              ? 'text-white bg-[#007BFF]'
+                              : 'text-gray-700 hover:text-gray-900'
+                          }`}
+                        >
+                          {pagination.totalPages}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  <button 
+                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                    disabled={pagination.page >= pagination.totalPages}
+                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

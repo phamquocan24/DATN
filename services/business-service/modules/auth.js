@@ -129,6 +129,15 @@ function generateTokens(user) {
     full_name: user.full_name
   };
 
+  // Add role-specific IDs to token payload
+  if (user.role === 'CANDIDATE' && user.role_profile_id) {
+    payload.candidate_profile_id = user.role_profile_id;
+  }
+  
+  if (user.role === 'RECRUITER' && user.recruiter_profile && user.recruiter_profile.company_id) {
+    payload.company_id = user.recruiter_profile.company_id;
+  }
+
   const accessToken = jwt.sign(
     { ...payload, type: 'access' },
     JWT_SECRET,
@@ -176,9 +185,14 @@ const authenticateToken = async (req, res, next) => {
       return sendError(res, 'ACCOUNT_DEACTIVATED');
     }
 
-    // Add company_id for RECRUITER users
+    // Add role-specific IDs for easier access
     if (user.role === 'RECRUITER' && user.recruiter_profile && user.recruiter_profile.company_id) {
       user.company_id = user.recruiter_profile.company_id;
+    }
+    
+    // Add candidate_profile_id for CANDIDATE users
+    if (user.role === 'CANDIDATE' && user.role_profile_id) {
+      user.candidate_profile_id = user.role_profile_id;
     }
 
     req.user = user;
@@ -216,11 +230,21 @@ const optionalAuth = async (req, res, next) => {
       return next();
     }
 
-    const user = await userModel.findById(decoded.user_id, 'user_id, email, full_name, role, is_active');
+    const user = await userModel.getUserProfile(decoded.user_id);
     
     if (!user || !user.is_active) {
       req.user = null;
       return next();
+    }
+
+    // Add role-specific IDs for easier access
+    if (user.role === 'RECRUITER' && user.recruiter_profile && user.recruiter_profile.company_id) {
+      user.company_id = user.recruiter_profile.company_id;
+    }
+    
+    // Add candidate_profile_id for CANDIDATE users
+    if (user.role === 'CANDIDATE' && user.role_profile_id) {
+      user.candidate_profile_id = user.role_profile_id;
     }
 
     req.user = user;

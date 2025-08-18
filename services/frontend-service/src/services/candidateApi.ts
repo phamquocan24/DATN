@@ -1,4 +1,5 @@
 import apiClient from './api';
+import { getCandidateProfileId } from './tokenUtils';
 
 // Candidate API Service
 export const candidateApi = {
@@ -259,32 +260,41 @@ export const candidateApi = {
   },
 
   // Test Management
-  getMyTests: async () => {
+  getMyTests: async (params?: { page?: number; limit?: number; status?: string }) => {
     try {
-      const response = await apiClient.get('/tests/my-tests');
+      const response = await apiClient.get('/api/v1/tests/my-tests', { params });
       return response.data;
     } catch (error: any) {
       // If user is not authenticated, return empty tests
       if (error.response?.status === 401 || error.response?.status === 403) {
         console.warn('User not authenticated for tests, returning empty array');
-        return { data: [] };
+        return { data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } };
       }
       throw error;
     }
   },
 
-  startTest: async (testId: string) => {
-    const response = await apiClient.post(`/tests/${testId}/start`);
+  getTestById: async (testId: string, includeAnswers?: boolean) => {
+    const params = includeAnswers ? { include_answers: includeAnswers } : {};
+    const response = await apiClient.get(`/api/v1/tests/${testId}`, { params });
     return response.data;
   },
 
-  submitTest: async (testId: string, answers: any) => {
-    const response = await apiClient.post(`/tests/${testId}/submit`, { answers });
+  startTest: async (testId: string, applicationId: string) => {
+    const response = await apiClient.post(`/api/v1/tests/${testId}/start`, { application_id: applicationId });
     return response.data;
   },
 
-  getTestResult: async (testId: string) => {
-    const response = await apiClient.get(`/tests/${testId}/result`);
+  submitTest: async (testId: string, data: { answers: any }, applicationId?: string) => {
+    // Backend will get candidate_profile_id from token automatically
+    const params = applicationId ? { application_id: applicationId } : {};
+    const response = await apiClient.post(`/api/v1/tests/${testId}/submit`, data, { params });
+    return response.data;
+  },
+
+  getTestResult: async (testId: string, applicationId: string, candidateId?: string) => {
+    const params = candidateId ? { application_id: applicationId, candidate_id: candidateId } : { application_id: applicationId };
+    const response = await apiClient.get(`/api/v1/tests/${testId}/result`, { params });
     return response.data;
   },
 
