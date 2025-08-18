@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Avatar from '../../assets/Avatar17.png';
+import candidateApi from '../../services/candidateApi';
 
 interface TestAssignment {
   result_id: string;
@@ -30,6 +31,24 @@ const TestClosed: React.FC<TestClosedProps> = ({
   test,
   onBack
 }) => {
+  const [userProfile, setUserProfile] = useState<any>({});
+
+  // Fetch user profile data
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const response = await candidateApi.getProfile();
+        if (response && response.data) {
+          setUserProfile(response.data);
+        }
+      } catch (error: any) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
@@ -92,7 +111,7 @@ const TestClosed: React.FC<TestClosedProps> = ({
           <div className="flex items-center space-x-3">
             <img src={Avatar} alt="User" className="w-8 h-8 rounded-full" />
             <div>
-              <p className="font-medium text-sm">Jake Gyll</p>
+              <p className="font-medium text-sm">{userProfile.full_name || 'User'}</p>
               <p className="text-gray-500 text-xs">Test Unavailable</p>
             </div>
           </div>

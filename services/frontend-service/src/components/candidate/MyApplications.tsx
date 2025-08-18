@@ -90,6 +90,7 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
   const [currentView, setCurrentView] = useState<'list' | 'detail'>('list');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
+  const [userProfile, setUserProfile] = useState<any>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
@@ -102,6 +103,22 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
   // Store selected application to access its status
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [withdrawingApplication, setWithdrawingApplication] = useState<string | null>(null);
+
+  // Fetch user profile data
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const response = await candidateApi.getProfile();
+        if (response && response.data) {
+          setUserProfile(response.data);
+        }
+      } catch (error: any) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
 
   useEffect(() => {
     const fetchApplications = async () => {
@@ -334,7 +351,7 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
 
             {/* Welcome Message */}
             <div className="mb-8 text-left">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Keep it up, Jake</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Keep it up, {userProfile.full_name || 'User'}</h2>
               <p className="text-gray-600">Here is job applications status from July 19 - July 25.</p>
             </div>
 

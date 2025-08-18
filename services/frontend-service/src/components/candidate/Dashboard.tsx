@@ -4,6 +4,7 @@ import JobApplication from './JobApplication';
 import AgentAI from './AgentAI';
 import Avatar from '../../assets/Avatar17.png';
 import DashboardSidebar from './DashboardSidebar';
+import candidateApi from '../../services/candidateApi';
 
 interface Job {
   job_id: string; // Primary ID (UUID from database)
@@ -49,6 +50,16 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false);
 
+  // API Data States
+  const [recentApplications, setRecentApplications] = useState<any[]>([]);
+  const [allApplications, setAllApplications] = useState<any[]>([]);
+  const [suggestedJobs, setSuggestedJobs] = useState<Job[]>([]);
+  const [userProfile, setUserProfile] = useState<any>({});
+  const [applicationsLoading, setApplicationsLoading] = useState(true);
+  const [jobsLoading, setJobsLoading] = useState(true);
+  const [applicationsError, setApplicationsError] = useState<string | null>(null);
+  const [jobsError, setJobsError] = useState<string | null>(null);
+
   // Initialize isCollapsed from localStorage, default to false
   const [isCollapsed, setIsCollapsed] = useState(() => {
     try {
@@ -67,6 +78,114 @@ const Dashboard: React.FC<DashboardProps> = ({
       console.warn('Failed to save candidate sidebar state to localStorage:', error);
     }
   }, [isCollapsed]);
+
+  // Fetch user profile data
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const response = await candidateApi.getProfile();
+        if (response && response.data) {
+          setUserProfile(response.data);
+        }
+      } catch (error: any) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
+
+  // Fetch applications data (both recent and all for chart)
+  useEffect(() => {
+    const fetchApplicationsData = async () => {
+      try {
+        setApplicationsLoading(true);
+        setApplicationsError(null);
+        
+        // Fetch recent applications (limit 5 for display)
+        const recentResponse = await candidateApi.getMyApplications({ 
+          limit: 5, 
+          orderBy: 'created_at', 
+          direction: 'DESC' 
+        });
+        
+        // Fetch all applications for chart data
+        const allResponse = await candidateApi.getMyApplications({ 
+          limit: 100, // Large number to get all applications
+          orderBy: 'created_at', 
+          direction: 'DESC' 
+        });
+        
+        if (recentResponse && recentResponse.data) {
+          setRecentApplications(recentResponse.data);
+        } else {
+          setRecentApplications([]);
+        }
+
+        if (allResponse && allResponse.data) {
+          setAllApplications(allResponse.data);
+        } else {
+          setAllApplications([]);
+        }
+      } catch (error: any) {
+        console.error('Error fetching applications:', error);
+        setApplicationsError('Unable to load applications');
+        setRecentApplications([]);
+        setAllApplications([]);
+      } finally {
+        setApplicationsLoading(false);
+      }
+    };
+
+    fetchApplicationsData();
+  }, []);
+
+  // Fetch suggested jobs data
+  useEffect(() => {
+    const fetchSuggestedJobs = async () => {
+      try {
+        setJobsLoading(true);
+        setJobsError(null);
+        const response = await candidateApi.getJobRecommendations({ 
+          page: 1, 
+          limit: 10 
+        });
+        
+        if (response && response.data) {
+          // Transform the data to match the expected Job interface
+          const transformedJobs = response.data.map((job: any) => ({
+            job_id: job.job_id || job.id,
+            id: job.id,
+            title: job.title,
+            company: job.company_name || job.company,
+            location: job.location,
+            type: job.employment_type || job.type || 'Full-Time',
+            tags: [
+              ...(job.skills || []).slice(0, 2),
+              `Match: ${job.match_score || 0}%`
+            ],
+            logo: (job.company_name || job.company || 'C').charAt(0).toUpperCase(),
+            logoColor: 'bg-blue-500 text-white',
+            match: job.match_score || 0,
+            applied: job.applications_count || 0,
+            capacity: job.max_applications || 10,
+            salary: job.salary_range || job.salary
+          }));
+          setSuggestedJobs(transformedJobs);
+        } else {
+          setSuggestedJobs([]);
+        }
+      } catch (error: any) {
+        console.error('Error fetching suggested jobs:', error);
+        setJobsError('Unable to load job recommendations');
+        setSuggestedJobs([]);
+      } finally {
+        setJobsLoading(false);
+      }
+    };
+
+    fetchSuggestedJobs();
+  }, []);
 
   const handleGoToDashboard = () => {
     setActiveTab('dashboard');
@@ -100,6 +219,42 @@ const Dashboard: React.FC<DashboardProps> = ({
     setIsCollapsed(!isCollapsed);
   };
 
+  // Calculate chart data from real applications
+  const getApplicationStats = () => {
+    const totalApplications = allApplications.length;
+    
+    // Count applications by status
+    const statusCounts = allApplications.reduce((acc, app) => {
+      const status = app.status || 'APPLIED';
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {});
+
+    // Count interviews (INTERVIEW/INTERVIEWED status)
+    const interviewCount = (statusCounts['INTERVIEW'] || 0) + (statusCounts['INTERVIEWED'] || 0);
+
+    // Calculate percentages for chart based on actual database statuses
+    const shortlistedCount = statusCounts['SHORTLISTED'] || 0;
+    const assessmentCount = (statusCounts['ASSESSMENT'] || 0) + (statusCounts['TESTING'] || 0);
+    const interviewingCount = (statusCounts['INTERVIEW'] || 0) + (statusCounts['INTERVIEWED'] || 0);
+    const pendingCount = (statusCounts['APPLIED'] || 0) + (statusCounts['SUBMITTED'] || 0) + (statusCounts['SCREENING'] || 0) + (statusCounts['REVIEWING'] || 0);
+
+    const total = shortlistedCount + assessmentCount + interviewingCount + pendingCount || 1; // Avoid division by zero
+
+    return {
+      totalApplications,
+      interviewCount,
+      chartData: {
+        shortlisted: Math.round((shortlistedCount / total) * 100),
+        assessment: Math.round((assessmentCount / total) * 100),
+        interviewing: Math.round((interviewingCount / total) * 100),
+        pending: Math.round((pendingCount / total) * 100)
+      }
+    };
+  };
+
+  const stats = getApplicationStats();
+
 
 
 
@@ -129,98 +284,67 @@ const Dashboard: React.FC<DashboardProps> = ({
     );
   }
 
-  const applicationHistory = [
-    {
-      id: 1,
-      title: 'Social Media Assistant',
-      company: 'Nomad',
-      location: 'Paris, France',
-      type: 'Full-Time',
-      dateApplied: '24 July 2021',
-      status: 'Đang xử lý',
-      logo: 'N',
-      logoColor: 'bg-green-500 text-white'
-    },
-    {
-      id: 2,
-      title: 'Social Media Assistant',
-      company: 'Udacity',
-      location: 'New York, USA',
-      type: 'Full-Time',
-      dateApplied: '23 July 2021',
-      status: 'Phỏng vấn',
-      logo: 'U',
-      logoColor: 'bg-blue-500 text-white'
-    },
-    {
-      id: 3,
-      title: 'Social Media Assistant',
-      company: 'Packer',
-      location: 'Madrid, Spain',
-      type: 'Full-Time',
-      dateApplied: '22 July 2021',
-      status: 'Từ chối',
-      logo: 'P',
-      logoColor: 'bg-red-500 text-white'
-    }
-  ];
+  // Helper function to get status display text and color
+  const getStatusDisplayText = (status: string) => {
+    const statusMap: { [key: string]: string } = {
+      'APPLIED': 'Applied',
+      'SUBMITTED': 'Submitted',
+      'SCREENING': 'Screening',
+      'REVIEWING': 'Reviewing',
+      'SHORTLISTED': 'Shortlisted',
+      'INTERVIEW': 'Interview',
+      'INTERVIEWED': 'Interviewed',
+      'ASSESSMENT': 'Assessment',
+      'TESTING': 'Testing',
+      'OFFER': 'Offer',
+      'OFFERED': 'Offered',
+      'HIRED': 'Hired',
+      'REJECTED': 'Rejected',
+      'WITHDRAWN': 'Withdrawn'
+    };
+    return statusMap[status] || status;
+  };
 
-  const suggestedJobs: Job[] = [
-    {
-      job_id: '18af5b7a-994b-492e-8617-412130e9f2ef', // Sample UUID from database
-      id: 1, // Fallback legacy ID
-      title: 'Social Media Assistant',
-      company: 'Nomad',
-      location: 'Paris, France',
-      type: 'Full-Time',
-      tags: ['Marketing', 'Design', 'Match: 85%'],
-      logo: 'N',
-      logoColor: 'bg-green-500 text-white',
-      match: 85,
-      applied: 5,
-      capacity: 10,
-      salary: '$40,000 - $60,000'
-    },
-    {
-      job_id: '42476a5c-3baf-49a4-9a11-e690f4866579', // Sample UUID from database
-      id: 2, // Fallback legacy ID
-      title: 'Brand Designer',
-      company: 'Dropbox',
-      location: 'San Francisco, USA',
-      type: 'Full-Time',
-      tags: ['Marketing', 'Design', 'Match: 89%'],
-      logo: 'D',
-      logoColor: 'bg-[#007BFF] text-white',
-      match: 89,
-      applied: 2,
-      capacity: 10,
-      salary: '$50,000 - $70,000'
-    },
-    {
-      job_id: '021adde0-a17e-486f-af34-a34b34d4a0ae', // Sample UUID from database
-      id: 3, // Fallback legacy ID
-      title: 'Lead Engineer',
-      company: 'Canva',
-      location: 'Ankara, Turkey',
-      type: 'Full-Time',
-      tags: ['Engineering', 'Technology', 'Match: 77%'],
-      logo: 'C',
-      logoColor: 'bg-teal-500 text-white',
-      match: 77,
-      applied: 5,
-      capacity: 10,
-      salary: '$60,000 - $80,000'
+  // Helper function to format date
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-GB', { 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric' 
+      });
+    } catch {
+      return dateString;
     }
-  ];
+  };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Đang xử lý':
+    // Handle both API status values and display text
+    const normalizedStatus = getStatusDisplayText(status);
+    
+    switch (normalizedStatus) {
+      case 'Applied':
+      case 'Submitted':
+      case 'Screening':
+      case 'Reviewing':
         return 'bg-orange-100 text-orange-700';
-      case 'Phỏng vấn':
+      case 'Interview':
+      case 'Interviewed':
         return 'bg-blue-100 text-blue-700';
-      case 'Từ chối':
+      case 'Rejected':
+      case 'Withdrawn':
         return 'bg-red-100 text-red-700';
+      case 'Shortlisted':
+        return 'bg-green-100 text-green-700';
+      case 'Assessment':
+      case 'Testing':
+        return 'bg-purple-100 text-purple-700';
+      case 'Offer':
+      case 'Offered':
+        return 'bg-emerald-100 text-emerald-700';
+      case 'Hired':
+        return 'bg-green-200 text-green-800';
       default:
         return 'bg-gray-100 text-gray-700';
     }
@@ -259,11 +383,19 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* Welcome Message */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Good morning, Jake</h2>
-          <p className="text-gray-600">Here is what's happening with your job search applications from July 19 - July 25.</p>
+        <div className="mb-8 text-left">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Good morning, {userProfile.full_name || 'User'}
+          </h2>
+          <p className="text-gray-600">Here is what's happening with your job search applications.</p>
           <div className="flex items-center space-x-4 mt-2">
-            <span className="text-sm text-gray-500">Jul 19 - Jul 25</span>
+            <span className="text-sm text-gray-500">
+              {new Date().toLocaleDateString('en-GB', { 
+                day: 'numeric', 
+                month: 'short', 
+                year: 'numeric' 
+              })}
+            </span>
             <button className="text-sm text-[#007BFF] hover:text-[#0056b3]">📅</button>
           </div>
         </div>
@@ -276,9 +408,9 @@ const Dashboard: React.FC<DashboardProps> = ({
               {/* Total Jobs Applied */}
               <div className="border border-gray-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="text-left">
                     <p className="text-sm font-medium text-gray-500 mb-2">Total Jobs Applied</p>
-                    <p className="text-4xl font-bold text-gray-900">45</p>
+                    <p className="text-4xl font-bold text-gray-900">{stats.totalApplications}</p>
                   </div>
                   <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
                     <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -291,9 +423,9 @@ const Dashboard: React.FC<DashboardProps> = ({
               {/* Interviewed */}
               <div className="border border-gray-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="text-left">
                     <p className="text-sm font-medium text-gray-500 mb-2">Interviewed</p>
-                    <p className="text-4xl font-bold text-gray-900">18</p>
+                    <p className="text-4xl font-bold text-gray-900">{stats.interviewCount}</p>
                   </div>
                   <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
                     <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -308,15 +440,15 @@ const Dashboard: React.FC<DashboardProps> = ({
           {/* Jobs Applied Status */}
           <div className="bg-white rounded-lg shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-medium text-gray-500">Jobs Applied Status</p>
+              <p className="text-sm font-medium text-gray-500 text-left">Jobs Applied Status</p>
             </div>
             <div className="flex items-center justify-center mb-6">
               <div className="relative w-32 h-32 group">
                 <svg className="w-full h-full transform -rotate-90 transition-transform duration-300 group-hover:scale-105" viewBox="0 0 42 42">
-                  {/* Đã tiếp nhận - 25% (0-25) */}
+                  {/* Shortlisted */}
                   <circle 
                     cx="21" cy="21" r="15.915" fill="transparent" stroke="#10b981" strokeWidth="3" 
-                    strokeDasharray="25 75" strokeDashoffset="0"
+                    strokeDasharray={`${stats.chartData.shortlisted} ${100 - stats.chartData.shortlisted}`} strokeDashoffset="0"
                     className="transition-all duration-300 hover:stroke-[#059669] cursor-pointer"
                     style={{filter: 'drop-shadow(0 0 0 transparent)'}}
                     onMouseEnter={(e) => {
@@ -330,10 +462,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                       target.style.filter = 'drop-shadow(0 0 0 transparent)';
                     }}
                   />
-                  {/* Mini-test - 25% (25-50) */}
+                  {/* Assessment */}
                   <circle 
                     cx="21" cy="21" r="15.915" fill="transparent" stroke="#8b5cf6" strokeWidth="3" 
-                    strokeDasharray="25 75" strokeDashoffset="-25"
+                    strokeDasharray={`${stats.chartData.assessment} ${100 - stats.chartData.assessment}`} 
+                    strokeDashoffset={`-${stats.chartData.shortlisted}`}
                     className="transition-all duration-300 hover:stroke-[#7c3aed] cursor-pointer"
                     style={{filter: 'drop-shadow(0 0 0 transparent)'}}
                     onMouseEnter={(e) => {
@@ -347,10 +480,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                       target.style.filter = 'drop-shadow(0 0 0 transparent)';
                     }}
                   />
-                  {/* Phỏng vấn - 25% (50-75) */}
+                  {/* Interview */}
                   <circle 
                     cx="21" cy="21" r="15.915" fill="transparent" stroke="#3b82f6" strokeWidth="3" 
-                    strokeDasharray="25 75" strokeDashoffset="-50"
+                    strokeDasharray={`${stats.chartData.interviewing} ${100 - stats.chartData.interviewing}`} 
+                    strokeDashoffset={`-${stats.chartData.shortlisted + stats.chartData.assessment}`}
                     className="transition-all duration-300 hover:stroke-[#2563eb] cursor-pointer"
                     style={{filter: 'drop-shadow(0 0 0 transparent)'}}
                     onMouseEnter={(e) => {
@@ -364,10 +498,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                       target.style.filter = 'drop-shadow(0 0 0 transparent)';
                     }}
                   />
-                  {/* Đang xử lý - 25% (75-100) */}
+                  {/* Pending */}
                   <circle 
                     cx="21" cy="21" r="15.915" fill="transparent" stroke="#f59e0b" strokeWidth="3" 
-                    strokeDasharray="25 75" strokeDashoffset="-75"
+                    strokeDasharray={`${stats.chartData.pending} ${100 - stats.chartData.pending}`} 
+                    strokeDashoffset={`-${stats.chartData.shortlisted + stats.chartData.assessment + stats.chartData.interviewing}`}
                     className="transition-all duration-300 hover:stroke-[#d97706] cursor-pointer"
                     style={{filter: 'drop-shadow(0 0 0 transparent)'}}
                     onMouseEnter={(e) => {
@@ -384,35 +519,30 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </svg>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 mb-4">
+            <div className="grid grid-cols-2 gap-2 text-left">
               <div className="flex items-center text-xs">
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                <span className="text-gray-600">Đã tiếp nhận</span>
+                <span className="text-gray-600">Shortlisted</span>
               </div>
               <div className="flex items-center text-xs">
                 <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
-                <span className="text-gray-600">Mini-test</span>
+                <span className="text-gray-600">Assessment</span>
               </div>
               <div className="flex items-center text-xs">
                 <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                <span className="text-gray-600">Phỏng vấn</span>
+                <span className="text-gray-600">Interview</span>
               </div>
               <div className="flex items-center text-xs">
                 <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
-                <span className="text-gray-600">Đang xử lý</span>
+                <span className="text-gray-600">Pending</span>
               </div>
-            </div>
-            <div className="text-center">
-              <button className="text-[#007BFF] hover:text-[#0056b3] text-sm font-medium transition-colors">
-                View All Applications →
-              </button>
             </div>
           </div>
 
           {/* Upcoming Interviews */}
           <div className="bg-white rounded-lg shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Upcoming Interviews</h3>
+              <h3 className="text-lg font-semibold text-gray-900 text-left">Upcoming Interviews</h3>
               <div className="flex items-center space-x-2">
                 <button className="p-1 hover:bg-gray-100 rounded">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -451,137 +581,172 @@ const Dashboard: React.FC<DashboardProps> = ({
         {/* Recent Applications History */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Recent Applications History</h3>
+            <h3 className="text-lg font-semibold text-gray-900 text-left">Recent Applications History</h3>
           </div>
-          <div className="space-y-4">
-            {applicationHistory.map((app) => (
-              <div key={app.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                <div className="flex items-center space-x-4">
-                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold ${app.logoColor}`}>
-                    {app.logo}
+          
+          {applicationsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <svg className="animate-spin h-8 w-8 text-[#007BFF]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span className="ml-2 text-gray-600">Loading applications...</span>
+            </div>
+          ) : applicationsError ? (
+            <div className="text-center py-8">
+              <p className="text-red-600">{applicationsError}</p>
+            </div>
+          ) : recentApplications.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No recent applications found</p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-4">
+                {recentApplications.map((app) => (
+                  <div key={app.application_id || app.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    <div className="flex items-center space-x-4">
+                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold ${
+                        app.company?.company_name ? 
+                          `bg-blue-500 text-white` : 
+                          'bg-gray-500 text-white'
+                      }`}>
+                        {(app.company?.company_name || app.job?.company_name || 'C').charAt(0).toUpperCase()}
+                      </div>
+                      <div className="text-left">
+                        <h4 className="font-medium text-gray-900">{app.job?.title || 'Job Title'}</h4>
+                        <p className="text-sm text-gray-500">
+                          {app.company?.company_name || app.job?.company_name || 'Company'} • 
+                          {app.job?.location || 'Location'} • 
+                          {app.job?.employment_type || 'Full-Time'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <div className="text-right">
+                        <p className="text-sm text-gray-500">Date Applied</p>
+                        <p className="text-sm font-medium">{formatDate(app.created_at || app.application_date)}</p>
+                      </div>
+                      <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(app.status)}`}>
+                        {getStatusDisplayText(app.status)}
+                      </span>
+                      <button className="text-gray-400 hover:text-gray-600">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium text-gray-900">{app.title}</h4>
-                    <p className="text-sm text-gray-500">{app.company} • {app.location} • {app.type}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <div className="text-right">
-                    <p className="text-sm text-gray-500">Date Applied</p>
-                    <p className="text-sm font-medium">{app.dateApplied}</p>
-                  </div>
-                  <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(app.status)}`}>
-                    {app.status}
-                  </span>
-                  <button className="text-gray-400 hover:text-gray-600">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                    </svg>
-                  </button>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <div className="mt-6 text-center">
-            <button className="text-[#007BFF] hover:text-[#0056b3] font-medium text-sm">
-              View all applications history →
-            </button>
-          </div>
+            </>
+          )}
         </div>
 
         {/* Suggested Jobs */}
         <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="flex items-center justify-between mb-6">
-            <div>
+            <div className="text-left">
               <h3 className="text-lg font-semibold text-gray-900">Suggest Jobs</h3>
-              <p className="text-sm text-gray-500">Showing 73 results</p>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-500">Sort by:</span>
-              <select className="text-sm border border-gray-300 rounded px-2 py-1">
-                <option>Most relevant</option>
-                <option>Newest</option>
-                <option>Salary</option>
-              </select>
-              <button className="p-2 border border-gray-300 rounded hover:bg-gray-50">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                </svg>
-              </button>
-              <button className="p-2 border border-gray-300 rounded hover:bg-gray-50">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-              </button>
+              <p className="text-sm text-gray-500">
+                {jobsLoading ? 'Loading...' : `Showing ${suggestedJobs.length} results`}
+              </p>
             </div>
           </div>
-          <div className="space-y-4">
-            {suggestedJobs.map((job) => (
-              <div key={job.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-[#007BFF]/30 transition-colors">
-                <div className="flex items-center space-x-4">
-                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold ${job.logoColor}`}>
-                    {job.logo}
-                  </div>
-                  <div>
-                    <h4 
-                      className="font-medium text-gray-900 hover:text-[#007BFF] cursor-pointer transition-colors"
-                      onClick={() => handleJobClick(job)}
-                    >
-                      {job.title}
-                    </h4>
-                    <p className="text-sm text-gray-500">{job.company} • {job.location}</p>
-                    <div className="flex items-center space-x-2 mt-2">
-                      <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
-                        {job.type}
-                      </span>
-                      {job.tags.map((tag, index) => (
-                        <span 
-                          key={index} 
-                          className={`px-2 py-1 text-xs rounded-full ${
-                            tag.includes('Match:') 
-                              ? 'bg-blue-100 text-blue-700' 
-                              : 'bg-yellow-100 text-yellow-700'
-                          }`}
+
+          {jobsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <svg className="animate-spin h-8 w-8 text-[#007BFF]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span className="ml-2 text-gray-600">Loading job recommendations...</span>
+            </div>
+          ) : jobsError ? (
+            <div className="text-center py-8">
+              <p className="text-red-600">{jobsError}</p>
+            </div>
+          ) : suggestedJobs.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-4">No job recommendations available</p>
+              <p className="text-sm text-gray-400">Complete your profile to get personalized job recommendations</p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-4">
+                {suggestedJobs.map((job) => (
+                  <div key={job.job_id || job.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-[#007BFF]/30 transition-colors">
+                    <div className="flex items-center space-x-4">
+                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold ${job.logoColor}`}>
+                        {job.logo}
+                      </div>
+                      <div className="text-left">
+                        <h4 
+                          className="font-medium text-gray-900 hover:text-[#007BFF] cursor-pointer transition-colors"
+                          onClick={() => handleJobClick(job)}
                         >
-                          {tag}
-                        </span>
-                      ))}
+                          {job.title}
+                        </h4>
+                        <p className="text-sm text-gray-500">{job.company} • {job.location}</p>
+                        <div className="flex items-center space-x-2 mt-2">
+                          <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                            {job.type}
+                          </span>
+                          {job.tags.map((tag, index) => (
+                            <span 
+                              key={index} 
+                              className={`px-2 py-1 text-xs rounded-full ${
+                                tag.includes('Match:') 
+                                  ? 'bg-blue-100 text-blue-700' 
+                                  : 'bg-yellow-100 text-yellow-700'
+                              }`}
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex items-center justify-between mt-1">
+                          <p className="text-xs text-gray-500">
+                            {job.applied} applied of {job.capacity} capacity
+                          </p>
+                          {job.salary && (
+                            <p className="text-xs text-gray-600 font-medium">
+                              {job.salary}
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {job.applied} applied of {job.capacity} capacity
-                    </p>
+                    <button 
+                      className="bg-[#007BFF] text-white px-6 py-2 rounded-lg hover:bg-[#0056b3] transition-colors font-medium"
+                      onClick={() => handleApplyJob(job)}
+                    >
+                      Apply
+                    </button>
                   </div>
-                </div>
-                <button 
-                  className="bg-[#007BFF] text-white px-6 py-2 rounded-lg hover:bg-[#0056b3] transition-colors font-medium"
-                  onClick={() => handleApplyJob(job)}
-                >
-                  Apply
-                </button>
+                ))}
               </div>
-            ))}
-          </div>
-          
-          {/* Pagination */}
-          <div className="flex items-center justify-center space-x-2 mt-8">
-            <button className="p-2 text-gray-400 hover:text-gray-600">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <button className="px-3 py-1 bg-[#007BFF] text-white rounded">1</button>
-            <button className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded">2</button>
-            <button className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded">3</button>
-            <button className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded">4</button>
-            <button className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded">5</button>
-            <span className="px-2 text-gray-400">...</span>
-            <button className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded">33</button>
-            <button className="p-2 text-gray-400 hover:text-gray-600">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
+              
+              {/* Pagination - Could be enhanced with actual pagination logic */}
+              {suggestedJobs.length >= 10 && (
+                <div className="flex items-center justify-center space-x-2 mt-8">
+                  <button className="p-2 text-gray-400 hover:text-gray-600">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <button className="px-3 py-1 bg-[#007BFF] text-white rounded">1</button>
+                  <button className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded">2</button>
+                  <button className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded">3</button>
+                  <button className="p-2 text-gray-400 hover:text-gray-600">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -591,6 +756,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       <JobApplication 
         isOpen={isApplicationModalOpen}
         job={{
+          job_id: selectedJob.job_id,
           id: selectedJob.id,
           title: selectedJob.title,
           company: selectedJob.company,

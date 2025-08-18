@@ -5,13 +5,11 @@ import SkillManagement from './SkillManagement';
 import candidateApi from '../../services/candidateApi';
 
 interface Suggestion {
-  id: string;
-  type: 'profile' | 'skills' | 'experience' | 'education' | 'cv';
+  category: string;
+  field: string;
   title: string;
   description: string;
   priority: 'high' | 'medium' | 'low';
-  completed?: boolean;
-  action_url?: string;
 }
 
 interface ProfileProps {
@@ -38,43 +36,57 @@ const Profile: React.FC<ProfileProps> = ({
   onHelpCenterClick
 }) => {
   const [activeTab, setActiveTab] = useState('public-profile');
-  const [profileData, setProfileData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Initialize with empty object to show content immediately
+  const [profileData, setProfileData] = useState<any>({
+    full_name: '',
+    email: '',
+    candidate_profile: {
+      skills: []
+    }
+  });
+  // Removed isLoading since we don't use loading states
   const [error, setError] = useState<string | null>(null);
   
   // Section-specific edit mode states
   const [editingSections, setEditingSections] = useState<{ [key: string]: boolean }>({});
-  const [editedData, setEditedData] = useState<any>({});
+  // Initialize editedData with same structure as profileData
+  const [editedData, setEditedData] = useState<any>({
+    full_name: '',
+    email: '',
+    candidate_profile: {
+      skills: []
+    }
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
 
   // ProfileSuggestions states
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [suggestionsLoading, setSuggestionsLoading] = useState(true);
+  const [completionPercentage, setCompletionPercentage] = useState<number>(0);
+  // Removed suggestionsLoading since we don't use loading states
   const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
   const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        setIsLoading(true);
+        // Removed setIsLoading(true) to avoid loading state
         const profileResponse = await candidateApi.getProfile();
         console.log('Profile response:', profileResponse);
         
         if (profileResponse?.success && profileResponse?.data) {
-          setProfileData(profileResponse.data);
-          setEditedData(profileResponse.data); // Initialize edit data
+          setProfileData((prev: any) => ({ ...prev, ...profileResponse.data }));
+          setEditedData((prev: any) => ({ ...prev, ...profileResponse.data })); // Initialize edit data
           setError(null);
         } else if (profileResponse?.data) {
           // Handle direct data response
-          setProfileData(profileResponse.data);
-          setEditedData(profileResponse.data); // Initialize edit data
+          setProfileData((prev: any) => ({ ...prev, ...profileResponse.data }));
+          setEditedData((prev: any) => ({ ...prev, ...profileResponse.data })); // Initialize edit data
           setError(null);
         } else {
-          // No profile data or not authenticated
+          // No profile data or not authenticated - but keep default data
           setError('Bạn cần đăng nhập để xem profile.');
-          setProfileData(null);
         }
       } catch (err: any) {
         console.error('Error fetching profile:', err);
@@ -84,40 +96,37 @@ const Profile: React.FC<ProfileProps> = ({
           setError('Không thể tải dữ liệu profile.');
         }
       } finally {
-        setIsLoading(false);
+        // Removed setIsLoading(false) since we don't use loading state
       }
     };
 
     const fetchSuggestions = async () => {
       try {
-        setSuggestionsLoading(true);
+        // Removed setSuggestionsLoading(true) to avoid loading state
         setSuggestionsError(null);
         const response = await candidateApi.getProfileSuggestions();
         
-        // Handle different response formats
-        let suggestionsData = [];
+        console.log('Suggestions API response:', response);
         
-        if (response && typeof response === 'object') {
-          if (response.success && Array.isArray(response.data)) {
-            suggestionsData = response.data;
-          } else if (Array.isArray(response)) {
-            suggestionsData = response;
-          } else if (response.data && Array.isArray(response.data)) {
-            suggestionsData = response.data;
-          }
+        // Handle API response structure: { success: true, data: { suggestions: [], completion_percentage: 0 } }
+        if (response && response.success && response.data) {
+          setSuggestions(response.data.suggestions || []);
+          setCompletionPercentage(response.data.completion_percentage || 0);
+        } else {
+          setSuggestions([]);
+          setCompletionPercentage(0);
         }
-        
-        setSuggestions(suggestionsData);
       } catch (err: any) {
         console.error('Error fetching profile suggestions:', err);
         setSuggestions([]); // Ensure suggestions is always an array
+        setCompletionPercentage(0);
         if (err.response?.status === 401) {
           setSuggestionsError('Please log in to view profile suggestions.');
         } else {
           setSuggestionsError('Unable to load suggestions at this time.');
         }
       } finally {
-        setSuggestionsLoading(false);
+        // Removed setSuggestionsLoading(false) since we don't use loading state
       }
     };
 
@@ -165,9 +174,9 @@ const Profile: React.FC<ProfileProps> = ({
     }
   };
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'profile':
+  const getTypeIcon = (category: string) => {
+    switch (category) {
+      case 'basic':
         return (
           <svg className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -185,13 +194,13 @@ const Profile: React.FC<ProfileProps> = ({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 6V8a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2z" />
           </svg>
         );
-      case 'education':
+      case 'contact':
         return (
           <svg className="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
           </svg>
         );
-      case 'cv':
+      case 'salary':
         return (
           <svg className="h-5 w-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -211,54 +220,49 @@ const Profile: React.FC<ProfileProps> = ({
     console.log('Suggestion action:', suggestion);
   };
 
-  const handleDismissSuggestion = (suggestionId: string) => {
-    setDismissedSuggestions(prev => new Set([...prev, suggestionId]));
+  const handleDismissSuggestion = (suggestionField: string) => {
+    setDismissedSuggestions(prev => new Set([...prev, suggestionField]));
   };
 
   const refreshSuggestions = async () => {
     try {
-      setSuggestionsLoading(true);
+      // Removed setSuggestionsLoading(true) to avoid loading state
       setSuggestionsError(null);
       const response = await candidateApi.getProfileSuggestions();
       
-      // Handle different response formats
-      let suggestionsData = [];
-      
-      if (response && typeof response === 'object') {
-        if (response.success && Array.isArray(response.data)) {
-          suggestionsData = response.data;
-        } else if (Array.isArray(response)) {
-          suggestionsData = response;
-        } else if (response.data && Array.isArray(response.data)) {
-          suggestionsData = response.data;
-        }
+      // Handle API response structure: { success: true, data: { suggestions: [], completion_percentage: 0 } }
+      if (response && response.success && response.data) {
+        setSuggestions(response.data.suggestions || []);
+        setCompletionPercentage(response.data.completion_percentage || 0);
+      } else {
+        setSuggestions([]);
+        setCompletionPercentage(0);
       }
-      
-      setSuggestions(suggestionsData);
     } catch (err: any) {
       console.error('Error refreshing suggestions:', err);
       setSuggestions([]);
+      setCompletionPercentage(0);
       if (err.response?.status === 401) {
         setSuggestionsError('Please log in to view profile suggestions.');
       } else {
         setSuggestionsError('Unable to load suggestions at this time.');
       }
     } finally {
-      setSuggestionsLoading(false);
+              // Removed setSuggestionsLoading(false) since we don't use loading state
     }
   };
 
   // Section-specific edit functions
   const handleSectionEdit = (sectionName: string) => {
     setEditingSections(prev => ({ ...prev, [sectionName]: true }));
-    setEditedData({ ...profileData }); // Copy current data to edit state
+    setEditedData((prev: any) => ({ ...prev, ...profileData })); // Copy current data to edit state
     setSaveError(null);
     setSaveSuccess(null);
   };
 
   const handleSectionCancel = (sectionName: string) => {
     setEditingSections(prev => ({ ...prev, [sectionName]: false }));
-    setEditedData({ ...profileData }); // Reset to original data
+    setEditedData((prev: any) => ({ ...prev, ...profileData })); // Reset to current profile data
     setSaveError(null);
     setSaveSuccess(null);
   };
@@ -287,26 +291,32 @@ const Profile: React.FC<ProfileProps> = ({
       setSaveError(null);
       setSaveSuccess(null);
 
-      // Prepare data for API call - only send fields that are allowed by the backend
+      // Prepare data for API call - based on PUT /api/v1/users/profile endpoint
       const updateData: any = {};
       
-      // Basic profile fields (based on actual API schema)
+      // Basic profile fields
       if (editedData.full_name !== undefined) updateData.full_name = editedData.full_name;
       if (editedData.phone !== undefined) updateData.phone = editedData.phone;
-      if (editedData.bio !== undefined) updateData.bio = editedData.bio;
-      if (editedData.avatar_url !== undefined) updateData.avatar_url = editedData.avatar_url;
-      if (editedData.location !== undefined) updateData.location = editedData.location;
-
-      // Personal details
       if (editedData.date_of_birth !== undefined) updateData.date_of_birth = editedData.date_of_birth;
+      if (editedData.bio !== undefined) updateData.bio = editedData.bio;
+      if (editedData.location !== undefined) updateData.location = editedData.location;
+      if (editedData.avatar_url !== undefined) updateData.avatar_url = editedData.avatar_url;
       if (editedData.gender !== undefined) updateData.gender = editedData.gender;
       if (editedData.address !== undefined) updateData.address = editedData.address;
+      if (editedData.city_id !== undefined) updateData.city_id = editedData.city_id;
+      if (editedData.district_id !== undefined) updateData.district_id = editedData.district_id;
 
-      // Career details (only fields that exist in API)
+      // Candidate specific fields (based on actual backend model)
       if (editedData.experience_level !== undefined) updateData.experience_level = editedData.experience_level;
+      if (editedData.expected_salary !== undefined) updateData.expected_salary = editedData.expected_salary;
       if (editedData.current_job_title !== undefined) updateData.current_job_title = editedData.current_job_title;
-      if (editedData.years_of_experience !== undefined) updateData.years_of_experience = editedData.years_of_experience;
+      if (editedData.current_company !== undefined) updateData.current_company = editedData.current_company;
+      if (editedData.current_salary !== undefined) updateData.current_salary = editedData.current_salary;
+      if (editedData.years_experience !== undefined) updateData.years_experience = editedData.years_experience;
       if (editedData.job_seeking_status !== undefined) updateData.job_seeking_status = editedData.job_seeking_status;
+      if (editedData.notice_period_days !== undefined) updateData.notice_period_days = editedData.notice_period_days;
+      if (editedData.willing_to_relocate !== undefined) updateData.willing_to_relocate = editedData.willing_to_relocate;
+      if (editedData.remote_work_preference !== undefined) updateData.remote_work_preference = editedData.remote_work_preference;
 
       // Education
       if (editedData.education_level !== undefined) updateData.education_level = editedData.education_level;
@@ -319,10 +329,15 @@ const Profile: React.FC<ProfileProps> = ({
         if (editedData.candidate_profile.city_id !== undefined) updateData.city_id = editedData.candidate_profile.city_id;
         if (editedData.candidate_profile.district_id !== undefined) updateData.district_id = editedData.candidate_profile.district_id;
         if (editedData.candidate_profile.education_level !== undefined) updateData.education_level = editedData.candidate_profile.education_level;
-        if (editedData.candidate_profile.years_experience !== undefined) updateData.years_of_experience = editedData.candidate_profile.years_experience;
+        if (editedData.candidate_profile.years_experience !== undefined) updateData.years_experience = editedData.candidate_profile.years_experience;
         if (editedData.candidate_profile.current_job_title !== undefined) updateData.current_job_title = editedData.candidate_profile.current_job_title;
         if (editedData.candidate_profile.current_company !== undefined) updateData.current_company = editedData.candidate_profile.current_company;
+        if (editedData.candidate_profile.current_salary !== undefined) updateData.current_salary = editedData.candidate_profile.current_salary;
+        if (editedData.candidate_profile.expected_salary !== undefined) updateData.expected_salary = editedData.candidate_profile.expected_salary;
         if (editedData.candidate_profile.job_seeking_status !== undefined) updateData.job_seeking_status = editedData.candidate_profile.job_seeking_status;
+        if (editedData.candidate_profile.notice_period_days !== undefined) updateData.notice_period_days = editedData.candidate_profile.notice_period_days;
+        if (editedData.candidate_profile.willing_to_relocate !== undefined) updateData.willing_to_relocate = editedData.candidate_profile.willing_to_relocate;
+        if (editedData.candidate_profile.remote_work_preference !== undefined) updateData.remote_work_preference = editedData.candidate_profile.remote_work_preference;
       }
 
       console.log('Updating profile with data:', updateData);
@@ -331,9 +346,9 @@ const Profile: React.FC<ProfileProps> = ({
       console.log('Profile update response:', response);
 
       if (response.success) {
-        // Update the profile data with the response
-        setProfileData(response.data);
-        setEditedData(response.data);
+        // Merge the response data with existing profile data
+        setProfileData((prev: any) => ({ ...prev, ...response.data }));
+        setEditedData((prev: any) => ({ ...prev, ...response.data }));
         
         // Close the specific section edit mode if provided
         if (sectionName) {
@@ -360,40 +375,28 @@ const Profile: React.FC<ProfileProps> = ({
 
 
 
-  if (isLoading) {
-    return (
-        <div className="flex-1 p-8 flex items-center justify-center">
-          <div className="text-center">
-            <svg className="animate-spin -ml-1 mr-3 h-10 w-10 text-[#007BFF] mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <p className="text-lg font-medium text-gray-600">Loading Profile...</p>
-          </div>
-        </div>
-    );
-  }
+  // Removed loading screen - show content immediately
+  // if (isLoading) {
+  //   return (
+  //       <div className="flex-1 p-8 flex items-center justify-center">
+  //         <div className="text-center">
+  //           <svg className="animate-spin -ml-1 mr-3 h-10 w-10 text-[#007BFF] mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+  //             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+  //             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+  //           </svg>
+  //           <p className="text-lg font-medium text-gray-600">Loading Profile...</p>
+  //         </div>
+  //       </div>
+  //   );
+  // }
 
-  if (error) {
-    return (
-      <div className="flex-1 p-8 flex items-center justify-center">
-        <div className="text-center p-6 bg-red-50 rounded-lg shadow-sm">
-          <p className="text-lg font-medium text-red-600">{error}</p>
-          <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!profileData) {
-    return (
-      <div className="flex-1 p-8 flex items-center justify-center">
-        <p>No profile data available.</p>
-      </div>
-    )
-  }
+  // Removed error and null data blocking - show content always
+  // if (error) {
+  //   return error screen
+  // }
+  // if (!profileData) {
+  //   return no data screen  
+  // }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -424,12 +427,38 @@ const Profile: React.FC<ProfileProps> = ({
           </button>
         </div>
 
+        {/* Error notification - non-blocking */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-800">{error}</p>
+              </div>
+              <div className="ml-auto pl-3">
+                <button
+                  onClick={() => setError(null)}
+                  className="inline-flex bg-red-50 rounded-md p-1.5 text-red-500 hover:bg-red-100 focus:outline-none"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Profile Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Profile Section */}
           <div className="lg:col-span-2 space-y-6">
             {/* Profile Header */}
-            <div className="bg-white rounded-xl shadow-sm p-8 relative">
+            <div className="bg-white rounded-xl shadow-sm p-8 relative text-left">
               {/* Edit button for this section */}
               {!editingSections.header && (
                 <button 
@@ -443,7 +472,7 @@ const Profile: React.FC<ProfileProps> = ({
                 </button>
               )}
 
-              <div className="flex items-start space-x-6">
+              <div className="flex items-start space-x-6 text-left">
                 {/* User Avatar */}
                 <div className="relative">
                   {profileData.avatar_url || profileData.avatarUrl ? (
@@ -475,7 +504,7 @@ const Profile: React.FC<ProfileProps> = ({
                 </div>
                 
                 {/* Profile Information */}
-                                      <div className="flex-1">
+                <div className="flex-1 text-left">
                   {/* Error/Success Messages */}
                   {saveError && (
                     <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
@@ -498,7 +527,7 @@ const Profile: React.FC<ProfileProps> = ({
                       placeholder="Enter your full name"
                     />
                   ) : (
-                    <h2 className="text-3xl font-bold text-gray-900 mb-3">{profileData.full_name || 'Name not provided'}</h2>
+                    <h2 className="text-3xl font-bold text-gray-900 mb-3 text-left">{profileData.full_name || 'Name not provided'}</h2>
                   )}
                   
                   {/* Job Title - Editable */}
@@ -511,13 +540,13 @@ const Profile: React.FC<ProfileProps> = ({
                       placeholder="Enter your current job title"
                     />
                   ) : (
-                    <p className="text-gray-600 text-lg mb-3">
+                    <p className="text-gray-600 text-lg mb-3 text-left">
                       {profileData.current_job_title || profileData.candidate_profile?.current_job_title || 'No headline provided'}
                     </p>
                   )}
                   
                   {/* Location - Editable */}
-                  <div className="flex items-center mb-4">
+                  <div className="flex items-center mb-4 text-left">
                     <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -538,7 +567,7 @@ const Profile: React.FC<ProfileProps> = ({
                   </div>
 
                   {/* Experience Level */}
-                  <div className="flex items-center mb-4">
+                  <div className="flex items-center mb-4 text-left">
                     <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -565,7 +594,7 @@ const Profile: React.FC<ProfileProps> = ({
                   </div>
 
                   {/* Job Seeking Status Badge */}
-                  <div className="mb-4">
+                  <div className="mb-4 text-left">
                     {editingSections.header ? (
                       <select
                         value={editedData.job_seeking_status || editedData.candidate_profile?.job_seeking_status || ''}
@@ -639,156 +668,7 @@ const Profile: React.FC<ProfileProps> = ({
               </div>
             </div>
 
-            {/* Profile Suggestions */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              {suggestionsLoading ? (
-                <div className="animate-pulse">
-                  <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
-                  <div className="space-y-3">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="h-16 bg-gray-100 rounded"></div>
-                    ))}
-                  </div>
-                </div>
-              ) : suggestionsError ? (
-                <div className="text-center py-4">
-                  <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <p className="text-sm text-gray-600 mb-2">{suggestionsError}</p>
-                  <button
-                    onClick={refreshSuggestions}
-                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                  >
-                    Try again
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className="flex justify-between items-center mb-6">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">Profile Suggestions</h3>
-                      <p className="text-sm text-gray-600">Complete your profile to attract more employers</p>
-                    </div>
-                    {(() => {
-                      const safeSuggestions = Array.isArray(suggestions) ? suggestions : [];
-                      const activeSuggestions = safeSuggestions.filter(s => !dismissedSuggestions.has(s.id));
-                      const completionPercentage = safeSuggestions.length > 0 
-                        ? Math.round(((safeSuggestions.length - activeSuggestions.length) / safeSuggestions.length) * 100)
-                        : 0;
-
-                      return safeSuggestions.length > 0 && (
-                        <div className="text-right">
-                          <div className="text-sm font-medium text-gray-900">{completionPercentage}% Complete</div>
-                          <div className="w-24 bg-gray-200 rounded-full h-2 mt-1">
-                            <div 
-                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                              style={{ width: `${completionPercentage}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-
-                  {(() => {
-                    const safeSuggestions = Array.isArray(suggestions) ? suggestions : [];
-                    const activeSuggestions = safeSuggestions.filter(s => !dismissedSuggestions.has(s.id));
-
-                    return activeSuggestions.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        <svg className="mx-auto h-12 w-12 text-green-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <p className="text-sm font-medium">Great job!</p>
-                        <p className="text-xs text-gray-400 mt-1">Your profile looks complete</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {activeSuggestions
-                          .sort((a, b) => {
-                            const priorityOrder = { high: 3, medium: 2, low: 1 };
-                            return priorityOrder[b.priority] - priorityOrder[a.priority];
-                          })
-                          .map((suggestion) => (
-                            <div
-                              key={suggestion.id}
-                              className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow"
-                            >
-                              <div className="flex items-start justify-between">
-                                <div className="flex items-start space-x-3 flex-1">
-                                  <div className="flex-shrink-0 mt-1">
-                                    {getTypeIcon(suggestion.type)}
-                                  </div>
-                                  
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <h4 className="text-sm font-medium text-gray-900">
-                                        {suggestion.title}
-                                      </h4>
-                                      <div className="flex items-center gap-1">
-                                        {getPriorityIcon(suggestion.priority)}
-                                        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getPriorityColor(suggestion.priority)}`}>
-                                          {suggestion.priority}
-                                        </span>
-                                      </div>
-                                    </div>
-                                    
-                                    <p className="text-sm text-gray-600 mb-3">
-                                      {suggestion.description}
-                                    </p>
-                                    
-                                    <div className="flex items-center gap-2">
-                                      <button
-                                        onClick={() => handleSuggestionAction(suggestion)}
-                                        className="px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
-                                      >
-                                        Take Action
-                                      </button>
-                                      <button
-                                        onClick={() => handleDismissSuggestion(suggestion.id)}
-                                        className="px-3 py-1 bg-gray-100 text-gray-700 text-xs rounded-lg hover:bg-gray-200 transition-colors"
-                                      >
-                                        Dismiss
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                                
-                                <button
-                                  onClick={() => handleDismissSuggestion(suggestion.id)}
-                                  className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                                  title="Dismiss suggestion"
-                                >
-                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    );
-                  })()}
-
-                  {(() => {
-                    const safeSuggestions = Array.isArray(suggestions) ? suggestions : [];
-                    const activeSuggestions = safeSuggestions.filter(s => !dismissedSuggestions.has(s.id));
-
-                    return activeSuggestions.length > 0 && (
-                      <div className="mt-6 pt-4 border-t border-gray-200">
-                        <button
-                          onClick={refreshSuggestions}
-                          className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                        >
-                          Refresh suggestions
-                        </button>
-                      </div>
-                    );
-                  })()}
-                </>
-              )}
-            </div>
+            {/* Profile Suggestions moved below Personal Details */}
 
             {/* About Me */}
             <div className="bg-white rounded-xl shadow-sm p-6 text-left relative">
@@ -978,6 +858,142 @@ const Profile: React.FC<ProfileProps> = ({
                 )}
               </div>
 
+            {/* Profile Suggestions */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6 text-left">
+              {/* Removed suggestions loading animation */}
+              {suggestionsError ? (
+                <div className="text-left py-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <svg className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <p className="text-sm text-gray-600 mb-2">{suggestionsError}</p>
+                      <button
+                        onClick={refreshSuggestions}
+                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      >
+                        Try again
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900">Profile Suggestions</h3>
+                      <p className="text-sm text-gray-600">Complete your profile to attract more employers</p>
+                    </div>
+                    {suggestions.length > 0 && (
+                      <div className="flex flex-col items-end ml-4">
+                        <div className="text-sm font-medium text-gray-900 mb-1">Complete {completionPercentage}%</div>
+                        <div className="w-24 bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${completionPercentage}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {(() => {
+                    const activeSuggestions = suggestions.filter(s => !dismissedSuggestions.has(s.field));
+
+                    return activeSuggestions.length === 0 ? (
+                      <div className="text-left py-8 text-gray-500">
+                        <div className="flex items-center gap-3 mb-2">
+                          <svg className="h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">Great job!</p>
+                            <p className="text-xs text-gray-400">Your profile looks complete</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4 max-h-40 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                        {activeSuggestions
+                          .sort((a, b) => {
+                            const priorityOrder = { high: 3, medium: 2, low: 1 };
+                            return priorityOrder[b.priority] - priorityOrder[a.priority];
+                          })
+                          .map((suggestion, index) => (
+                            <div
+                              key={suggestion.field + index}
+                              className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-start space-x-3 flex-1">
+                                  <div className="flex-shrink-0 mt-1">
+                                    {getTypeIcon(suggestion.category)}
+                                  </div>
+                                  
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <h4 className="text-sm font-medium text-gray-900">
+                                        {suggestion.title}
+                                      </h4>
+                                      <div className="flex items-center gap-1">
+                                        {getPriorityIcon(suggestion.priority)}
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getPriorityColor(suggestion.priority)}`}>
+                                          {suggestion.priority}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    
+                                    <p className="text-sm text-gray-600 mb-3">
+                                      {suggestion.description}
+                                    </p>
+                                    
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => handleSuggestionAction(suggestion)}
+                                        className="px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
+                                      >
+                                        Take Action
+                                      </button>
+                                      <button
+                                        onClick={() => handleDismissSuggestion(suggestion.field)}
+                                        className="px-3 py-1 bg-gray-100 text-gray-700 text-xs rounded-lg hover:bg-gray-200 transition-colors"
+                                      >
+                                        Dismiss
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <button
+                                  onClick={() => handleDismissSuggestion(suggestion.field)}
+                                  className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                                  title="Dismiss suggestion"
+                                >
+                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    );
+                  })()}
+
+                  {suggestions.filter(s => !dismissedSuggestions.has(s.field)).length > 0 && (
+                    <div className="mt-6 pt-4 border-t border-gray-200">
+                      <button
+                        onClick={refreshSuggestions}
+                        className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        Refresh suggestions
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
 
           </div>
         </div>
@@ -1006,7 +1022,7 @@ const Profile: React.FC<ProfileProps> = ({
                 <div className="flex space-x-4">
                   <div className="w-12 h-12 bg-[#007BFF] rounded-xl flex items-center justify-center">
                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 6V8a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                     </svg>
                   </div>
                   <div className="flex-1">
@@ -1169,25 +1185,200 @@ const Profile: React.FC<ProfileProps> = ({
             )}
           </div>
 
-          {/* Skills */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          {/* Career Preferences */}
+          <div className="bg-white rounded-xl shadow-sm p-6 relative">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">Skills</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Career Preferences</h3>
+              {!editingSections.preferences && (
+                <button 
+                  onClick={() => handleSectionEdit('preferences')}
+                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                  title="Edit career preferences"
+                >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              )}
             </div>
             
-            <div className="flex flex-wrap gap-3">
-              {profileData.candidate_profile?.skills && profileData.candidate_profile.skills.length > 0 ? (
-                profileData.candidate_profile.skills.map((skill: any, index: number) => (
-                  <span key={index} className="px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 rounded-xl text-sm font-medium border border-blue-200 hover:from-blue-100 hover:to-indigo-100 transition-colors">
-                    {typeof skill === 'string' ? skill : skill.skill_name}
-                  </span>
-                ))
-              ) : (
-                <p className="text-gray-500">No skills added yet</p>
+            <div className="space-y-6">
+              {/* Expected Salary */}
+              <div className="flex space-x-4">
+                <div className="w-12 h-12 bg-green-600 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900 mb-2">Expected Salary (USD)</h4>
+                  {editingSections.preferences ? (
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="number"
+                        value={editedData.expected_salary || editedData.candidate_profile?.expected_salary || ''}
+                        onChange={(e) => handleFieldChange('expected_salary', parseInt(e.target.value) || 0)}
+                        className="border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 outline-none w-32"
+                        placeholder="Expected salary"
+                        min="0"
+                      />
+                      <span className="text-gray-500">USD/month</span>
+                    </div>
+                  ) : (
+                    <p className="text-gray-600">
+                      {(profileData.expected_salary || profileData.candidate_profile?.expected_salary) ? 
+                        `$${profileData.expected_salary || profileData.candidate_profile?.expected_salary} USD/month` : 
+                        'Expected salary not specified'}
+                    </p>
               )}
             </div>
           </div>
 
+              {/* Remote Work Preference */}
+              <div className="flex space-x-4">
+                <div className="w-12 h-12 bg-purple-600 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900 mb-2">Work Location Preference</h4>
+                  {editingSections.preferences ? (
+                    <select
+                      value={editedData.remote_work_preference || ''}
+                      onChange={(e) => handleFieldChange('remote_work_preference', e.target.value)}
+                      className="border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none w-full"
+                    >
+                      <option value="">Select work preference</option>
+                      <option value="ONSITE">On-site</option>
+                      <option value="REMOTE">Remote</option>
+                      <option value="HYBRID">Hybrid</option>
+                      <option value="FLEXIBLE">Flexible</option>
+                    </select>
+                  ) : (
+                    <p className="text-gray-600">
+                      {profileData.remote_work_preference ? 
+                        profileData.remote_work_preference.charAt(0) + profileData.remote_work_preference.slice(1).toLowerCase() : 
+                        'Work preference not specified'}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+                            {/* Current Salary */}
+              <div className="flex space-x-4">
+                <div className="w-12 h-12 bg-orange-600 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                    </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900 mb-2">Current Salary (USD)</h4>
+                  {editingSections.preferences ? (
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="number"
+                        value={editedData.current_salary || editedData.candidate_profile?.current_salary || ''}
+                        onChange={(e) => handleFieldChange('current_salary', parseInt(e.target.value) || 0)}
+                        className="border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 outline-none w-32"
+                        placeholder="Current salary"
+                        min="0"
+                      />
+                      <span className="text-gray-500">USD/month</span>
+                    </div>
+                  ) : (
+                    <p className="text-gray-600">
+                      {(profileData.current_salary || profileData.candidate_profile?.current_salary) ? 
+                        `$${profileData.current_salary || profileData.candidate_profile?.current_salary} USD/month` : 
+                        'Current salary not specified'}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Notice Period */}
+              <div className="flex space-x-4">
+                <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4m5 0a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V9a2 2 0 012-2h12zM9 7h6" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900 mb-2">Notice Period</h4>
+                  {editingSections.preferences ? (
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="number"
+                        value={editedData.notice_period_days || editedData.candidate_profile?.notice_period_days || ''}
+                        onChange={(e) => handleFieldChange('notice_period_days', parseInt(e.target.value) || 0)}
+                        className="border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 outline-none w-20"
+                        placeholder="Days"
+                        min="0"
+                        max="365"
+                      />
+                      <span className="text-gray-500">days</span>
+                    </div>
+                  ) : (
+                    <p className="text-gray-600">
+                      {(profileData.notice_period_days || profileData.candidate_profile?.notice_period_days) ? 
+                        `${profileData.notice_period_days || profileData.candidate_profile?.notice_period_days} days` : 
+                        'Notice period not specified'}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Willing to Relocate */}
+              <div className="flex space-x-4">
+                <div className="w-12 h-12 bg-teal-600 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900 mb-2">Willing to Relocate</h4>
+                  {editingSections.preferences ? (
+                    <select
+                      value={editedData.willing_to_relocate || editedData.candidate_profile?.willing_to_relocate || ''}
+                      onChange={(e) => handleFieldChange('willing_to_relocate', e.target.value === 'true')}
+                      className="border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none w-full"
+                    >
+                      <option value="">Select preference</option>
+                      <option value="true">Yes, willing to relocate</option>
+                      <option value="false">No, prefer current location</option>
+                    </select>
+                  ) : (
+                    <p className="text-gray-600">
+                      {(profileData.willing_to_relocate !== undefined || profileData.candidate_profile?.willing_to_relocate !== undefined) ? 
+                        ((profileData.willing_to_relocate || profileData.candidate_profile?.willing_to_relocate) ? 'Yes, willing to relocate' : 'No, prefer current location') : 
+                        'Relocation preference not specified'}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Edit Controls */}
+            {editingSections.preferences && (
+              <div className="flex gap-3 mt-6">
+                <button 
+                  onClick={() => handleSaveProfile('preferences')}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
+                <button 
+                  onClick={() => handleSectionCancel('preferences')}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
 
                     </div>
       </div>

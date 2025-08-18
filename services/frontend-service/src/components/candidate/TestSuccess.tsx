@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Avatar from '../../assets/Avatar17.png';
+import candidateApi from '../../services/candidateApi';
 
 interface TestAssignment {
   result_id: string;
@@ -34,6 +35,23 @@ const TestSuccess: React.FC<TestSuccessProps> = ({
 }) => {
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [showAnimation, setShowAnimation] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>({});
+
+  // Fetch user profile data
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const response = await candidateApi.getProfile();
+        if (response && response.data) {
+          setUserProfile(response.data);
+        }
+      } catch (error: any) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
 
   // Calculate actual completion time from test data
   const getCompletionTime = () => {
@@ -152,7 +170,7 @@ const TestSuccess: React.FC<TestSuccessProps> = ({
           <div className="flex items-center space-x-3">
             <img src={Avatar} alt="User" className="w-8 h-8 rounded-full" />
             <div>
-              <p className="font-medium text-sm">Jake Gyll</p>
+              <p className="font-medium text-sm">{userProfile.full_name || 'User'}</p>
               <p className="text-gray-500 text-xs">Assessment Complete</p>
             </div>
           </div>

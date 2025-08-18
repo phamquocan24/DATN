@@ -53,6 +53,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
   const [selectedTest, setSelectedTest] = useState<TestAssignment | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [testAssignments, setTestAssignments] = useState<TestAssignment[]>([]);
+  const [userProfile, setUserProfile] = useState<any>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
@@ -61,6 +62,22 @@ const TestManagement: React.FC<TestManagementProps> = ({
     total: 0,
     totalPages: 0
   });
+
+  // Fetch user profile data
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const response = await candidateApi.getProfile();
+        if (response && response.data) {
+          setUserProfile(response.data);
+        }
+      } catch (error: any) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
 
   useEffect(() => {
     const fetchTests = async () => {
@@ -189,7 +206,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
 
         {/* Welcome Message */}
         <div className="mb-8 text-left">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Keep it up, Jake</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Keep it up, {userProfile.full_name || 'User'}</h2>
           <p className="text-gray-600">Here are your available assessments from July 19 - July 25.</p>
         </div>
 
