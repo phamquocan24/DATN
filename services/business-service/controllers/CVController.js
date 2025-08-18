@@ -5,6 +5,9 @@ const User = require('../models/User');
 const { authenticateToken, requireRole } = require('../modules/auth');
 const winston = require('winston');
 
+// Create cvModel instance
+const cvModel = new CV();
+
 const router = express.Router();
 
 // Setup logger

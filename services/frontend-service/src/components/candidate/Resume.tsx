@@ -3,6 +3,7 @@ import { Footer } from './Footer';
 import GroupUnderline from '../../assets/Group.png';
 import { EnhanceResumeModal } from './EnhanceResumeModal';
 import CVPreviewModal from './CVPreviewModal';
+import MatchScoreDisplay from './MatchScoreDisplay';
 
 import cvApi, { CVExtractResponse } from '../../services/cvApi';
 // Removed matchingApi import - using aiMatchingApi instead
@@ -685,28 +686,23 @@ export const Resume: React.FC = () => {
           <div className="flex items-center space-x-2">
             {resume.isCalculatingMatch ? (
               <span className="px-3 py-1 text-xs rounded-full font-medium bg-gray-100 text-gray-600 animate-pulse">
-                Calculating job matches...
+                🔄 Calculating job matches...
               </span>
             ) : resume.hasJobMatches && resume.bestMatchScore !== undefined ? (
-              <span className={`px-3 py-1 text-xs rounded-full font-medium ${
-                resume.bestMatchScore >= 80 ? 'bg-green-100 text-green-700' :
-                resume.bestMatchScore >= 60 ? 'bg-blue-100 text-blue-700' :
-                resume.bestMatchScore >= 40 ? 'bg-yellow-100 text-yellow-700' :
-                'bg-red-100 text-red-700'
-              }`}>
-                Best Match: {resume.bestMatchScore}%
-              </span>
+              <MatchScoreDisplay 
+                score={resume.bestMatchScore} 
+                grade={resume.jobMatchScores?.[0]?.match_grade || 'POOR'}
+                size="small"
+              />
             ) : resume.matchingScore !== undefined ? (
-              <span className={`px-3 py-1 text-xs rounded-full font-medium ${
-                resume.matchingScore >= 70 ? 'bg-green-100 text-green-700' :
-                resume.matchingScore >= 50 ? 'bg-yellow-100 text-yellow-700' :
-                'bg-red-100 text-red-700'
-              }`}>
-                Sample Match: {resume.matchingScore}%
-              </span>
+              <MatchScoreDisplay 
+                score={resume.matchingScore} 
+                grade={resume.matchingScore >= 70 ? 'GOOD' : resume.matchingScore >= 50 ? 'FAIR' : 'POOR'}
+                size="small"
+              />
             ) : (
               <span className="px-3 py-1 text-xs rounded-full font-medium bg-gray-100 text-gray-600">
-                {availableJobs.length === 0 ? 'Profile setup needed' : 'No matches calculated'}
+                {availableJobs.length === 0 ? '⚠️ Profile setup needed' : '📊 No matches calculated'}
               </span>
             )}
           </div>
