@@ -1,5 +1,4 @@
 import apiClient from './api';
-import { getCandidateProfileId } from './tokenUtils';
 
 // Candidate API Service
 export const candidateApi = {
@@ -254,6 +253,31 @@ export const candidateApi = {
     return response.data;
   },
 
+  saveExtractedCV: async (cvData: {
+    cv_title: string;
+    cv_file_url: string;
+    cv_file_name: string;
+    cv_file_size?: number;
+    cv_file_type?: 'pdf' | 'doc' | 'docx';
+    is_primary?: boolean;
+  }) => {
+    const response = await apiClient.post('/cvs', cvData);
+    return response.data;
+  },
+
+  saveCVContent: async (cvId: string, extractedData: any) => {
+    const response = await apiClient.post(`/cvs/${cvId}/parse`, {
+      parsed_text: JSON.stringify(extractedData),
+      parsed_data: extractedData,
+      skills_extracted: extractedData.skills?.map((s: any) => s.skill_name) || [],
+      experience_years: extractedData.experience?.length || 0,
+      education_level: extractedData.education?.[0]?.degree || '',
+      job_titles: extractedData.experience?.map((e: any) => e.position) || [],
+      companies: extractedData.experience?.map((e: any) => e.company) || []
+    });
+    return response.data;
+  },
+
   deleteCV: async (cvId: string) => {
     const response = await apiClient.delete(`/cvs/${cvId}`);
     return response.data;
@@ -384,7 +408,7 @@ export const candidateApi = {
   // ======================
   // MATCH SCORE CALCULATION - REMOVED
   // ======================
-  // Note: Match score calculation has been moved to matchingApi.ts to call AI service directly
+  // Note: Match score calculation has been moved to aiMatchingApi.ts to call AI service directly
   // This reduces dependency on business service for CV-JD matching
 
   // Get available jobs for match calculation

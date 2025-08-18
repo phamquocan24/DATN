@@ -7,7 +7,6 @@ interface CVPreviewModalProps {
   extractedData: CVExtractResponse | null;
   onSave: (editedData: CVExtractResponse) => void;
   onApplyToProfile?: (data: CVExtractResponse) => void;
-  onSuggestProfileUpdates?: (data: CVExtractResponse) => void;
 }
 
 export const CVPreviewModal: React.FC<CVPreviewModalProps> = ({
@@ -15,8 +14,7 @@ export const CVPreviewModal: React.FC<CVPreviewModalProps> = ({
   onClose,
   extractedData,
   onSave,
-  onApplyToProfile,
-  onSuggestProfileUpdates
+  onApplyToProfile
 }) => {
   // Debug log when modal opens
   useEffect(() => {
@@ -118,11 +116,7 @@ export const CVPreviewModal: React.FC<CVPreviewModalProps> = ({
     }
   };
 
-  const handleSuggestProfileUpdates = () => {
-    if (editedData && onSuggestProfileUpdates) {
-      onSuggestProfileUpdates(editedData);
-    }
-  };
+
 
   const tabs = [
     { id: 'personal', name: 'Personal Info', icon: '👤' },
@@ -736,14 +730,6 @@ export const CVPreviewModal: React.FC<CVPreviewModalProps> = ({
                 >
                   Edit
                 </button>
-                {onSuggestProfileUpdates && (
-                  <button
-                    onClick={handleSuggestProfileUpdates}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                  >
-                    Suggest Profile Updates
-                  </button>
-                )}
                 {onApplyToProfile && (
                   <button
                     onClick={handleApplyToProfile}

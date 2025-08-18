@@ -3,10 +3,11 @@ import { Footer } from './Footer';
 import GroupUnderline from '../../assets/Group.png';
 import { EnhanceResumeModal } from './EnhanceResumeModal';
 import CVPreviewModal from './CVPreviewModal';
-import ProfileSuggestionsModal from './ProfileSuggestionsModal';
+
 import cvApi, { CVExtractResponse } from '../../services/cvApi';
-import { calculateMatchScoreFromText } from '../../services/matchingApi';
+// Removed matchingApi import - using aiMatchingApi instead
 import candidateApi from '../../services/candidateApi';
+import { batchCalculateAIMatchScores } from '../../services/aiMatchingApi';
 // import api from '../../services/api'; // Commented out business service
 
 interface Job {
@@ -60,13 +61,11 @@ export const Resume: React.FC = () => {
   const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [previewData, setPreviewData] = useState<CVExtractResponse | null>(null);
-  const [isSuggestionsModalOpen, setIsSuggestionsModalOpen] = useState(false);
-  const [suggestionsData, setSuggestionsData] = useState<CVExtractResponse | null>(null);
+
   
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [resumesError] = useState<string | null>(null); // Removed unused setters
   const [availableJobs, setAvailableJobs] = useState<Job[]>([]);
-  const [isLoadingJobs, setIsLoadingJobs] = useState(false);
 
   // States from EnhanceResume
   const [isLoading, setIsLoading] = useState(false);
@@ -91,7 +90,7 @@ export const Resume: React.FC = () => {
 
     const loadAvailableJobs = async () => {
       try {
-        setIsLoadingJobs(true);
+
         const response = await candidateApi.getAvailableJobs({
           page: 1,
           limit: 20,
@@ -141,8 +140,6 @@ export const Resume: React.FC = () => {
           }
         }
         setAvailableJobs([]); // Set empty array on error
-      } finally {
-        setIsLoadingJobs(false);
       }
     };
 
@@ -169,96 +166,35 @@ export const Resume: React.FC = () => {
     setPreviewData(null);
   };
 
-  const handleOpenSuggestionsModal = (data: CVExtractResponse) => {
-    setSuggestionsData(data);
-    setIsSuggestionsModalOpen(true);
-  };
 
-  const handleCloseSuggestionsModal = () => {
-    setIsSuggestionsModalOpen(false);
-    setSuggestionsData(null);
-  };
 
   const handleSaveExtractedData = (editedData: CVExtractResponse) => {
+    // CV is already saved to database automatically after extraction
+    // This function now just updates the local data and closes the modal
     setExtractedInfo(editedData);
     setPreviewData(editedData);
     
-    // Create new resume object after editing
-    const resumeId = Date.now().toString();
-    const newResume: Resume = {
-      id: resumeId,
-      full_name: editedData.full_name || 'Unknown',
-      email: editedData.email || '',
-      phone: editedData.phone || '',
-      address: editedData.address || '',
-      objective: editedData.objective || '',
-      file: uploadedFile || undefined,
-      extractedData: editedData,
-      uploadedAt: new Date(),
-      matchingScore: 0,
-      isCalculatingMatch: true, // Start calculating match scores
-      jobMatchScores: [],
-      hasJobMatches: false
-    };
-
-    // Add to resumes list
-    const updatedResumes = [...resumes, newResume];
-    setResumes(updatedResumes);
-
-    // Save to localStorage (in real app, save to backend)
-    localStorage.setItem('userResumes', JSON.stringify(updatedResumes));
-
-    console.log('CV saved successfully:', editedData);
-    
-    // Calculate match scores with available jobs in background
-    if (availableJobs.length > 0) {
-      setTimeout(async () => {
-        try {
-          const jobMatchScores = await calculateJobMatchScores(resumeId);
-          const bestMatch = jobMatchScores.length > 0 ? jobMatchScores[0] : null;
-          
-          // Update resume with job match scores
-          const updatedResumeWithMatches: Resume = {
-            ...newResume,
-            isCalculatingMatch: false,
-            jobMatchScores: jobMatchScores,
-            bestMatchScore: bestMatch?.match_score,
-            bestMatchJob: bestMatch ? `${bestMatch.job_title} at ${bestMatch.company_name}` : undefined,
-            hasJobMatches: jobMatchScores.length > 0 && jobMatchScores.some((score: MatchScore) => score.match_score > 0)
+    // Update the existing resume with edited data
+    setResumes(prevResumes => {
+      const updatedList = prevResumes.map(r => {
+        if (r.extractedData && r.full_name === editedData.full_name) {
+          return {
+            ...r,
+            full_name: editedData.full_name || 'Unknown',
+            email: editedData.email || '',
+            phone: editedData.phone || '',
+            address: editedData.address || '',
+            objective: editedData.objective || '',
+            extractedData: editedData
           };
-          
-          // Update resumes list
-          setResumes(prevResumes => {
-            const updatedList = prevResumes.map(r => 
-              r.id === resumeId ? updatedResumeWithMatches : r
-            );
-            localStorage.setItem('userResumes', JSON.stringify(updatedList));
-            return updatedList;
-          });
-          
-          console.log('Job match scores calculated:', jobMatchScores);
-        } catch (error) {
-          console.error('Failed to calculate job match scores:', error);
-          // Update to stop loading state even if calculation failed
-          setResumes(prevResumes => {
-            const updatedList = prevResumes.map(r => 
-              r.id === resumeId ? { ...r, isCalculatingMatch: false } : r
-            );
-            localStorage.setItem('userResumes', JSON.stringify(updatedList));
-            return updatedList;
-          });
         }
-      }, 1000); // Small delay to let UI update first
-    } else {
-      // No jobs available, stop calculating
-      setResumes(prevResumes => {
-        const updatedList = prevResumes.map(r => 
-          r.id === resumeId ? { ...r, isCalculatingMatch: false } : r
-        );
-        localStorage.setItem('userResumes', JSON.stringify(updatedList));
-        return updatedList;
+        return r;
       });
-    }
+      localStorage.setItem('userResumes', JSON.stringify(updatedList));
+      return updatedList;
+    });
+
+    console.log('CV data updated successfully:', editedData);
     
     // Close preview modal
     handleClosePreviewModal();
@@ -288,92 +224,7 @@ export const Resume: React.FC = () => {
     }
   };
 
-  const handleApplySuggestedChanges = async (selectedFields: string[]) => {
-    if (!suggestionsData) return;
-    
-    try {
-      const updateData: any = {};
-      
-      // Map selected fields to API format
-      selectedFields.forEach(field => {
-        switch (field) {
-          case 'full_name':
-            updateData.full_name = suggestionsData.full_name;
-            break;
-          case 'phone':
-            updateData.phone = suggestionsData.phone;
-            break;
-          case 'bio':
-            updateData.bio = suggestionsData.objective;
-            break;
-          case 'current_job_title':
-            if (suggestionsData.experience && suggestionsData.experience.length > 0) {
-              const latestJob = suggestionsData.experience.sort((a, b) => 
-                new Date(b.end_date || '9999-12-31').getTime() - new Date(a.end_date || '9999-12-31').getTime()
-              )[0];
-              updateData.current_job_title = latestJob.position;
-            }
-            break;
-          case 'current_company':
-            if (suggestionsData.experience && suggestionsData.experience.length > 0) {
-              const latestJob = suggestionsData.experience.sort((a, b) => 
-                new Date(b.end_date || '9999-12-31').getTime() - new Date(a.end_date || '9999-12-31').getTime()
-              )[0];
-              updateData.current_company = latestJob.company;
-            }
-            break;
-          case 'education_level':
-            if (suggestionsData.education && suggestionsData.education.length > 0) {
-              const highestEducation = suggestionsData.education.reduce((highest, current) => {
-                const educationLevels = ['High School', 'Associate', 'Bachelor', 'Master', 'PhD', 'Doctorate'];
-                const currentLevel = educationLevels.findIndex(level => 
-                  current.degree.toLowerCase().includes(level.toLowerCase())
-                );
-                const highestLevel = educationLevels.findIndex(level => 
-                  highest.degree.toLowerCase().includes(level.toLowerCase())
-                );
-                return currentLevel > highestLevel ? current : highest;
-              });
-              updateData.education_level = highestEducation.degree;
-            }
-            break;
-          case 'years_experience':
-            if (suggestionsData.experience && suggestionsData.experience.length > 0) {
-              let totalMonths = 0;
-              suggestionsData.experience.forEach(exp => {
-                const startDate = new Date(exp.start_date);
-                const endDate = exp.end_date && exp.end_date.toLowerCase() !== 'present' 
-                  ? new Date(exp.end_date) 
-                  : new Date();
-                
-                if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
-                  const months = (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
-                                (endDate.getMonth() - startDate.getMonth());
-                  totalMonths += Math.max(0, months);
-                }
-              });
-              updateData.years_experience = Math.round(totalMonths / 12);
-            }
-            break;
-        }
-      });
-      
-      console.log('Applying suggested changes:', updateData);
-      const response = await candidateApi.updateProfile(updateData);
-      console.log('Profile updated from suggestions:', response);
-      
-      // Show success message
-      alert(`Successfully updated ${selectedFields.length} profile field${selectedFields.length > 1 ? 's' : ''}!`);
-      
-      // Close modals
-      handleCloseSuggestionsModal();
-      handleClosePreviewModal();
-      
-    } catch (error) {
-      console.error('Failed to apply suggested changes:', error);
-      alert('Failed to update profile. Please try again.');
-    }
-  };
+
 
   const handleDeleteResume = (resumeId: string) => {
     const updatedResumes = resumes.filter(resume => resume.id !== resumeId);
@@ -433,6 +284,50 @@ export const Resume: React.FC = () => {
     }
   };
 
+  // Simple text-based matching fallback function
+  const calculateSimpleTextMatch = async (cvText: string, jobDescription: string): Promise<{
+    success: boolean;
+    data?: {
+      match_score: number;
+      match_grade: string;
+    };
+    error?: string;
+  }> => {
+    try {
+      // Simple keyword matching algorithm
+      const cvWords = cvText.toLowerCase().split(/\s+/).filter(word => word.length > 3);
+      const jobWords = jobDescription.toLowerCase().split(/\s+/).filter(word => word.length > 3);
+      
+      const commonWords = cvWords.filter(word => jobWords.includes(word));
+      const uniqueCommonWords = [...new Set(commonWords)];
+      
+      // Calculate match score based on common words
+      const totalUniqueWords = new Set([...cvWords, ...jobWords]).size;
+      const matchScore = Math.min((uniqueCommonWords.length / totalUniqueWords) * 200, 100);
+      
+      const getMatchGrade = (score: number): string => {
+        if (score >= 80) return 'EXCELLENT';
+        if (score >= 70) return 'VERY_GOOD';
+        if (score >= 60) return 'GOOD';
+        if (score >= 50) return 'FAIR';
+        return 'POOR';
+      };
+      
+      return {
+        success: true,
+        data: {
+          match_score: Math.round(matchScore),
+          match_grade: getMatchGrade(matchScore)
+        }
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Failed to calculate simple text match'
+      };
+    }
+  };
+
   // Function to calculate matching scores with available jobs using AI service directly
   const calculateJobMatchScores = async (resumeId: string): Promise<MatchScore[]> => {
     if (availableJobs.length === 0) {
@@ -442,13 +337,62 @@ export const Resume: React.FC = () => {
 
     const matchScores: MatchScore[] = [];
     
-    // Get the resume data for the CV text
+    // Get the resume data
     const resume = resumes.find(r => r.id === resumeId);
     if (!resume?.extractedData) {
       console.warn('No extracted CV data found for matching');
       return [];
     }
 
+    console.log(`Calculating match scores for CV ${resumeId} using AI service`);
+    
+    // Calculate match score with top 5 jobs to avoid too many API calls
+    const jobsToMatch = availableJobs.slice(0, 5);
+    
+    // Check if we have a valid CV ID from database (UUID format)
+    const cvId = resume.id;
+    const isValidUUID = cvId && cvId.length >= 32; // Basic UUID length check
+    
+    if (isValidUUID) {
+      try {
+        console.log('Using AI service direct CV-Job matching with database IDs');
+        
+        // Extract job IDs for batch calculation
+        const jobIds = jobsToMatch.map(job => job.id);
+        
+        // Use batch AI matching for better performance
+        const batchResult = await batchCalculateAIMatchScores(cvId, jobIds);
+        
+        if (batchResult.success && batchResult.data) {
+          batchResult.data.forEach((result, index) => {
+            const job = jobsToMatch[index];
+            matchScores.push({
+              job_id: result.job_id,
+              job_title: job.title,
+              company_name: job.company_name,
+              match_score: result.match_score,
+              match_grade: result.match_grade,
+              detailed_scores: {
+                skill_match: result.match_score * 0.9, // AI provides more accurate skill matching
+                experience_match: result.match_score * 0.85,
+                education_match: result.match_score * 0.8,
+                location_match: 50, // Default location match
+                salary_match: 60 // Default salary match
+              }
+            });
+          });
+          
+          console.log(`AI service calculated ${matchScores.length} match scores successfully`);
+          return matchScores.sort((a, b) => b.match_score - a.match_score);
+        }
+      } catch (aiError) {
+        console.warn('AI service matching failed, falling back to text-based matching:', aiError);
+      }
+    }
+    
+    // Fallback to text-based matching if AI service fails or CV not in database
+    console.log('Using fallback text-based matching');
+    
     // Create CV text for matching
     const cvText = `
       Name: ${resume.extractedData.full_name}
@@ -464,9 +408,6 @@ export const Resume: React.FC = () => {
       Languages: ${resume.extractedData.languages?.map(l => `${l.language} (${l.proficiency})`).join(', ') || ''}
     `;
     
-    // Calculate match score with top 5 jobs to avoid too many API calls
-    const jobsToMatch = availableJobs.slice(0, 5);
-    
     for (const job of jobsToMatch) {
       try {
         // Create job description text
@@ -478,8 +419,8 @@ export const Resume: React.FC = () => {
           Salary: ${job.salary_min && job.salary_max ? `${job.salary_min} - ${job.salary_max}` : 'Not specified'}
         `;
         
-        // Use AI service directly for text-based matching
-        const response = await calculateMatchScoreFromText(cvText, jobDescription);
+        // Use simple text-based matching as fallback
+        const response = await calculateSimpleTextMatch(cvText, jobDescription);
         
         if (response.success && response.data) {
           matchScores.push({
@@ -489,11 +430,11 @@ export const Resume: React.FC = () => {
             match_score: response.data.match_score || 0,
             match_grade: response.data.match_grade || 'POOR',
             detailed_scores: {
-              skill_match: response.data.match_score * 0.8, // Approximate detailed scores
+              skill_match: response.data.match_score * 0.8,
               experience_match: response.data.match_score * 0.9,
               education_match: response.data.match_score * 0.7,
-              location_match: 50, // Default location match
-              salary_match: 60 // Default salary match
+              location_match: 50,
+              salary_match: 60
             }
           });
         }
@@ -532,29 +473,151 @@ export const Resume: React.FC = () => {
       const extractedData = await cvApi.extractCV(file);
       setExtractedInfo(extractedData);
 
-      // Show preview modal for editing
-      setPreviewData(extractedData);
-      setIsPreviewModalOpen(true);
+      // Automatically save CV data to database
+      const cvTitle = extractedData.full_name 
+        ? `${extractedData.full_name}'s CV - ${new Date().toLocaleDateString()}`
+        : `CV - ${new Date().toLocaleDateString()}`;
+      
+      // Create a temporary file URL (in production, this should be uploaded to a file storage service)
+      const fileUrl = URL.createObjectURL(file);
+      
+      // Determine file type based on file extension and MIME type
+      const getFileType = (file: File): 'pdf' | 'doc' | 'docx' => {
+        const fileName = file.name.toLowerCase();
+        const mimeType = file.type.toLowerCase();
+        
+        if (fileName.endsWith('.pdf') || mimeType.includes('pdf')) {
+          return 'pdf';
+        } else if (fileName.endsWith('.docx') || mimeType.includes('wordprocessingml')) {
+          return 'docx';
+        } else if (fileName.endsWith('.doc') || mimeType.includes('msword')) {
+          return 'doc';
+        } else {
+          // Default to pdf if unknown
+          return 'pdf';
+        }
+      };
 
-      // Create CV text for matching
-      const cvText = `
-        Name: ${extractedData.full_name}
-        Email: ${extractedData.email}
-        Phone: ${extractedData.phone}
-        Address: ${extractedData.address}
-        Objective: ${extractedData.objective}
-        Skills: ${extractedData.skills?.map(s => s.skill_name).join(', ') || ''}
-        Education: ${extractedData.education?.map(e => `${e.degree} in ${e.field} from ${e.school}`).join(', ') || ''}
-        Experience: ${extractedData.experience?.map(e => `${e.position} at ${e.company}: ${e.description}`).join(', ') || ''}
-        Projects: ${extractedData.projects?.map(p => `${p.name}: ${p.description}`).join(', ') || ''}
-        Certifications: ${extractedData.certifications?.map(c => c.name).join(', ') || ''}
-        Languages: ${extractedData.languages?.map(l => `${l.language} (${l.proficiency})`).join(', ') || ''}
-      `;
+      const cvData = {
+        cv_title: cvTitle,
+        cv_file_url: fileUrl, // In production, upload file and get real URL
+        cv_file_name: file.name,
+        cv_file_size: file.size,
+        cv_file_type: getFileType(file),
+        is_primary: false
+      };
 
-      console.log('CV Text for matching:', cvText);
+      try {
+        const savedCV = await candidateApi.saveExtractedCV(cvData);
+        console.log('CV saved to database:', savedCV);
+        
+        // Get the CV ID from the response
+        const cvId = savedCV.data?.cv?.cv_id || Date.now().toString();
+        
+        // Save CV content (parsed data) to database for AI service
+        try {
+          await candidateApi.saveCVContent(cvId, extractedData);
+          console.log('CV content saved to database for AI service');
+        } catch (contentError) {
+          console.warn('Failed to save CV content, but CV file was saved:', contentError);
+        }
+        
+        // Create resume object with saved CV data
+        const resumeId = cvId;
+        const newResume: Resume = {
+          id: resumeId,
+          full_name: extractedData.full_name || 'Unknown',
+          email: extractedData.email || '',
+          phone: extractedData.phone || '',
+          address: extractedData.address || '',
+          objective: extractedData.objective || '',
+          file: file,
+          extractedData: extractedData,
+          uploadedAt: new Date(),
+          matchingScore: 0,
+          isCalculatingMatch: true,
+          jobMatchScores: [],
+          hasJobMatches: false
+        };
 
-      // Don't create resume immediately, wait for user to save from preview modal
-      console.log('CV extracted successfully, showing preview modal');
+        // Add to resumes list and save to localStorage
+        const updatedResumes = [...resumes, newResume];
+        setResumes(updatedResumes);
+        localStorage.setItem('userResumes', JSON.stringify(updatedResumes));
+
+        // Calculate match scores with available jobs in background
+        if (availableJobs.length > 0) {
+          setTimeout(async () => {
+            try {
+              const jobMatchScores = await calculateJobMatchScores(resumeId);
+              const bestMatch = jobMatchScores.length > 0 ? jobMatchScores[0] : null;
+              
+              // Update resume with job match scores
+              const updatedResumeWithMatches: Resume = {
+                ...newResume,
+                isCalculatingMatch: false,
+                jobMatchScores: jobMatchScores,
+                bestMatchScore: bestMatch?.match_score,
+                bestMatchJob: bestMatch ? `${bestMatch.job_title} at ${bestMatch.company_name}` : undefined,
+                hasJobMatches: jobMatchScores.length > 0 && jobMatchScores.some((score: MatchScore) => score.match_score > 0)
+              };
+              
+              // Update resumes list
+              setResumes(prevResumes => {
+                const updatedList = prevResumes.map(r => 
+                  r.id === resumeId ? updatedResumeWithMatches : r
+                );
+                localStorage.setItem('userResumes', JSON.stringify(updatedList));
+                return updatedList;
+              });
+              
+              console.log('Job match scores calculated:', jobMatchScores);
+            } catch (error) {
+              console.error('Failed to calculate job match scores:', error);
+              // Update to stop loading state even if calculation failed
+              setResumes(prevResumes => {
+                const updatedList = prevResumes.map(r => 
+                  r.id === resumeId ? { ...r, isCalculatingMatch: false } : r
+                );
+                localStorage.setItem('userResumes', JSON.stringify(updatedList));
+                return updatedList;
+              });
+            }
+          }, 1000);
+        } else {
+          // No jobs available, stop calculating
+          setResumes(prevResumes => {
+            const updatedList = prevResumes.map(r => 
+              r.id === resumeId ? { ...r, isCalculatingMatch: false } : r
+            );
+            localStorage.setItem('userResumes', JSON.stringify(updatedList));
+            return updatedList;
+          });
+        }
+
+        // Show preview modal for viewing (but data is already saved)
+        setPreviewData(extractedData);
+        setIsPreviewModalOpen(true);
+        
+        console.log('CV extracted and automatically saved to database');
+        
+      } catch (saveError: any) {
+        console.error('Failed to save CV to database:', saveError);
+        
+        // Check if it's a validation error
+        let errorMessage = 'CV extracted successfully, but failed to save to database. You can still view and edit the data.';
+        if (saveError.response?.data?.error) {
+          errorMessage = `Save failed: ${saveError.response.data.error}`;
+        } else if (saveError.message) {
+          errorMessage = `Save failed: ${saveError.message}`;
+        }
+        
+        // Still show the preview modal even if database save fails
+        setPreviewData(extractedData);
+        setIsPreviewModalOpen(true);
+        setError(errorMessage);
+      }
+
     } catch (err: any) {
       const errorMessage = err.message || 'An error occurred while processing the CV.';
       setError(errorMessage);
@@ -909,18 +972,7 @@ export const Resume: React.FC = () => {
         extractedData={previewData}
         onSave={handleSaveExtractedData}
         onApplyToProfile={handleApplyToProfile}
-        onSuggestProfileUpdates={handleOpenSuggestionsModal}
       />
-
-      {/* Profile Suggestions Modal */}
-      {suggestionsData && (
-        <ProfileSuggestionsModal
-          isOpen={isSuggestionsModalOpen}
-          onClose={handleCloseSuggestionsModal}
-          extractedData={suggestionsData}
-          onApplyChanges={handleApplySuggestedChanges}
-        />
-      )}
     </>
   );
 };

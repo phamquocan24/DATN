@@ -138,30 +138,20 @@ async def calculate_match(request: MatchRequest):
             }
             
             # Save this basic structure to cv_content for future use
-            # Check if record exists first
-            cursor.execute("SELECT content_id FROM cv_content WHERE cv_id = %s", (request.cv_id,))
-            existing = cursor.fetchone()
-            
-            if existing:
-                # Update existing record
-                cursor.execute(
-                    """
-                    UPDATE cv_content 
-                    SET parsed_content = %s, updated_at = NOW()
-                    WHERE cv_id = %s
-                    """,
-                    (json.dumps(parsed_content), request.cv_id)
-                )
-            else:
-                # Insert new record
+            try:
                 cursor.execute(
                     """
                     INSERT INTO cv_content (cv_id, parsed_content, created_at, updated_at)
                     VALUES (%s, %s, NOW(), NOW())
+                    ON CONFLICT (cv_id) DO UPDATE SET
+                        parsed_content = EXCLUDED.parsed_content,
+                        updated_at = NOW()
                     """,
                     (request.cv_id, json.dumps(parsed_content))
                 )
-            print(f"Created basic parsed content for CV {request.cv_id}")
+                print(f"Created basic parsed content for CV {request.cv_id}")
+            except Exception as e:
+                print(f"Warning: Could not save basic parsed content: {e}")
         else:
             parsed_content = parsed_result[0]
             parsed_content = json.loads(parsed_content) if isinstance(parsed_content, str) else parsed_content
@@ -242,70 +232,39 @@ async def calculate_match(request: MatchRequest):
         weighted_score = overall_similarity
 
         # Lưu kết quả so khớp vào vector_matches
-        # Check if match already exists
         cursor.execute(
-            """
-            SELECT match_id FROM vector_matches 
-            WHERE job_id = %s AND candidate_id = %s AND cv_id = %s
-            """,
-            (request.job_id, candidate_id, request.cv_id)
+        """
+        INSERT INTO vector_matches (
+            job_id, candidate_id, cv_id, overall_similarity, skills_similarity,
+            experience_similarity, education_similarity, weighted_score, last_calculated, cv_embedding_id,
+            match_type, computed_at
         )
-        existing_match = cursor.fetchone()
-        
-        if existing_match:
-            # Update existing match
-            match_id = existing_match[0]
-            cursor.execute(
-                """
-                UPDATE vector_matches SET
-                    overall_similarity = %s,
-                    skills_similarity = %s,
-                    experience_similarity = %s,
-                    education_similarity = %s,
-                    weighted_score = %s,
-                    last_calculated = NOW(),
-                    cv_embedding_id = %s,
-                    match_type = %s,
-                    computed_at = NOW()
-                WHERE match_id = %s
-                """,
-                (
-                    overall_similarity,
-                    ky_nang_similarity,
-                    kinh_nghiem_similarity,
-                    hoc_van_similarity,
-                    weighted_score,
-                    cv_embedding_id,
-                    'sbert',
-                    match_id
-                )
-            )
-        else:
-            # Insert new match
-            cursor.execute(
-                """
-                INSERT INTO vector_matches (
-                    job_id, candidate_id, cv_id, overall_similarity, skills_similarity,
-                    experience_similarity, education_similarity, weighted_score, last_calculated, cv_embedding_id,
-                    match_type, computed_at
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), %s, %s, NOW())
-                RETURNING match_id
-                """,
-                (
-                    request.job_id,
-                    candidate_id,
-                    request.cv_id,
-                    overall_similarity,
-                    ky_nang_similarity,
-                    kinh_nghiem_similarity,
-                    hoc_van_similarity,
-                    weighted_score,
-                    cv_embedding_id,
-                    'sbert',
-                )
-            )
-            match_id = cursor.fetchone()[0]
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), %s, %s, NOW())
+        ON CONFLICT (job_id, candidate_id, cv_id) DO UPDATE SET
+            overall_similarity = EXCLUDED.overall_similarity,
+            skills_similarity = EXCLUDED.skills_similarity,
+            experience_similarity = EXCLUDED.experience_similarity,
+            education_similarity = EXCLUDED.education_similarity,
+            weighted_score = EXCLUDED.weighted_score,
+            last_calculated = NOW(),
+            computed_at = NOW()
+        RETURNING match_id
+        """,
+        (
+            request.job_id,
+            candidate_id,
+            request.cv_id,
+            overall_similarity,
+            ky_nang_similarity,
+            kinh_nghiem_similarity,
+            hoc_van_similarity,
+            weighted_score,
+            cv_embedding_id,
+            'sbert',
+        ),
+        )
+
+        match_id = cursor.fetchone()[0]
         conn.commit()
 
         return MatchResponse(
@@ -321,23 +280,14 @@ async def calculate_match(request: MatchRequest):
         )
 
     except Exception as e:
-        try:
-            conn.rollback()
-        except:
-            pass
+        conn.rollback()
         print(f"Error in calculate_match: {str(e)}")
         print(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
     
     finally:
-        try:
-            cursor.close()
-        except:
-            pass
-        try:
-            conn.close()
-        except:
-            pass
+        cursor.close()
+        conn.close()
 
 
 @app.get("/api/v1/ai/similarity")
@@ -367,14 +317,8 @@ async def get_similarity(
         # Calculate similarity
         similarity = cos_sim(np.array(cv_emb), np.array(job_emb)).item()
         
-        try:
-            cursor.close()
-        except:
-            pass
-        try:
-            conn.close()
-        except:
-            pass
+        cursor.close()
+        conn.close()
         
         return {
             "similarity": round(float(similarity), 4)
@@ -382,17 +326,6 @@ async def get_similarity(
         
     except Exception as e:
         print(f"Error in get_similarity: {str(e)}")
-        # Clean up connections on error
-        if 'cursor' in locals():
-            try:
-                cursor.close()
-            except:
-                pass
-        if 'conn' in locals():
-            try:
-                conn.close()
-            except:
-                pass
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -448,30 +381,13 @@ async def recommend_jobs(candidate_id: str, top_k: int = Query(5, ge=1, le=50)):
                 }
                 
                 # Save basic content
-                # Check if record exists first
-                cursor.execute("SELECT content_id FROM cv_content WHERE cv_id = %s", (cv_id,))
-                existing = cursor.fetchone()
-                
-                if existing:
-                    # Update existing record
-                    cursor.execute(
-                        """
-                        UPDATE cv_content 
-                        SET parsed_content = %s, updated_at = NOW()
-                        WHERE cv_id = %s
-                        """,
-                        (json.dumps(parsed_content), cv_id)
-                    )
-                else:
-                    # Insert new record
-                    cursor.execute(
-                        """
-                        INSERT INTO cv_content (cv_id, parsed_content, created_at, updated_at)
-                        VALUES (%s, %s, NOW(), NOW())
-                        """,
-                        (cv_id, json.dumps(parsed_content))
-                    )
-                print(f"Created basic parsed content for CV {cv_id}")
+                cursor.execute(
+                    """
+                    INSERT INTO cv_content (cv_id, parsed_content, created_at, updated_at)
+                    VALUES (%s, %s, NOW(), NOW())
+                    """,
+                    (cv_id, json.dumps(parsed_content))
+                )
             else:
                 parsed_content = json.loads(result[0]) if isinstance(result[0], str) else result[0]
 
@@ -527,14 +443,8 @@ async def recommend_jobs(candidate_id: str, top_k: int = Query(5, ge=1, le=50)):
                 "overall_similarity": round(sim, 4)
             })
 
-        try:
-            cursor.close()
-        except:
-            pass
-        try:
-            conn.close()
-        except:
-            pass
+        cursor.close()
+        conn.close()
 
         # Sort and return top-K
         recommendations.sort(key=lambda x: x["overall_similarity"], reverse=True)
@@ -547,17 +457,6 @@ async def recommend_jobs(candidate_id: str, top_k: int = Query(5, ge=1, le=50)):
         
     except Exception as e:
         print(f"Error in recommend_jobs: {str(e)}")
-        # Clean up connections on error
-        if 'cursor' in locals():
-            try:
-                cursor.close()
-            except:
-                pass
-        if 'conn' in locals():
-            try:
-                conn.close()
-            except:
-                pass
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -620,15 +519,8 @@ async def match_reasoning(application_id: str):
             (json.dumps(ai_analysis_data), application_id)
         )
         conn.commit()
-        
-        try:
-            cursor.close()
-        except:
-            pass
-        try:
-            conn.close()
-        except:
-            pass
+        cursor.close()
+        conn.close()
 
         return {
             "application_id": application_id,
@@ -641,21 +533,6 @@ async def match_reasoning(application_id: str):
         
     except Exception as e:
         print(f"Error in match_reasoning: {str(e)}")
-        # Clean up connections on error
-        if 'cursor' in locals():
-            try:
-                cursor.close()
-            except:
-                pass
-        if 'conn' in locals():
-            try:
-                conn.rollback()
-            except:
-                pass
-            try:
-                conn.close()
-            except:
-                pass
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/health")
@@ -666,15 +543,8 @@ async def health_check():
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT 1")
-        
-        try:
-            cursor.close()
-        except:
-            pass
-        try:
-            conn.close()
-        except:
-            pass
+        cursor.close()
+        conn.close()
         
         return {
             "status": "healthy",
@@ -683,18 +553,6 @@ async def health_check():
             "database": "connected"
         }
     except Exception as e:
-        # Clean up connections on error
-        if 'cursor' in locals():
-            try:
-                cursor.close()
-            except:
-                pass
-        if 'conn' in locals():
-            try:
-                conn.close()
-            except:
-                pass
-        
         return {
             "status": "unhealthy",
             "service": "JD-CV Matching API", 

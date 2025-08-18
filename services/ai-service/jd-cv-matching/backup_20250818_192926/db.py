@@ -37,9 +37,6 @@ def get_db_connection():
             host=DB_HOST,
             port=DB_PORT,
         )
-        # Set autocommit=False for proper transaction handling
-        conn.autocommit = False
-        
         # Register pgvector adapter if available
         if register_vector is not None:
             register_vector(conn)
@@ -114,18 +111,9 @@ def save_cv_embedding(cv_id_uuid: str, candidate_profile_id_uuid: str, text: str
     except Exception as e:
         print(f"Error saving CV embedding for {cv_id_uuid}: {str(e)}")
         if 'conn' in locals():
-            try:
-                conn.rollback()
-            except:
-                pass
-            try:
-                cur.close()
-            except:
-                pass
-            try:
-                conn.close()
-            except:
-                pass
+            conn.rollback()
+            cur.close()
+            conn.close()
         return None
 
 
@@ -174,18 +162,9 @@ def save_job_embedding(job_id_uuid: str, text: str, column_suffix: str = "full_j
     except Exception as e:
         print(f"Error saving Job embedding for {job_id_uuid}: {str(e)}")
         if 'conn' in locals():
-            try:
-                conn.rollback()
-            except:
-                pass
-            try:
-                cur.close()
-            except:
-                pass
-            try:
-                conn.close()
-            except:
-                pass
+            conn.rollback()
+            cur.close()
+            conn.close()
         return None
 
 
@@ -209,14 +188,8 @@ def get_embedding(table: str, id_column: str, id_value: str, embedding_column: s
     except Exception as e:
         print(f"Error getting embedding from {table}: {str(e)}")
         if 'conn' in locals():
-            try:
-                cur.close()
-            except:
-                pass
-            try:
-                conn.close()
-            except:
-                pass
+            cur.close()
+            conn.close()
         return None
 
 

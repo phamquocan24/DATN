@@ -20,7 +20,7 @@ export { default as notificationApi } from './notificationApi';
 
 // AI Service API
 export { default as cvApi } from './cvApi';
-export { default as matchingApi } from './matchingApi';
+export { default as aiMatchingApi } from './aiMatchingApi';
 
 // API Hooks
 export * from './apiHooks';

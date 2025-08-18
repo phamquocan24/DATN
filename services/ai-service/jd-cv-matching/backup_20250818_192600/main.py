@@ -85,12 +85,14 @@ async def calculate_match(request: MatchRequest):
         # Build JD text with null safety
         jd_text = f"{description or ''} {requirements or ''} {responsibilities or ''} {education or ''} {experience_years_text} {language_text} {skills_text}".strip()
 
-        # Lưu từng phần embedding của JD - FIX: Only save columns that exist in schema
-        save_job_embedding(request.job_id, jd_text, "full_jd")
-        save_job_embedding(request.job_id, requirements or "", "requirements")
-        save_job_embedding(request.job_id, responsibilities or "", "responsibilities")
-        save_job_embedding(request.job_id, skills_text, "skills")
-        # Note: education, experience, language embeddings not in job_embeddings schema
+        # Lưu từng phần embedding của JD
+        save_job_embedding(request.job_id, jd_text, "full_jd_embedding_384")
+        save_job_embedding(request.job_id, requirements or "", "requirements_embedding_384")
+        save_job_embedding(request.job_id, responsibilities or "", "responsibilities_embedding_384")
+        save_job_embedding(request.job_id, education or "", "education_embedding_384")
+        save_job_embedding(request.job_id, experience_years_text, "experience_embedding_384")
+        save_job_embedding(request.job_id, language_text, "language_embedding_384")
+        save_job_embedding(request.job_id, skills_text, "skills_embedding_384")
 
         # Lấy CV embedding
         # Lấy parsed_content từ cv_content
@@ -102,73 +104,15 @@ async def calculate_match(request: MatchRequest):
             (request.cv_id,),
         )
         parsed_result = cursor.fetchone()
-        
-        # FIX: If no parsed content found, create a basic one from CV metadata
         if not parsed_result:
-            print(f"No parsed content found for CV {request.cv_id}, creating basic structure")
-            
-            # Get CV basic info
-            cursor.execute(
-                """
-                SELECT cv_name, file_name, candidate_id FROM candidate_cvs
-                WHERE cv_id = %s
-                """,
-                (request.cv_id,),
-            )
-            cv_info = cursor.fetchone()
-            
-            if not cv_info:
-                raise HTTPException(status_code=404, detail="CV not found in database")
-            
-            cv_name, file_name, cv_candidate_id = cv_info
-            
-            # Create basic parsed content structure
-            parsed_content = {
-                "full_name": (cv_name or "").replace("'s CV", "").replace(" CV", "").strip() or "Unknown",
-                "email": "",
-                "phone": "",
-                "address": "",
-                "mo_ta_ban_than": f"CV file: {file_name}",
-                "ky_nang": [],
-                "kinh_nghiem": [],
-                "hoc_van": [],
-                "du_an": [],
-                "chung_chi": [],
-                "ngoai_ngu": []
-            }
-            
-            # Save this basic structure to cv_content for future use
-            # Check if record exists first
-            cursor.execute("SELECT content_id FROM cv_content WHERE cv_id = %s", (request.cv_id,))
-            existing = cursor.fetchone()
-            
-            if existing:
-                # Update existing record
-                cursor.execute(
-                    """
-                    UPDATE cv_content 
-                    SET parsed_content = %s, updated_at = NOW()
-                    WHERE cv_id = %s
-                    """,
-                    (json.dumps(parsed_content), request.cv_id)
-                )
-            else:
-                # Insert new record
-                cursor.execute(
-                    """
-                    INSERT INTO cv_content (cv_id, parsed_content, created_at, updated_at)
-                    VALUES (%s, %s, NOW(), NOW())
-                    """,
-                    (request.cv_id, json.dumps(parsed_content))
-                )
-            print(f"Created basic parsed content for CV {request.cv_id}")
-        else:
-            parsed_content = parsed_result[0]
-            parsed_content = json.loads(parsed_content) if isinstance(parsed_content, str) else parsed_content
+            raise HTTPException(status_code=404, detail="Parsed CV not found")
+
+        parsed_content = parsed_result[0]
+        parsed_content = json.loads(parsed_content) if isinstance(parsed_content, str) else parsed_content
 
         # Tạo văn bản CV tổng hợp và lưu embedding full_text
         cv_full_text = make_cv_text(parsed_content)
-        cv_embedding_id = save_cv_embedding(request.cv_id, candidate_id, cv_full_text, 'full_text')
+        cv_embedding_id = save_cv_embedding(request.cv_id, candidate_id, cv_full_text, 'full_text_embedding_384')
 
         # Tách từng phần của CV
         mo_ta_ban_than = parsed_content.get('mo_ta_ban_than', '')
@@ -228,9 +172,9 @@ async def calculate_match(request: MatchRequest):
             hoc_van_text = ' '.join(edu_list)
 
         # Save CV section embeddings
-        save_cv_embedding(request.cv_id, candidate_id, ky_nang_text, 'skills')
-        save_cv_embedding(request.cv_id, candidate_id, kinh_nghiem_text, 'experience')
-        save_cv_embedding(request.cv_id, candidate_id, hoc_van_text, 'education')
+        save_cv_embedding(request.cv_id, candidate_id, ky_nang_text, 'skills_embedding_384')
+        save_cv_embedding(request.cv_id, candidate_id, kinh_nghiem_text, 'experience_embedding_384')
+        save_cv_embedding(request.cv_id, candidate_id, hoc_van_text, 'education_embedding_384')
 
         # Calculate similarities
         overall_similarity = calculate_similarity(cv_full_text, jd_text)
@@ -242,70 +186,39 @@ async def calculate_match(request: MatchRequest):
         weighted_score = overall_similarity
 
         # Lưu kết quả so khớp vào vector_matches
-        # Check if match already exists
         cursor.execute(
-            """
-            SELECT match_id FROM vector_matches 
-            WHERE job_id = %s AND candidate_id = %s AND cv_id = %s
-            """,
-            (request.job_id, candidate_id, request.cv_id)
+        """
+        INSERT INTO vector_matches (
+            job_id, candidate_id, cv_id, overall_similarity, skills_similarity,
+            experience_similarity, education_similarity, weighted_score, last_calculated, cv_embedding_id,
+            match_type, computed_at
         )
-        existing_match = cursor.fetchone()
-        
-        if existing_match:
-            # Update existing match
-            match_id = existing_match[0]
-            cursor.execute(
-                """
-                UPDATE vector_matches SET
-                    overall_similarity = %s,
-                    skills_similarity = %s,
-                    experience_similarity = %s,
-                    education_similarity = %s,
-                    weighted_score = %s,
-                    last_calculated = NOW(),
-                    cv_embedding_id = %s,
-                    match_type = %s,
-                    computed_at = NOW()
-                WHERE match_id = %s
-                """,
-                (
-                    overall_similarity,
-                    ky_nang_similarity,
-                    kinh_nghiem_similarity,
-                    hoc_van_similarity,
-                    weighted_score,
-                    cv_embedding_id,
-                    'sbert',
-                    match_id
-                )
-            )
-        else:
-            # Insert new match
-            cursor.execute(
-                """
-                INSERT INTO vector_matches (
-                    job_id, candidate_id, cv_id, overall_similarity, skills_similarity,
-                    experience_similarity, education_similarity, weighted_score, last_calculated, cv_embedding_id,
-                    match_type, computed_at
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), %s, %s, NOW())
-                RETURNING match_id
-                """,
-                (
-                    request.job_id,
-                    candidate_id,
-                    request.cv_id,
-                    overall_similarity,
-                    ky_nang_similarity,
-                    kinh_nghiem_similarity,
-                    hoc_van_similarity,
-                    weighted_score,
-                    cv_embedding_id,
-                    'sbert',
-                )
-            )
-            match_id = cursor.fetchone()[0]
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), %s, %s, NOW())
+        ON CONFLICT (job_id, candidate_id, cv_id) DO UPDATE SET
+            overall_similarity = EXCLUDED.overall_similarity,
+            skills_similarity = EXCLUDED.skills_similarity,
+            experience_similarity = EXCLUDED.experience_similarity,
+            education_similarity = EXCLUDED.education_similarity,
+            weighted_score = EXCLUDED.weighted_score,
+            last_calculated = NOW(),
+            computed_at = NOW()
+        RETURNING match_id
+        """,
+        (
+            request.job_id,
+            candidate_id,
+            request.cv_id,
+            overall_similarity,
+            ky_nang_similarity,
+            kinh_nghiem_similarity,
+            hoc_van_similarity,
+            weighted_score,
+            cv_embedding_id,
+            'sbert',
+        ),
+        )
+
+        match_id = cursor.fetchone()[0]
         conn.commit()
 
         return MatchResponse(
@@ -321,23 +234,14 @@ async def calculate_match(request: MatchRequest):
         )
 
     except Exception as e:
-        try:
-            conn.rollback()
-        except:
-            pass
+        conn.rollback()
         print(f"Error in calculate_match: {str(e)}")
         print(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
     
     finally:
-        try:
-            cursor.close()
-        except:
-            pass
-        try:
-            conn.close()
-        except:
-            pass
+        cursor.close()
+        conn.close()
 
 
 @app.get("/api/v1/ai/similarity")
@@ -367,14 +271,8 @@ async def get_similarity(
         # Calculate similarity
         similarity = cos_sim(np.array(cv_emb), np.array(job_emb)).item()
         
-        try:
-            cursor.close()
-        except:
-            pass
-        try:
-            conn.close()
-        except:
-            pass
+        cursor.close()
+        conn.close()
         
         return {
             "similarity": round(float(similarity), 4)
@@ -382,17 +280,6 @@ async def get_similarity(
         
     except Exception as e:
         print(f"Error in get_similarity: {str(e)}")
-        # Clean up connections on error
-        if 'cursor' in locals():
-            try:
-                cursor.close()
-            except:
-                pass
-        if 'conn' in locals():
-            try:
-                conn.close()
-            except:
-                pass
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -431,52 +318,11 @@ async def recommend_jobs(candidate_id: str, top_k: int = Query(5, ge=1, le=50)):
             cursor.execute("SELECT parsed_content FROM cv_content WHERE cv_id = %s", (cv_id,))
             result = cursor.fetchone()
             if not result:
-                # FIX: Create basic parsed content if not found (same logic as calculate_match)
-                cursor.execute("SELECT cv_name, file_name FROM candidate_cvs WHERE cv_id = %s", (cv_id,))
-                cv_info = cursor.fetchone()
-                
-                if not cv_info:
-                    raise HTTPException(status_code=404, detail="CV not found")
-                
-                cv_name, file_name = cv_info
-                parsed_content = {
-                    "full_name": (cv_name or "").replace("'s CV", "").replace(" CV", "").strip() or "Unknown",
-                    "mo_ta_ban_than": f"CV file: {file_name}",
-                    "ky_nang": [],
-                    "kinh_nghiem": [],
-                    "hoc_van": []
-                }
-                
-                # Save basic content
-                # Check if record exists first
-                cursor.execute("SELECT content_id FROM cv_content WHERE cv_id = %s", (cv_id,))
-                existing = cursor.fetchone()
-                
-                if existing:
-                    # Update existing record
-                    cursor.execute(
-                        """
-                        UPDATE cv_content 
-                        SET parsed_content = %s, updated_at = NOW()
-                        WHERE cv_id = %s
-                        """,
-                        (json.dumps(parsed_content), cv_id)
-                    )
-                else:
-                    # Insert new record
-                    cursor.execute(
-                        """
-                        INSERT INTO cv_content (cv_id, parsed_content, created_at, updated_at)
-                        VALUES (%s, %s, NOW(), NOW())
-                        """,
-                        (cv_id, json.dumps(parsed_content))
-                    )
-                print(f"Created basic parsed content for CV {cv_id}")
-            else:
-                parsed_content = json.loads(result[0]) if isinstance(result[0], str) else result[0]
+                raise HTTPException(status_code=404, detail="Parsed content not found")
 
+            parsed_content = json.loads(result[0]) if isinstance(result[0], str) else result[0]
             cv_text = make_cv_text(parsed_content)
-            save_cv_embedding(cv_id, candidate_id, cv_text, "full_text")
+            save_cv_embedding(cv_id, candidate_id, cv_text, "full_text_embedding_384")
 
             cv_emb = get_embedding("cv_embeddings", "cv_id", cv_id, "full_text_embedding_384")
 
@@ -504,7 +350,7 @@ async def recommend_jobs(candidate_id: str, top_k: int = Query(5, ge=1, le=50)):
                 jd_text = f"{desc or ''} {reqs or ''} {resps or ''}".strip()
                 if jd_text:
                     try:
-                        save_job_embedding(job_id, jd_text, "full_jd")
+                        save_job_embedding(job_id, jd_text, "full_jd_embedding_384")
                         jd_emb = get_embedding("job_embeddings", "job_id", job_id, "full_jd_embedding_384")
                     except Exception as e:
                         print(f"Failed to embed JD {job_id}: {e}")
@@ -527,14 +373,8 @@ async def recommend_jobs(candidate_id: str, top_k: int = Query(5, ge=1, le=50)):
                 "overall_similarity": round(sim, 4)
             })
 
-        try:
-            cursor.close()
-        except:
-            pass
-        try:
-            conn.close()
-        except:
-            pass
+        cursor.close()
+        conn.close()
 
         # Sort and return top-K
         recommendations.sort(key=lambda x: x["overall_similarity"], reverse=True)
@@ -547,17 +387,6 @@ async def recommend_jobs(candidate_id: str, top_k: int = Query(5, ge=1, le=50)):
         
     except Exception as e:
         print(f"Error in recommend_jobs: {str(e)}")
-        # Clean up connections on error
-        if 'cursor' in locals():
-            try:
-                cursor.close()
-            except:
-                pass
-        if 'conn' in locals():
-            try:
-                conn.close()
-            except:
-                pass
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -620,15 +449,8 @@ async def match_reasoning(application_id: str):
             (json.dumps(ai_analysis_data), application_id)
         )
         conn.commit()
-        
-        try:
-            cursor.close()
-        except:
-            pass
-        try:
-            conn.close()
-        except:
-            pass
+        cursor.close()
+        conn.close()
 
         return {
             "application_id": application_id,
@@ -641,21 +463,6 @@ async def match_reasoning(application_id: str):
         
     except Exception as e:
         print(f"Error in match_reasoning: {str(e)}")
-        # Clean up connections on error
-        if 'cursor' in locals():
-            try:
-                cursor.close()
-            except:
-                pass
-        if 'conn' in locals():
-            try:
-                conn.rollback()
-            except:
-                pass
-            try:
-                conn.close()
-            except:
-                pass
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.get("/health")
@@ -666,15 +473,8 @@ async def health_check():
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT 1")
-        
-        try:
-            cursor.close()
-        except:
-            pass
-        try:
-            conn.close()
-        except:
-            pass
+        cursor.close()
+        conn.close()
         
         return {
             "status": "healthy",
@@ -683,18 +483,6 @@ async def health_check():
             "database": "connected"
         }
     except Exception as e:
-        # Clean up connections on error
-        if 'cursor' in locals():
-            try:
-                cursor.close()
-            except:
-                pass
-        if 'conn' in locals():
-            try:
-                conn.close()
-            except:
-                pass
-        
         return {
             "status": "unhealthy",
             "service": "JD-CV Matching API", 
