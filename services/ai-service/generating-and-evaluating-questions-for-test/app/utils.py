@@ -1,5 +1,6 @@
 from typing import List, Optional
 from pydantic import BaseModel
+from uuid import UUID
 from sqlalchemy.orm import Session
 import re
 from models import Job, JobTest, TestQuestion, QuestionAnswer, TestResult, Application
@@ -15,16 +16,16 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
 # --------- Pydantic Schemas ---------
 class GenerateQuestionRequest(BaseModel):
-    job_id: int
+    job_id: str  # Accept UUID as string
 
 class QuestionCreate(BaseModel):
-    test_id: int
+    test_id: str  # Accept UUID as string
     question_text: str
     explanation: str = ""
 
 class EvaluateAnswerRequest(BaseModel):
-    question_id: int
-    result_id: int
+    question_id: str  # Accept UUID as string
+    result_id: str    # Accept UUID as string
 
 # --------- Language Detection ---------
 def detect_language(text: str) -> str:
@@ -127,11 +128,11 @@ def generate_questions_from_jd(jd_text: str, model: str = LLM_MODEL_NAME) -> Lis
             question_text = re.sub(r"^\d+\.\s*", "", line).strip()
 
             if i < 3:
-                q_type = "core"
+                q_type = "ESSAY"  # Technical questions as essay
             elif i == 3:
-                q_type = "problem_solving"
+                q_type = "ESSAY"  # Problem solving as essay
             else:
-                q_type = "fit"
+                q_type = "ESSAY"  # Fit questions as essay
 
             questions.append({
                 "question_text": question_text,
@@ -237,7 +238,7 @@ def generate_evaluation(question: str, answer: str, model: str = LLM_MODEL_NAME)
         print("🔎 Content returned:", content)
         return {}
 
-def evaluate_single_answer(question_id: int, answer_id: int, db) -> dict:
+def evaluate_single_answer(question_id: str, answer_id: str, db) -> dict:
     from app.models import TestQuestion, QuestionAnswer
 
     question = db.query(TestQuestion).filter(TestQuestion.question_id == question_id).first()
@@ -276,7 +277,7 @@ def evaluate_single_answer(question_id: int, answer_id: int, db) -> dict:
     }
 
 
-def evaluate_test_result(result_id: int, db) -> dict:
+def evaluate_test_result(result_id: str, db) -> dict:
     result = db.query(TestResult).filter(TestResult.result_id == result_id).first()
     if not result:
         return {"error": "Không tìm thấy bài làm."}
@@ -337,7 +338,7 @@ def evaluate_test_result(result_id: int, db) -> dict:
 
 
 
-def get_answer_details(result_id: int, db: Session):
+def get_answer_details(result_id: str, db: Session):
     result = db.query(TestResult).filter(TestResult.result_id == result_id).first()
     if not result:
         return {"error": "Không tìm thấy bài làm."}
@@ -375,10 +376,17 @@ def get_answer_details(result_id: int, db: Session):
 
 
 # --------- CRUD helpers ---------
-def get_job(db: Session, job_id: int) -> Optional[Job]:
-    return db.query(Job).filter(Job.job_id == job_id).first()
+def get_job(db: Session, job_id: str) -> Optional[Job]:
+    # Convert UUID string to appropriate format for database query
+    try:
+        # If job_id is UUID string, we need to handle it properly
+        # Since database uses BigInteger, we'll query by string representation
+        return db.query(Job).filter(Job.job_id == job_id).first()
+    except Exception as e:
+        print(f"Error querying job with ID {job_id}: {e}")
+        return None
 
-def get_or_create_job_test(db: Session, job_id: int) -> JobTest:
+def get_or_create_job_test(db: Session, job_id: str) -> JobTest:
     test = db.query(JobTest).filter(JobTest.job_id == job_id).first()
     if test:
         return test
@@ -386,20 +394,20 @@ def get_or_create_job_test(db: Session, job_id: int) -> JobTest:
     db.add(test); db.commit(); db.refresh(test)
     return test
 
-def create_question(db: Session, test_id: int, question_text: str, explanation: str = "") -> TestQuestion:
+def create_question(db: Session, test_id: str, question_text: str, explanation: str = "") -> TestQuestion:
     q = TestQuestion(test_id=test_id, question_text=question_text, explanation=explanation)
     db.add(q); db.commit(); db.refresh(q)
     return q
 
-def latest_answer_for_question(db: Session, question_id: int) -> Optional[QuestionAnswer]:
+def latest_answer_for_question(db: Session, question_id: str) -> Optional[QuestionAnswer]:
     return (db.query(QuestionAnswer)
               .filter(QuestionAnswer.question_id == question_id)
               .order_by(QuestionAnswer.answer_id.desc())
               .first())
 
-def get_answer_by_result_question(db: Session, result_id: int, question_id: int) -> Optional[QuestionAnswer]:
+def get_answer_by_result_question(db: Session, result_id: str, question_id: str) -> Optional[QuestionAnswer]:
     return db.query(QuestionAnswer).filter(QuestionAnswer.result_id == result_id, QuestionAnswer.question_id == question_id).first()
 
-def get_answer_by_id(db: Session, answer_id: int) -> Optional[QuestionAnswer]:
+def get_answer_by_id(db: Session, answer_id: str) -> Optional[QuestionAnswer]:
     return db.query(QuestionAnswer).filter(QuestionAnswer.answer_id == answer_id).first()
 

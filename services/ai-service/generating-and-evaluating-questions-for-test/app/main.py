@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, Path
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from db import get_db
 from utils import (
@@ -17,6 +18,15 @@ app = FastAPI(
     title="JD AI Interview Question API",
     description="AI-powered interview question generation and evaluation service",
     version="1.0.0"
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:8002"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 api_prefix = "/api/v1/ai"
@@ -71,7 +81,7 @@ def generate_interview_questions(payload: GenerateQuestionRequest, db: Session =
 
 # 2. Bulk generate for multiple jobs (example)
 @app.post(f"{api_prefix}/questions/bulk-generate")
-def bulk_generate_questions(job_ids: List[int], db: Session = Depends(get_db)):
+def bulk_generate_questions(job_ids: List[str], db: Session = Depends(get_db)):
     results = []
     for job_id in job_ids:
         job = get_job(db, job_id)
@@ -92,7 +102,7 @@ def customize_questions(payload: QuestionCreate, db: Session = Depends(get_db)):
 
 # 4. Update existing question
 @app.put(f"{api_prefix}/questions/{{question_id}}/customize")
-def update_question(question_id: int = Path(...), payload: QuestionCreate = Depends(), db: Session = Depends(get_db)):
+def update_question(question_id: str = Path(...), payload: QuestionCreate = Depends(), db: Session = Depends(get_db)):
     q = db.query(TestQuestion).filter(TestQuestion.question_id == question_id).first()
     if not q:
         raise HTTPException(status_code=404, detail="Question not found")
@@ -114,7 +124,7 @@ def get_question_templates():
 
 # 6. Validate answer using LLM
 @app.post(f"{api_prefix}/evaluate-single-answer")
-def evaluate_one(question_id: int, answer_id: int, db: Session = Depends(get_db)):
+def evaluate_one(question_id: str, answer_id: str, db: Session = Depends(get_db)):
     result = evaluate_single_answer(question_id, answer_id, db)
     if "error" in result:
         raise HTTPException(status_code=404, detail=result["error"])
@@ -122,7 +132,7 @@ def evaluate_one(question_id: int, answer_id: int, db: Session = Depends(get_db)
 
 # 7. Evaluate test result
 @app.post(f"{api_prefix}/evaluate-test-result")
-def api_evaluate_result(result_id: int, db: Session = Depends(get_db)):
+def api_evaluate_result(result_id: str, db: Session = Depends(get_db)):
     """
     Đánh giá toàn bộ bài test theo result_id,
     chấm từng câu trả lời và cập nhật kết quả tổng thể.
@@ -130,7 +140,7 @@ def api_evaluate_result(result_id: int, db: Session = Depends(get_db)):
     return evaluate_test_result(result_id, db)
 
 @app.get(f"{api_prefix}/test-result/{{result_id}}/answers") 
-def get_result_answers(result_id: int, db: Session = Depends(get_db)):
+def get_result_answers(result_id: str, db: Session = Depends(get_db)):
     return get_answer_details(result_id, db)
 
 @app.get("/health")

@@ -1,4 +1,6 @@
 from sqlalchemy import ARRAY, Column, BigInteger, Date, Integer, String, Text, ForeignKey, Boolean, DECIMAL, TIMESTAMP, JSON, VARCHAR
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
@@ -9,9 +11,9 @@ Base = declarative_base()
 
 class Job(Base):
     __tablename__ = "jobs"
-    job_id = Column(BigInteger, primary_key=True)
-    recruiter_id = Column(BigInteger, ForeignKey("users.user_id"))
-    company_id = Column(BigInteger, ForeignKey("companies.company_id", ondelete="CASCADE"))
+    job_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    recruiter_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"))
+    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.company_id", ondelete="CASCADE"))
     title = Column(String(200))
     description = Column(Text)
     requirements = Column(Text)
@@ -32,8 +34,8 @@ class Job(Base):
 
 class JobTest(Base):
     __tablename__ = "job_tests"
-    test_id = Column(BigInteger, primary_key=True)
-    job_id = Column(BigInteger, ForeignKey("jobs.job_id", ondelete="CASCADE"))
+    test_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("jobs.job_id", ondelete="CASCADE"))
     test_name = Column(String(200))
     test_type = Column(String(30))
     difficulty_level = Column(String(20))
@@ -46,8 +48,8 @@ class JobTest(Base):
 
 class TestQuestion(Base):
     __tablename__ = "test_questions"
-    question_id = Column(BigInteger, primary_key=True)
-    test_id = Column(BigInteger, ForeignKey("job_tests.test_id", ondelete="CASCADE"))
+    question_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    test_id = Column(UUID(as_uuid=True), ForeignKey("job_tests.test_id", ondelete="CASCADE"))
     question_text = Column(Text)
     question_type = Column(String(30))
     points = Column(DECIMAL(5,2))
@@ -59,9 +61,9 @@ class TestQuestion(Base):
 
 class QuestionAnswer(Base):
     __tablename__ = "question_answers"
-    answer_id = Column(BigInteger, primary_key=True)
-    result_id = Column(BigInteger, ForeignKey("test_results.result_id", ondelete="CASCADE"))
-    question_id = Column(BigInteger, ForeignKey("test_questions.question_id"))
+    answer_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    result_id = Column(UUID(as_uuid=True), ForeignKey("test_results.result_id", ondelete="CASCADE"))
+    question_id = Column(UUID(as_uuid=True), ForeignKey("test_questions.question_id"))
     answer_text = Column(Text)
     is_correct = Column(Boolean)
     points_earned = Column(DECIMAL(5,2))
@@ -70,9 +72,9 @@ class QuestionAnswer(Base):
 
 class TestResult(Base):
     __tablename__ = "test_results"
-    result_id = Column(BigInteger, primary_key=True)
-    application_id = Column(BigInteger, ForeignKey("applications.application_id", ondelete="CASCADE"))
-    test_id = Column(BigInteger, ForeignKey("job_tests.test_id"))
+    result_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    application_id = Column(UUID(as_uuid=True), ForeignKey("applications.application_id", ondelete="CASCADE"))
+    test_id = Column(UUID(as_uuid=True), ForeignKey("job_tests.test_id"))
     start_time = Column(TIMESTAMP)
     submit_time = Column(TIMESTAMP)
     total_score = Column(DECIMAL(5,2))
@@ -80,7 +82,7 @@ class TestResult(Base):
     status = Column(String(20))
     passed = Column(Boolean)
     time_taken_seconds = Column(Integer)
-    graded_by = Column(BigInteger, ForeignKey("users.user_id"))
+    graded_by = Column(UUID(as_uuid=True), ForeignKey("users.user_id"))
     graded_at = Column(TIMESTAMP)
     feedback = Column(Text)
     created_at = Column(TIMESTAMP, default=datetime.utcnow)
@@ -88,14 +90,14 @@ class TestResult(Base):
 class Application(Base):
     __tablename__ = "applications"
 
-    application_id = Column(BigInteger, primary_key=True)
-    job_id = Column(BigInteger, ForeignKey("jobs.job_id", ondelete="CASCADE"))
-    candidate_id = Column(BigInteger, ForeignKey("users.user_id", ondelete="CASCADE"))
-    cv_id = Column(BigInteger, ForeignKey("candidate_cvs.cv_id"))
+    application_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("jobs.job_id", ondelete="CASCADE"))
+    candidate_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"))
+    cv_id = Column(UUID(as_uuid=True), ForeignKey("candidate_cvs.cv_id"))
     cover_letter = Column(Text)
     ai_match_score = Column(DECIMAL(5, 2))
     ai_analysis = Column(JSON)
-    reviewed_by = Column(BigInteger, ForeignKey("users.user_id"))
+    reviewed_by = Column(UUID(as_uuid=True), ForeignKey("users.user_id"))
     reviewed_at = Column(TIMESTAMP)
     rejection_reason = Column(Text)
     notes = Column(Text)
@@ -109,7 +111,7 @@ class Application(Base):
 class User(Base):
     __tablename__ = "users"
 
-    user_id = Column(BigInteger, primary_key=True)
+    user_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False)
     password_hash = Column(String(255))
     phone = Column(String(20))
