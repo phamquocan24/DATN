@@ -3,6 +3,7 @@ import { Footer } from './Footer';
 import GroupUnderline from '../../assets/Group.png';
 import { EnhanceResumeModal } from './EnhanceResumeModal';
 import CVPreviewModal from './CVPreviewModal';
+import CVDetailModal from './CVDetailModal';
 
 import cvApi, { CVExtractResponse } from '../../services/cvApi';
 // Removed matchingApi import - using aiMatchingApi instead
@@ -61,6 +62,8 @@ export const Resume: React.FC = () => {
   const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [previewData, setPreviewData] = useState<CVExtractResponse | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [detailResume, setDetailResume] = useState<Resume | null>(null);
 
   
   const [resumes, setResumes] = useState<Resume[]>([]);
@@ -166,6 +169,16 @@ export const Resume: React.FC = () => {
     setPreviewData(null);
   };
 
+  const handleOpenDetailModal = (resume: Resume) => {
+    setDetailResume(resume);
+    setIsDetailModalOpen(true);
+  };
+
+  const handleCloseDetailModal = () => {
+    setIsDetailModalOpen(false);
+    setDetailResume(null);
+  };
+
 
 
   const handleSaveExtractedData = (editedData: CVExtractResponse) => {
@@ -254,16 +267,27 @@ export const Resume: React.FC = () => {
   }, []);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && file.type === 'application/pdf' && file.size <= 5 * 1024 * 1024) {
-      setUploadedFile(file);
-      setError(null);
-      // Automatically submit after a file is selected
-      handleSubmit(file);
-    } else {
-      alert('Please select a PDF file under 10MB');
-      setError('Please select a PDF file under 10MB');
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    // Process multiple files
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file && file.type === 'application/pdf' && file.size <= 5 * 1024 * 1024) {
+        // Process each file with a delay to avoid overwhelming the server
+        setTimeout(() => {
+          setUploadedFile(file);
+          setError(null);
+          handleSubmit(file);
+        }, i * 1000); // 1 second delay between each upload
+      } else {
+        alert(`File ${file.name}: Please select a PDF file under 5MB`);
+        setError(`File ${file.name}: Please select a PDF file under 5MB`);
+      }
     }
+    
+    // Reset file input
+    event.target.value = '';
   };
 
   const handleDragOver = (event: React.DragEvent) => {
@@ -272,15 +296,23 @@ export const Resume: React.FC = () => {
 
   const handleDrop = (event: React.DragEvent) => {
     event.preventDefault();
-    const file = event.dataTransfer.files[0];
-    if (file && file.type === 'application/pdf' && file.size <= 5 * 1024 * 1024) {
-      setUploadedFile(file);
-       setError(null);
-      // Automatically submit after a file is dropped
-      handleSubmit(file);
-    } else {
-      alert('Please select a PDF file under 10MB');
-      setError('Please select a PDF file under 10MB');
+    const files = event.dataTransfer.files;
+    if (!files || files.length === 0) return;
+
+    // Process multiple files
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file && file.type === 'application/pdf' && file.size <= 5 * 1024 * 1024) {
+        // Process each file with a delay to avoid overwhelming the server
+        setTimeout(() => {
+          setUploadedFile(file);
+          setError(null);
+          handleSubmit(file);
+        }, i * 1000); // 1 second delay between each upload
+      } else {
+        alert(`File ${file.name}: Please select a PDF file under 5MB`);
+        setError(`File ${file.name}: Please select a PDF file under 5MB`);
+      }
     }
   };
 
@@ -628,20 +660,27 @@ export const Resume: React.FC = () => {
   };
 
   const ResumeCard = ({ resume }: { resume: Resume }) => (
-    <div className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group text-left">
+    <div 
+      className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group text-left cursor-pointer hover:shadow-md"
+      onClick={() => handleOpenDetailModal(resume)}
+    >
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-sm font-medium">
+        <div className="flex items-center space-x-3 min-w-0 flex-1">
+          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0">
             {resume.full_name.charAt(0).toUpperCase()}
           </div>
-          <div>
-            <h3 className="font-semibold text-gray-900">{resume.full_name || 'Unknown'}</h3>
-            <p className="text-sm text-gray-500">{resume.email}</p>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold text-gray-900 truncate">{resume.full_name || 'Unknown'}</h3>
+            <p className="text-sm text-gray-500 truncate">{resume.email}</p>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <span className="text-[#007BFF] text-sm font-medium">
-            {new Date(resume.uploadedAt).toLocaleDateString()}
+        <div className="flex items-center space-x-2 flex-shrink-0">
+          <span className="text-[#007BFF] text-xs font-medium whitespace-nowrap">
+            {new Date(resume.uploadedAt).toLocaleDateString('vi-VN', {
+              day: '2-digit',
+              month: '2-digit',
+              year: '2-digit'
+            })}
           </span>
           <div className="relative">
             <button 
@@ -731,7 +770,10 @@ export const Resume: React.FC = () => {
           {(resume.hasJobMatches && resume.bestMatchScore !== undefined && resume.bestMatchScore < 80) || 
            (!resume.hasJobMatches && resume.matchingScore !== undefined && resume.matchingScore < 70) ? (
             <button 
-              onClick={() => handleOpenEnhanceModal(resume)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenEnhanceModal(resume);
+              }}
               className="bg-[#007BFF] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#0056b3] transition-colors"
             >
               Enhance resume
@@ -745,12 +787,16 @@ export const Resume: React.FC = () => {
             </div>
           ) : (
             <button 
-              onClick={() => handleOpenEnhanceModal(resume)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenEnhanceModal(resume);
+              }}
               className="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-600 transition-colors"
             >
               View resume
             </button>
           )}
+
         </div>
       </div>
     </div>
@@ -900,7 +946,7 @@ export const Resume: React.FC = () => {
                     Click to upload or drag and drop
                   </p>
                   <p className="text-gray-500 text-sm">
-                    PDF file max size 10MB
+                    PDF files max size 5MB each. Multiple files supported.
                   </p>
                 </div>
               )}
@@ -910,6 +956,7 @@ export const Resume: React.FC = () => {
                 id="file-upload"
                 type="file"
                 accept=".pdf"
+                multiple
                 onChange={handleFileUpload}
                 className="hidden"
               />
@@ -972,6 +1019,13 @@ export const Resume: React.FC = () => {
         extractedData={previewData}
         onSave={handleSaveExtractedData}
         onApplyToProfile={handleApplyToProfile}
+      />
+
+      {/* CV Detail Modal */}
+      <CVDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={handleCloseDetailModal}
+        resume={detailResume}
       />
     </>
   );

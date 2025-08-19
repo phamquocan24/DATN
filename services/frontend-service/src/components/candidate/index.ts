@@ -37,4 +37,6 @@ export { default as SkillManagement } from './SkillManagement';
 export { default as OTPVerifyModal } from './OTPVerifyModal';
 export { default as OTPTestDemo } from './OTPTestDemo';
 export { default as CompanyBrowser } from './CompanyBrowser';
-export { default as CompanyTestDemo } from './CompanyTestDemo'; 
+export { default as CompanyTestDemo } from './CompanyTestDemo';
+export { default as CVDetailModal } from './CVDetailModal';
+export { default as MatchScoreDisplay } from './MatchScoreDisplay'; 
