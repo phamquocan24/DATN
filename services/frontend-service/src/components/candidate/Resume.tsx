@@ -3,17 +3,15 @@ import { Footer } from './Footer';
 import GroupUnderline from '../../assets/Group.png';
 import { EnhanceResumeModal } from './EnhanceResumeModal';
 import CVPreviewModal from './CVPreviewModal';
-<<<<<<< HEAD
 import CVDetailModal from './CVDetailModal';
-=======
-import MatchScoreDisplay from './MatchScoreDisplay';
-import CVDetailedModal from './CVDetailedModal';
->>>>>>> 3b2191a10c95847661a38073210137d1649fef30
 
 import cvApi, { CVExtractResponse } from '../../services/cvApi';
 // Removed matchingApi import - using aiMatchingApi instead
 import candidateApi from '../../services/candidateApi';
-import { batchCalculateAIMatchScores } from '../../services/aiMatchingApi';
+import { 
+  batchCalculateAIMatchScores, 
+  getAIJobRecommendations
+} from '../../services/aiMatchingApi';
 // import api from '../../services/api'; // Commented out business service
 
 interface Job {
@@ -31,6 +29,7 @@ interface MatchScore {
   job_title: string;
   company_name: string;
   match_score: number;
+  match_grade: string;
   detailed_scores?: {
     skill_match: number;
     experience_match: number;
@@ -42,6 +41,8 @@ interface MatchScore {
 
 interface Resume {
   id: string;
+  cv_id?: string; // Add CV ID for AI matching
+  candidate_id?: string; // Add candidate ID for AI matching
   full_name: string;
   email: string;
   phone: string;
@@ -50,15 +51,12 @@ interface Resume {
   file?: File;
   extractedData?: CVExtractResponse;
   uploadedAt: Date;
-  is_primary?: boolean; // CV chính
   matchingScore?: number; // Điểm matching với JD mẫu (deprecated)
   isCalculatingMatch?: boolean; // Loading state cho matching
   jobMatchScores?: MatchScore[]; // Match scores với các jobs hiện có
   bestMatchScore?: number; // Điểm match cao nhất
   bestMatchJob?: string; // Tên job có điểm match cao nhất
   hasJobMatches?: boolean; // Có match scores với jobs không
-  totalJobsAnalyzed?: number; // Tổng số jobs đã phân tích
-  matchingJobsCount?: number; // Số jobs có match score > 0%
 }
 
 export const Resume: React.FC = () => {
@@ -84,10 +82,6 @@ export const Resume: React.FC = () => {
   
   // State for dropdown menu
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
-  
-  // State for detailed CV modal
-  const [isDetailedModalOpen, setIsDetailedModalOpen] = useState(false);
-  const [selectedCVDetails, setSelectedCVDetails] = useState<Resume | null>(null);
 
   // Load saved resumes and available jobs
   useEffect(() => {
@@ -190,6 +184,80 @@ export const Resume: React.FC = () => {
     setDetailResume(null);
   };
 
+  // Function to calculate AI match scores for a CV with all available jobs
+  const calculateAIMatchScoresForCV = async (cvId: string, candidateId: string) => {
+    try {
+      console.log('Starting AI match calculation for CV:', cvId);
+      
+      // First, get job recommendations for this candidate
+      const recommendationsResult = await getAIJobRecommendations(candidateId, 20);
+      
+      if (recommendationsResult.success && recommendationsResult.data) {
+        const jobIds = recommendationsResult.data.recommendations.map(rec => rec.job_id);
+        
+        if (jobIds.length > 0) {
+          console.log(`Calculating match scores for ${jobIds.length} jobs`);
+          
+          // Calculate batch match scores
+          const batchResult = await batchCalculateAIMatchScores(cvId, jobIds);
+          
+          if (batchResult.success && batchResult.data) {
+            // Find the best match
+            const validMatches = batchResult.data.filter(match => !match.error && match.match_score > 0);
+            
+            if (validMatches.length > 0) {
+              const bestMatch = validMatches.reduce((prev, current) => 
+                (prev.match_score > current.match_score) ? prev : current
+              );
+              
+              console.log(`Best match found: ${bestMatch.match_score}% for job ${bestMatch.job_id}`);
+              
+              // Update the resume with match data
+              setResumes(prevResumes => 
+                prevResumes.map(resume => {
+                  if (resume.cv_id === cvId) {
+                    return {
+                      ...resume,
+                      hasJobMatches: true,
+                      bestMatchScore: bestMatch.match_score,
+                      jobMatchScores: validMatches.map(match => ({
+                        job_id: match.job_id,
+                        match_score: match.match_score,
+                        match_grade: getMatchGrade(match.match_score),
+                        job_title: recommendationsResult.data!.recommendations.find(rec => rec.job_id === match.job_id)?.title || 'Unknown Job',
+                        company_name: recommendationsResult.data!.recommendations.find(rec => rec.job_id === match.job_id)?.group || 'Unknown Company',
+                        detailed_scores: {
+                          skill_match: match.match_score * 0.9 + Math.random() * 10, // Simulated detailed scores
+                          experience_match: match.match_score * 0.8 + Math.random() * 15,
+                          education_match: match.match_score * 0.7 + Math.random() * 20,
+                          location_match: match.match_score * 0.6 + Math.random() * 25,
+                          salary_match: match.match_score * 0.5 + Math.random() * 30
+                        }
+                      })),
+                      bestMatchJob: recommendationsResult.data!.recommendations.find(rec => rec.job_id === bestMatch.job_id)?.title || 'Unknown Job'
+                    };
+                  }
+                  return resume;
+                })
+              );
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error calculating AI match scores:', error);
+    }
+  };
+
+  // Helper function to determine match grade
+  const getMatchGrade = (score: number): string => {
+    if (score >= 80) return 'EXCELLENT';
+    if (score >= 70) return 'VERY_GOOD';
+    if (score >= 60) return 'GOOD';
+    if (score >= 50) return 'FAIR';
+    return 'POOR';
+  };
+
 
 
   const handleSaveExtractedData = (editedData: CVExtractResponse) => {
@@ -204,19 +272,19 @@ export const Resume: React.FC = () => {
         if (r.extractedData && r.full_name === editedData.full_name) {
           return {
             ...r,
-      full_name: editedData.full_name || 'Unknown',
-      email: editedData.email || '',
-      phone: editedData.phone || '',
-      address: editedData.address || '',
-      objective: editedData.objective || '',
+            full_name: editedData.full_name || 'Unknown',
+            email: editedData.email || '',
+            phone: editedData.phone || '',
+            address: editedData.address || '',
+            objective: editedData.objective || '',
             extractedData: editedData
           };
         }
         return r;
       });
-            localStorage.setItem('userResumes', JSON.stringify(updatedList));
-            return updatedList;
-          });
+      localStorage.setItem('userResumes', JSON.stringify(updatedList));
+      return updatedList;
+    });
 
     console.log('CV data updated successfully:', editedData);
     
@@ -251,56 +319,16 @@ export const Resume: React.FC = () => {
 
 
   const handleDeleteResume = (resumeId: string) => {
-    if (window.confirm('Are you sure you want to delete this CV?')) {
-      const updatedResumes = resumes.filter(resume => resume.id !== resumeId);
-      setResumes(updatedResumes);
-      
-      // Update localStorage
-      localStorage.setItem('userResumes', JSON.stringify(updatedResumes));
-      
-      // Reset file upload state to allow new uploads
-      setUploadedFile(null);
-      setError(null);
-      setExtractedInfo(null);
-      setIsLoading(false);
-      
-      // Reset file input
-      const fileInput = document.getElementById('file-upload') as HTMLInputElement;
-      if (fileInput) {
-        fileInput.value = '';
-      }
-      
-      // Close dropdown
-      setOpenDropdownId(null);
-      
-      console.log('Resume deleted and upload state reset:', resumeId);
-    }
-  };
-
-  // Function to set CV as primary
-  const handleSetPrimaryCV = async (resumeId: string) => {
-    try {
-      console.log('Setting CV as primary:', resumeId);
-      await candidateApi.setPrimaryCV(resumeId);
-      
-      // Update resumes state - set only the selected CV as primary
-      setResumes(prevResumes => {
-        const updatedList = prevResumes.map(resume => ({
-          ...resume,
-          is_primary: resume.id === resumeId
-        }));
-        
-        // Update localStorage with updated list
-        localStorage.setItem('userResumes', JSON.stringify(updatedList));
-        return updatedList;
-      });
-      
-      setOpenDropdownId(null);
-      console.log(`CV ${resumeId} set as primary successfully`);
-    } catch (error: any) {
-      console.error('Failed to set primary CV:', error);
-      setError(`Failed to set CV as primary: ${error.message || 'Please try again.'}`);
-    }
+    const updatedResumes = resumes.filter(resume => resume.id !== resumeId);
+    setResumes(updatedResumes);
+    
+    // Update localStorage
+    localStorage.setItem('userResumes', JSON.stringify(updatedResumes));
+    
+    // Close dropdown
+    setOpenDropdownId(null);
+    
+    console.log('Resume deleted:', resumeId);
   };
 
   const toggleDropdown = (resumeId: string) => {
@@ -367,167 +395,9 @@ export const Resume: React.FC = () => {
     }
   };
 
-  // Simple text-based matching fallback function
-  const calculateSimpleTextMatch = async (cvText: string, jobDescription: string): Promise<{
-    success: boolean;
-    data?: {
-      match_score: number;
-    };
-    error?: string;
-  }> => {
-    try {
-      // Simple keyword matching algorithm
-      const cvWords = cvText.toLowerCase().split(/\s+/).filter(word => word.length > 3);
-      const jobWords = jobDescription.toLowerCase().split(/\s+/).filter(word => word.length > 3);
-      
-      const commonWords = cvWords.filter(word => jobWords.includes(word));
-      const uniqueCommonWords = [...new Set(commonWords)];
-      
-      // Calculate match score based on common words
-      const totalUniqueWords = new Set([...cvWords, ...jobWords]).size;
-      const matchScore = Math.min((uniqueCommonWords.length / totalUniqueWords) * 200, 100);
-      
-
-      
-              return {
-          success: true,
-          data: {
-            match_score: matchScore
-          }
-        };
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.message || 'Failed to calculate simple text match'
-      };
-    }
-  };
-
-  // Function to calculate matching scores with available jobs using AI service directly
-  const calculateJobMatchScores = async (resumeId: string, limitJobs = false): Promise<MatchScore[]> => {
-    if (availableJobs.length === 0) {
-      console.warn('No available jobs to calculate match scores');
-      return [];
-    }
-
-    const matchScores: MatchScore[] = [];
-    
-    // Get the resume data
-    const resume = resumes.find(r => r.id === resumeId);
-    if (!resume?.extractedData) {
-      console.warn('No extracted CV data found for matching');
-      return [];
-    }
-
-    // Calculate match score with limited jobs (for quick preview) or all jobs (for comprehensive analysis)
-    const jobsToMatch = limitJobs ? availableJobs.slice(0, 5) : availableJobs;
-    console.log(`Analyzing ${jobsToMatch.length} jobs for ${limitJobs ? 'quick preview' : 'comprehensive analysis'}`);
 
 
-    
-    // Check if we have a valid CV ID from database (UUID format)
-    const cvId = resume.id;
-    const isValidUUID = cvId && cvId.length >= 32; // Basic UUID length check
-    
-    if (isValidUUID) {
-      try {
-        console.log('Using AI service direct CV-Job matching with database IDs');
-        
-        // Extract job IDs for batch calculation
-        const jobIds = jobsToMatch.map(job => job.id);
-        
-        // Use batch AI matching for better performance
-        const batchResult = await batchCalculateAIMatchScores(cvId, jobIds);
-        
-        if (batchResult.success && batchResult.data) {
-          batchResult.data.forEach((result, index) => {
-            const job = jobsToMatch[index];
-            matchScores.push({
-              job_id: result.job_id,
-              job_title: job.title,
-              company_name: job.company_name,
-              match_score: result.match_score,
-              detailed_scores: {
-                skill_match: result.match_score * 0.9, // AI provides more accurate skill matching
-                experience_match: result.match_score * 0.85,
-                education_match: result.match_score * 0.8,
-                location_match: 50, // Default location match
-                salary_match: 60 // Default salary match
-              }
-            });
-          });
-          
-          console.log(`AI service calculated ${matchScores.length} match scores successfully`);
-          return matchScores.sort((a, b) => b.match_score - a.match_score);
-        }
-      } catch (aiError) {
-        console.warn('AI service matching failed, falling back to text-based matching:', aiError);
-      }
-    }
-    
-    // Fallback to text-based matching if AI service fails or CV not in database
-    console.log('Using fallback text-based matching');
 
-    // Create CV text for matching
-    const cvText = `
-      Name: ${resume.extractedData.full_name}
-      Email: ${resume.extractedData.email}
-      Phone: ${resume.extractedData.phone}
-      Address: ${resume.extractedData.address}
-      Objective: ${resume.extractedData.objective}
-      Skills: ${resume.extractedData.skills?.map(s => s.skill_name).join(', ') || ''}
-      Education: ${resume.extractedData.education?.map(e => `${e.degree} in ${e.field} from ${e.school}`).join(', ') || ''}
-      Experience: ${resume.extractedData.experience?.map(e => `${e.position} at ${e.company}: ${e.description}`).join(', ') || ''}
-      Projects: ${resume.extractedData.projects?.map(p => `${p.name}: ${p.description}`).join(', ') || ''}
-      Certifications: ${resume.extractedData.certifications?.map(c => c.name).join(', ') || ''}
-      Languages: ${resume.extractedData.languages?.map(l => `${l.language} (${l.proficiency})`).join(', ') || ''}
-    `;
-    
-    for (const job of jobsToMatch) {
-      try {
-        // Create job description text
-        const jobDescription = `
-          Title: ${job.title}
-          Company: ${job.company_name}
-          Location: ${job.location || 'Not specified'}
-          Employment Type: ${job.employment_type || 'Not specified'}
-          Salary: ${job.salary_min && job.salary_max ? `${job.salary_min} - ${job.salary_max}` : 'Not specified'}
-        `;
-        
-        // Use simple text-based matching as fallback
-        const response = await calculateSimpleTextMatch(cvText, jobDescription);
-        
-        if (response.success && response.data) {
-          matchScores.push({
-            job_id: job.id,
-            job_title: job.title,
-            company_name: job.company_name,
-            match_score: response.data.match_score || 0,
-            detailed_scores: {
-              skill_match: response.data.match_score * 0.8,
-              experience_match: response.data.match_score * 0.9,
-              education_match: response.data.match_score * 0.7,
-              location_match: 50,
-              salary_match: 60
-            }
-          });
-        }
-      } catch (error: any) {
-        console.warn(`Failed to calculate match score for job ${job.id}:`, error);
-        
-        // Add a default low score for errors
-        matchScores.push({
-          job_id: job.id,
-          job_title: job.title,
-          company_name: job.company_name,
-          match_score: 0
-        });
-      }
-    }
-    
-    // Sort by match score descending
-    return matchScores.sort((a, b) => b.match_score - a.match_score);
-  };
 
   // Removed mock calculateMatchingScore function - using real API instead
 
@@ -597,8 +467,11 @@ export const Resume: React.FC = () => {
         
         // Create resume object with saved CV data
         const resumeId = cvId;
+        const candidateId = savedCV.data?.cv?.candidate_id;
         const newResume: Resume = {
           id: resumeId,
+          cv_id: cvId,
+          candidate_id: candidateId,
           full_name: extractedData.full_name || 'Unknown',
           email: extractedData.email || '',
           phone: extractedData.phone || '',
@@ -618,75 +491,45 @@ export const Resume: React.FC = () => {
         setResumes(updatedResumes);
         localStorage.setItem('userResumes', JSON.stringify(updatedResumes));
 
-        // Calculate match scores with ALL available jobs in background
-        if (availableJobs.length > 0) {
-          setTimeout(async () => {
-            try {
-              // Calculate match scores for ALL jobs (not limited)
-              const jobMatchScores = await calculateJobMatchScores(resumeId, false);
-              const bestMatch = jobMatchScores.length > 0 ? jobMatchScores[0] : null;
-              
-              // Count jobs with match score > 0%
-              const matchingJobsCount = jobMatchScores.filter((score: MatchScore) => score.match_score > 0).length;
-              
-              // Update resume with job match scores
-              const updatedResumeWithMatches: Resume = {
-                ...newResume,
-                isCalculatingMatch: false,
-                jobMatchScores: jobMatchScores,
-                bestMatchScore: bestMatch?.match_score,
-                bestMatchJob: bestMatch ? `${bestMatch.job_title} at ${bestMatch.company_name}` : undefined,
-                hasJobMatches: jobMatchScores.length > 0 && jobMatchScores.some((score: MatchScore) => score.match_score > 0),
-                totalJobsAnalyzed: availableJobs.length,
-                matchingJobsCount: matchingJobsCount
-              };
-              
-              // Update resumes list
-              setResumes(prevResumes => {
-                const updatedList = prevResumes.map(r => 
-                  r.id === resumeId ? updatedResumeWithMatches : r
-                );
-                localStorage.setItem('userResumes', JSON.stringify(updatedList));
-                return updatedList;
-              });
-              
-              console.log('Job match scores calculated:', jobMatchScores);
-            } catch (error) {
-              console.error('Failed to calculate job match scores:', error);
-              // Update to stop loading state even if calculation failed
-              setResumes(prevResumes => {
-                const updatedList = prevResumes.map(r => 
-                  r.id === resumeId ? { ...r, isCalculatingMatch: false } : r
-                );
-                localStorage.setItem('userResumes', JSON.stringify(updatedList));
-                return updatedList;
-              });
+        // Calculate AI match scores with all available jobs in background
+        setTimeout(async () => {
+          try {
+            // Get candidate_id from the saved CV response
+            const candidateId = savedCV.data?.cv?.candidate_id;
+            
+            if (candidateId) {
+              console.log('Starting AI match calculation for candidate:', candidateId);
+              await calculateAIMatchScoresForCV(cvId, candidateId);
+            } else {
+              console.warn('No candidate_id found in CV response');
             }
-          }, 1000);
-        } else {
-          // No jobs available, stop calculating
-          setResumes(prevResumes => {
-            const updatedList = prevResumes.map(r => 
-              r.id === resumeId ? { ...r, isCalculatingMatch: false } : r
-            );
-            localStorage.setItem('userResumes', JSON.stringify(updatedList));
-            return updatedList;
-          });
-        }
+            
+            // Update to stop loading state
+            setResumes(prevResumes => {
+              const updatedList = prevResumes.map(r => 
+                r.id === resumeId ? { ...r, isCalculatingMatch: false } : r
+              );
+              localStorage.setItem('userResumes', JSON.stringify(updatedList));
+              return updatedList;
+            });
+            
+          } catch (error) {
+            console.error('Failed to calculate AI match scores:', error);
+            // Update to stop loading state even if calculation failed
+            setResumes(prevResumes => {
+              const updatedList = prevResumes.map(r => 
+                r.id === resumeId ? { ...r, isCalculatingMatch: false } : r
+              );
+              localStorage.setItem('userResumes', JSON.stringify(updatedList));
+              return updatedList;
+            });
+          }
+        }, 2000); // Increased delay to allow CV content to be saved
 
         // Show preview modal for viewing (but data is already saved)
-      setPreviewData(extractedData);
-      setIsPreviewModalOpen(true);
-
-        // Reset upload state to allow new uploads after successful save
-        setTimeout(() => {
-          setUploadedFile(null);
-          const fileInput = document.getElementById('file-upload') as HTMLInputElement;
-          if (fileInput) {
-            fileInput.value = '';
-          }
-        }, 2000); // Reset after 2 seconds to show success state briefly
-
+        setPreviewData(extractedData);
+        setIsPreviewModalOpen(true);
+        
         console.log('CV extracted and automatically saved to database');
         
       } catch (saveError: any) {
@@ -715,69 +558,27 @@ export const Resume: React.FC = () => {
     }
   };
 
-  // Function to handle CV card click
-  const handleCardClick = (resume: Resume) => {
-    setSelectedCVDetails(resume);
-    setIsDetailedModalOpen(true);
-  };
-
   const ResumeCard = ({ resume }: { resume: Resume }) => (
     <div 
-<<<<<<< HEAD
       className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group text-left cursor-pointer hover:shadow-md"
       onClick={() => handleOpenDetailModal(resume)}
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3 min-w-0 flex-1">
           <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0">
-=======
-      className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/50 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 group text-left cursor-pointer transform"
-      onClick={() => handleCardClick(resume)}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-3 flex-1 min-w-0">
-          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-sm font-medium relative flex-shrink-0">
->>>>>>> 3b2191a10c95847661a38073210137d1649fef30
             {resume.full_name.charAt(0).toUpperCase()}
-            {resume.is_primary && (
-              <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center">
-                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
           </div>
-<<<<<<< HEAD
           <div className="min-w-0 flex-1">
             <h3 className="font-semibold text-gray-900 truncate">{resume.full_name || 'Unknown'}</h3>
-=======
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-        <div className="flex items-center space-x-2">
-            <h3 className="font-semibold text-gray-900 truncate">{resume.full_name || 'Unknown'}</h3>
-              {resume.is_primary && (
-                <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full font-medium flex-shrink-0">
-                  Primary
-                </span>
-              )}
-            </div>
->>>>>>> 3b2191a10c95847661a38073210137d1649fef30
             <p className="text-sm text-gray-500 truncate">{resume.email}</p>
           </div>
         </div>
         <div className="flex items-center space-x-2 flex-shrink-0">
-<<<<<<< HEAD
           <span className="text-[#007BFF] text-xs font-medium whitespace-nowrap">
             {new Date(resume.uploadedAt).toLocaleDateString('vi-VN', {
               day: '2-digit',
               month: '2-digit',
               year: '2-digit'
-=======
-          <span className="text-[#007BFF] text-xs font-medium whitespace-nowrap max-w-[80px] truncate">
-            {new Date(resume.uploadedAt).toLocaleDateString('en-GB', { 
-              day: '2-digit', 
-              month: '2-digit', 
-              year: '2-digit' 
->>>>>>> 3b2191a10c95847661a38073210137d1649fef30
             })}
           </span>
           <div className="relative">
@@ -794,22 +595,7 @@ export const Resume: React.FC = () => {
             </button>
             
             {openDropdownId === resume.id && (
-              <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[160px]">
-                {!resume.is_primary && (
-                  <button
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      console.log('Attempting to set CV as primary:', resume.id);
-                      await handleSetPrimaryCV(resume.id);
-                    }}
-                    className="w-full px-4 py-2 text-left text-sm text-blue-600 hover:bg-blue-50 flex items-center"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                    </svg>
-                    Set as Primary
-                  </button>
-                )}
+              <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[120px]">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -829,11 +615,7 @@ export const Resume: React.FC = () => {
       </div>
 
       <p className="text-gray-600 text-sm mb-4 line-clamp-3 leading-relaxed">
-        {resume.objective || (
-          resume.matchingJobsCount !== undefined 
-            ? `${resume.matchingJobsCount} job${resume.matchingJobsCount !== 1 ? 's' : ''}`
-            : `Ready to analyze ${availableJobs.length} available job${availableJobs.length !== 1 ? 's' : ''}`
-        )}
+        {resume.objective || 'No objective specified'}
       </p>
 
       <div className="flex items-center justify-between">
@@ -841,21 +623,28 @@ export const Resume: React.FC = () => {
           <div className="flex items-center space-x-2">
             {resume.isCalculatingMatch ? (
               <span className="px-3 py-1 text-xs rounded-full font-medium bg-gray-100 text-gray-600 animate-pulse">
-                🔄 Calculating job matches...
+                Calculating job matches...
               </span>
             ) : resume.hasJobMatches && resume.bestMatchScore !== undefined ? (
-              <MatchScoreDisplay 
-                score={resume.bestMatchScore} 
-                size="small"
-              />
+              <span className={`px-3 py-1 text-xs rounded-full font-medium ${
+                resume.bestMatchScore >= 80 ? 'bg-green-100 text-green-700' :
+                resume.bestMatchScore >= 60 ? 'bg-blue-100 text-blue-700' :
+                resume.bestMatchScore >= 40 ? 'bg-yellow-100 text-yellow-700' :
+                'bg-red-100 text-red-700'
+              }`}>
+                Best Match: {resume.bestMatchScore}%
+              </span>
             ) : resume.matchingScore !== undefined ? (
-              <MatchScoreDisplay 
-                score={resume.matchingScore} 
-                size="small"
-              />
+              <span className={`px-3 py-1 text-xs rounded-full font-medium ${
+                resume.matchingScore >= 70 ? 'bg-green-100 text-green-700' :
+                resume.matchingScore >= 50 ? 'bg-yellow-100 text-yellow-700' :
+                'bg-red-100 text-red-700'
+              }`}>
+                Sample Match: {resume.matchingScore}%
+              </span>
             ) : (
               <span className="px-3 py-1 text-xs rounded-full font-medium bg-gray-100 text-gray-600">
-                {availableJobs.length === 0 ? '⚠️ Profile setup needed' : '📊 No matches calculated'}
+                {availableJobs.length === 0 ? 'Profile setup needed' : 'No matches calculated'}
               </span>
             )}
           </div>
@@ -1131,25 +920,12 @@ export const Resume: React.FC = () => {
         onApplyToProfile={handleApplyToProfile}
       />
 
-<<<<<<< HEAD
       {/* CV Detail Modal */}
       <CVDetailModal
         isOpen={isDetailModalOpen}
         onClose={handleCloseDetailModal}
         resume={detailResume}
       />
-=======
-      {/* Detailed CV Modal */}
-      {isDetailedModalOpen && selectedCVDetails && (
-        <CVDetailedModal
-          resume={selectedCVDetails}
-          onClose={() => {
-            setIsDetailedModalOpen(false);
-            setSelectedCVDetails(null);
-          }}
-        />
-      )}
->>>>>>> 3b2191a10c95847661a38073210137d1649fef30
     </>
   );
 };
