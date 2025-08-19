@@ -2,7 +2,6 @@ import React from 'react';
 
 interface MatchScoreDisplayProps {
   score: number;
-  grade: string;
   size?: 'small' | 'medium' | 'large';
   showDetails?: boolean;
   detailedScores?: {
@@ -15,7 +14,6 @@ interface MatchScoreDisplayProps {
 
 export const MatchScoreDisplay: React.FC<MatchScoreDisplayProps> = ({
   score,
-  grade,
   size = 'medium',
   showDetails = false,
   detailedScores
@@ -28,16 +26,7 @@ export const MatchScoreDisplay: React.FC<MatchScoreDisplayProps> = ({
     return 'text-red-600 bg-red-100';
   };
 
-  const getGradeText = (grade: string): string => {
-    switch (grade) {
-      case 'EXCELLENT': return 'Xuất sắc';
-      case 'VERY_GOOD': return 'Rất tốt';
-      case 'GOOD': return 'Tốt';
-      case 'FAIR': return 'Khá';
-      case 'POOR': return 'Yếu';
-      default: return grade;
-    }
-  };
+
 
   const sizeClasses = {
     small: 'text-xs px-2 py-1',
@@ -52,9 +41,8 @@ export const MatchScoreDisplay: React.FC<MatchScoreDisplayProps> = ({
     <div className="match-score-display">
       {/* Main Score Badge */}
       <div className={`inline-flex items-center rounded-full font-semibold ${scoreColorClass} ${sizeClass}`}>
-        <span className="mr-1">🎯</span>
-        <span>{score}%</span>
-        <span className="ml-1 text-xs opacity-75">({getGradeText(grade)})</span>
+        <span className="mr-1">Match:</span>
+        <span>{score.toFixed(2)}%</span>
       </div>
 
       {/* Detailed Scores */}
@@ -64,26 +52,26 @@ export const MatchScoreDisplay: React.FC<MatchScoreDisplayProps> = ({
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div className="flex justify-between">
               <span>Kỹ năng:</span>
-              <span className={`font-medium ${getScoreColor(detailedScores.skills_similarity).split(' ')[0]}`}>
-                {detailedScores.skills_similarity}%
+              <span className={`font-medium ${getScoreColor(detailedScores.skills_similarity * 100).split(' ')[0]}`}>
+                {(detailedScores.skills_similarity * 100).toFixed(2)}%
               </span>
             </div>
             <div className="flex justify-between">
               <span>Kinh nghiệm:</span>
-              <span className={`font-medium ${getScoreColor(detailedScores.experience_similarity).split(' ')[0]}`}>
-                {detailedScores.experience_similarity}%
+              <span className={`font-medium ${getScoreColor(detailedScores.experience_similarity * 100).split(' ')[0]}`}>
+                {(detailedScores.experience_similarity * 100).toFixed(4)}%
               </span>
             </div>
             <div className="flex justify-between">
               <span>Học vấn:</span>
-              <span className={`font-medium ${getScoreColor(detailedScores.education_similarity).split(' ')[0]}`}>
-                {detailedScores.education_similarity}%
+              <span className={`font-medium ${getScoreColor(detailedScores.education_similarity * 100).split(' ')[0]}`}>
+                {(detailedScores.education_similarity * 100).toFixed(4)}%
               </span>
             </div>
             <div className="flex justify-between">
               <span>Mô tả:</span>
-              <span className={`font-medium ${getScoreColor(detailedScores.description_similarity).split(' ')[0]}`}>
-                {detailedScores.description_similarity}%
+              <span className={`font-medium ${getScoreColor(detailedScores.description_similarity * 100).split(' ')[0]}`}>
+                {(detailedScores.description_similarity * 100).toFixed(4)}%
               </span>
             </div>
           </div>

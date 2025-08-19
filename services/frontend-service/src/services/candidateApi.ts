@@ -265,16 +265,121 @@ export const candidateApi = {
     return response.data;
   },
 
+
+
   saveCVContent: async (cvId: string, extractedData: any) => {
-    const response = await apiClient.post(`/cvs/${cvId}/parse`, {
-      parsed_text: JSON.stringify(extractedData),
-      parsed_data: extractedData,
-      skills_extracted: extractedData.skills?.map((s: any) => s.skill_name) || [],
-      experience_years: extractedData.experience?.length || 0,
-      education_level: extractedData.education?.[0]?.degree || '',
-      job_titles: extractedData.experience?.map((e: any) => e.position) || [],
-      companies: extractedData.experience?.map((e: any) => e.company) || []
+    // Map education degree to standard level
+    const mapEducationLevel = (degree: string): string => {
+      if (!degree || typeof degree !== 'string') return '';
+      
+      const degreeStr = degree.toLowerCase().trim();
+      
+      // PhD/Doctorate patterns
+      if (degreeStr.includes('phd') || degreeStr.includes('doctorate') || degreeStr.includes('ph.d') ||
+          degreeStr.includes('tiến sĩ') || degreeStr.includes('ts.')) {
+        return 'PHD';
+      }
+      
+      // Master's patterns
+      if (degreeStr.includes('master') || degreeStr.includes('mba') || degreeStr.includes('ms') || 
+          degreeStr.includes('ma') || degreeStr.includes('m.s') || degreeStr.includes('m.a') ||
+          degreeStr.includes('thạc sĩ') || degreeStr.includes('ths.') || degreeStr.includes('msc')) {
+        return 'MASTER';
+      }
+      
+      // Bachelor's patterns
+      if (degreeStr.includes('bachelor') || degreeStr.includes('bs') || degreeStr.includes('ba') || 
+          degreeStr.includes('b.s') || degreeStr.includes('b.a') || degreeStr.includes('bsc') ||
+          degreeStr.includes('beng') || degreeStr.includes('btech') || degreeStr.includes('kỹ sư') ||
+          degreeStr.includes('cử nhân') || degreeStr.includes('cn.') || degreeStr.includes('engineer')) {
+        return 'BACHELOR';
+      }
+      
+      // College/Associate patterns
+      if (degreeStr.includes('associate') || degreeStr.includes('diploma') || degreeStr.includes('college') ||
+          degreeStr.includes('certificate') || degreeStr.includes('cao đẳng') || degreeStr.includes('cđ') ||
+          degreeStr.includes('trung cấp') || degreeStr.includes('tc')) {
+        return 'COLLEGE';
+      }
+      
+      // High school patterns
+      if (degreeStr.includes('high school') || degreeStr.includes('secondary') || degreeStr.includes('12th') ||
+          degreeStr.includes('thpt') || degreeStr.includes('cấp 3') || degreeStr.includes('phổ thông') ||
+          degreeStr.includes('lớp 12')) {
+        return 'HIGH_SCHOOL';
+      }
+      
+      // Default to BACHELOR if it mentions university/degree but doesn't match above patterns
+      if (degreeStr.includes('degree') || degreeStr.includes('university') ||
+          degreeStr.includes('học viện') || degreeStr.includes('đại học')) {
+        return 'BACHELOR';
+      }
+      
+      // Default to COLLEGE if it mentions school/graduated but not university
+      if (degreeStr.includes('graduated') || degreeStr.includes('school') ||
+          degreeStr.includes('trường') || degreeStr.includes('khoa')) {
+        return 'COLLEGE';
+      }
+      
+      // Default to empty string if no educational keywords found
+      return '';
+    };
+
+    const originalDegree = extractedData.education?.[0]?.degree || '';
+    const educationLevel = mapEducationLevel(originalDegree);
+    
+    // Helper function to clean array data
+    const cleanStringArray = (arr: any[]): string[] => {
+      return arr
+        .map((item: any) => typeof item === 'string' ? item.trim() : String(item || '').trim())
+        .filter((item: string) => item.length > 0);
+    };
+    
+    console.log('CV Data Processing:', {
+      education: {
+        original: originalDegree,
+        mapped: educationLevel,
+        willInclude: educationLevel && ['HIGH_SCHOOL', 'COLLEGE', 'BACHELOR', 'MASTER', 'PHD'].includes(educationLevel)
+      },
+      arrays: {
+        skills_before: extractedData.skills?.map((s: any) => s.skill_name),
+        skills_after: extractedData.skills ? cleanStringArray(extractedData.skills.map((s: any) => s.skill_name)) : [],
+        job_titles_before: extractedData.experience?.map((e: any) => e.position),
+        job_titles_after: extractedData.experience ? cleanStringArray(extractedData.experience.map((e: any) => e.position)) : [],
+        companies_before: extractedData.experience?.map((e: any) => e.company),
+        companies_after: extractedData.experience ? cleanStringArray(extractedData.experience.map((e: any) => e.company)) : []
+      }
     });
+
+    // Prepare request data according to actual database schema
+    const requestData: any = {
+      parsed_content: extractedData,  // JSONB field for complete parsed data
+      ai_analysis: extractedData,  // JSONB field for complete analysis
+      extracted_skills: extractedData.skills ? cleanStringArray(extractedData.skills.map((s: any) => s.skill_name)) : [],
+      extracted_experience: {
+        positions: extractedData.experience ? cleanStringArray(extractedData.experience.map((e: any) => e.position)) : [],
+        companies: extractedData.experience ? cleanStringArray(extractedData.experience.map((e: any) => e.company)) : [],
+        years: extractedData.experience?.length || 0
+      },
+      extracted_education: {
+        level: educationLevel || null,
+        degrees: extractedData.education || []
+      },
+      extracted_contact: {
+        email: extractedData.email || '',
+        phone: extractedData.phone || '',
+        address: extractedData.address || '',
+        full_name: extractedData.full_name || ''
+      }
+    };
+    
+    const response = await apiClient.post(`/cvs/${cvId}/parse`, requestData);
+    return response.data;
+  },
+
+  // Set CV as primary
+  setPrimaryCV: async (cvId: string) => {
+    const response = await apiClient.post(`/cvs/${cvId}/set-primary`);
     return response.data;
   },
 

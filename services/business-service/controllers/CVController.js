@@ -24,9 +24,6 @@ const logger = winston.createLogger({
   ]
 });
 
-// Initialize CV model
-const cvModel = new CV();
-
 // Validation schemas
 const createCVSchema = Joi.object({
   cv_title: Joi.string().min(2).max(200).required().messages({
@@ -67,13 +64,24 @@ const searchCVSchema = Joi.object({
 });
 
 const parseCVSchema = Joi.object({
-  parsed_text: Joi.string().required(),
-  parsed_data: Joi.object().required(),
-  skills_extracted: Joi.array().items(Joi.string()).optional(),
-  experience_years: Joi.number().integer().min(0).optional(),
-  education_level: Joi.string().valid('HIGH_SCHOOL', 'COLLEGE', 'BACHELOR', 'MASTER', 'PHD').optional(),
-  job_titles: Joi.array().items(Joi.string()).optional(),
-  companies: Joi.array().items(Joi.string()).optional()
+  parsed_content: Joi.object().required(),  // JSONB field for complete parsed data
+  ai_analysis: Joi.object().required(),  // JSONB field for complete analysis
+  extracted_skills: Joi.array().items(Joi.string()).optional(),  // text[] array
+  extracted_experience: Joi.object({
+    positions: Joi.array().items(Joi.string()).optional(),
+    companies: Joi.array().items(Joi.string()).optional(),
+    years: Joi.number().integer().min(0).optional()
+  }).optional(),
+  extracted_education: Joi.object({
+    level: Joi.string().valid('HIGH_SCHOOL', 'COLLEGE', 'BACHELOR', 'MASTER', 'PHD').allow(null).optional(),
+    degrees: Joi.array().items(Joi.object()).optional()
+  }).optional(),
+  extracted_contact: Joi.object({
+    email: Joi.string().email().allow('').optional(),
+    phone: Joi.string().allow('').optional(),
+    address: Joi.string().allow('').optional(),
+    full_name: Joi.string().allow('').optional()
+  }).optional()
 });
 
 // Helper function to get candidate profile ID
