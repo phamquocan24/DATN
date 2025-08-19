@@ -34,10 +34,22 @@ def chunk_text(text: str, max_tokens=128) -> list:
 
 
 def get_text_embedding(text: str, chunk_size=128) -> np.ndarray:
+    # Handle empty or None text
+    if not text or not text.strip():
+        print(f"Warning: Empty text provided for embedding")
+        return np.zeros(model.get_sentence_embedding_dimension())
+    
     cleaned = clean_text(text)
+    if not cleaned or len(cleaned.strip()) < 3:
+        print(f"Warning: Text too short after cleaning: '{cleaned}'")
+        # Use original text if cleaning made it too short
+        cleaned = text.strip()
+    
     chunks = chunk_text(cleaned, max_tokens=chunk_size)
     if not chunks:
+        print(f"Warning: No chunks generated from text: '{cleaned[:50]}...'")
         return np.zeros(model.get_sentence_embedding_dimension())
+    
     embeddings = model.encode(chunks)
     return np.mean(embeddings, axis=0)
 
@@ -45,19 +57,39 @@ def get_text_embedding(text: str, chunk_size=128) -> np.ndarray:
 def calculate_similarity(text1: str, text2: str) -> float:
     emb1 = get_text_embedding(text1)
     emb2 = get_text_embedding(text2)
-    return cos_sim(emb1, emb2).item()
+    # Ensure same dtype to avoid double != float error
+    emb1_array = np.array(emb1, dtype=np.float32)
+    emb2_array = np.array(emb2, dtype=np.float32)
+    return cos_sim(emb1_array, emb2_array).item()
 
 
 def make_cv_text(parsed_content: dict) -> str:
     parts = []
+    
+    # Add full_name if available
+    if parsed_content.get("full_name"):
+        parts.append(str(parsed_content["full_name"]))
+    
     for section in ['mo_ta_ban_than', 'kinh_nghiem_lam_viec', 'hoc_van', 'du_an']:
         value = parsed_content.get(section, [])
         if isinstance(value, list):
-            parts.extend([str(item) for item in value])
-        else:
+            parts.extend([str(item) for item in value if item])
+        elif value:
             parts.append(str(value))
-    parts.extend(parsed_content.get("ky_nang", []))
-    return ' '.join(parts)
+    
+    # Add skills
+    skills = parsed_content.get("ky_nang", [])
+    if skills:
+        parts.extend([str(skill) for skill in skills if skill])
+    
+    # Join and clean up
+    text = ' '.join(parts).strip()
+    
+    # Fallback if no meaningful content
+    if not text or len(text) < 10:
+        return f"CV for {parsed_content.get('full_name', 'candidate')} - {parsed_content.get('mo_ta_ban_than', 'Professional CV')}"
+    
+    return text
 
 def detect_language_from_texts(jd_text: str, cv_text: str) -> str:
     try:

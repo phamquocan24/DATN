@@ -34,8 +34,8 @@ interface MatchScore {
     skill_match: number;
     experience_match: number;
     education_match: number;
-    location_match: number;
-    salary_match: number;
+    description_match: number;
+    overall_match: number;
   };
 }
 
@@ -192,6 +192,17 @@ export const Resume: React.FC = () => {
       // First, get job recommendations for this candidate
       const recommendationsResult = await getAIJobRecommendations(candidateId, 20);
       
+      if (!recommendationsResult.success) {
+        if (recommendationsResult.error?.includes('CV is still being processed')) {
+          alert('CV is still being processed. Please try again in a few moments.');
+          return;
+        } else {
+          console.error('Failed to get job recommendations:', recommendationsResult.error);
+          alert('Failed to calculate job matches. Please try again later.');
+          return;
+        }
+      }
+      
       if (recommendationsResult.success && recommendationsResult.data) {
         const jobIds = recommendationsResult.data.recommendations.map(rec => rec.job_id);
         
@@ -227,11 +238,11 @@ export const Resume: React.FC = () => {
                         job_title: recommendationsResult.data!.recommendations.find(rec => rec.job_id === match.job_id)?.title || 'Unknown Job',
                         company_name: recommendationsResult.data!.recommendations.find(rec => rec.job_id === match.job_id)?.group || 'Unknown Company',
                         detailed_scores: {
-                          skill_match: match.match_score * 0.9 + Math.random() * 10, // Simulated detailed scores
-                          experience_match: match.match_score * 0.8 + Math.random() * 15,
-                          education_match: match.match_score * 0.7 + Math.random() * 20,
-                          location_match: match.match_score * 0.6 + Math.random() * 25,
-                          salary_match: match.match_score * 0.5 + Math.random() * 30
+                          skill_match: match.ky_nang_similarity ? Math.round(match.ky_nang_similarity * 100) : 0,
+                          experience_match: match.kinh_nghiem_similarity ? Math.round(match.kinh_nghiem_similarity * 100) : 0,
+                          education_match: match.hoc_van_similarity ? Math.round(match.hoc_van_similarity * 100) : 0,
+                          description_match: match.mo_ta_ban_than_similarity ? Math.round(match.mo_ta_ban_than_similarity * 100) : 0,
+                          overall_match: match.match_score
                         }
                       })),
                       bestMatchJob: recommendationsResult.data!.recommendations.find(rec => rec.job_id === bestMatch.job_id)?.title || 'Unknown Job'
@@ -689,11 +700,9 @@ export const Resume: React.FC = () => {
                 {availableJobs.length === 0 ? 'Profile setup needed' : 'No matches calculated'}
               </span>
             )}
-          </div>
-          
-
-          
-          {/* Show job match count */}
+                      </div>
+            
+            {/* Show job match count */}
           {resume.jobMatchScores && resume.jobMatchScores.length > 0 && (
             <p className="text-xs text-blue-600">
               {resume.jobMatchScores.length} job{resume.jobMatchScores.length > 1 ? 's' : ''} analyzed
@@ -961,7 +970,7 @@ export const Resume: React.FC = () => {
       <CVDetailModal
         isOpen={isDetailModalOpen}
         onClose={handleCloseDetailModal}
-        resume={detailResume}
+        resume={detailResume as Resume}
       />
     </>
   );

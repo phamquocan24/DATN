@@ -5,8 +5,7 @@ import GroupUnderline from '../../assets/Group.png';
 import candidateApi from '../../services/candidateApi'; // Sử dụng candidateApi
 import favoritesService from '../../services/favoritesService';
 import { 
-  batchCalculateAIMatchScores,
-  calculateAIMatchScore
+  batchCalculateAIMatchScores
 } from '../../services/aiMatchingApi';
 
 
@@ -184,28 +183,8 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
       }
 
       const formattedJobs = await Promise.all(jobsArray.map(async (job: any, index: number) => {
-        // Calculate AI match score if user has CV
-        let matchScore = 0;
-        
-        try {
-          // Get current user's primary CV
-          const userProfile = JSON.parse(localStorage.getItem('userInfo') || '{}');
-          if (userProfile.user_id) {
-            const cvData = await candidateApi.getMyCVs();
-            const primaryCV = cvData?.data?.find((cv: any) => cv.is_primary) || cvData?.data?.[0];
-            
-            if (primaryCV && job.job_id) {
-              const matchResult = await calculateAIMatchScore(primaryCV.cv_id, job.job_id);
-              if (matchResult.success && matchResult.data) {
-                matchScore = matchResult.data.overall_score;
-              }
-            }
-          }
-        } catch (error) {
-          console.warn(`Failed to calculate AI match for job ${job.job_id}:`, error);
-          // Use fallback random score for demo
-          matchScore = Math.floor(Math.random() * 40) + 40;
-        }
+        // No automatic match calculation during job loading
+        // Match scores will be calculated only when user selects a CV from Resume page
 
         return {
           job_id: job.job_id, // Primary ID from database
@@ -214,13 +193,10 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
           company: job.company_name || job.company?.name || 'Company',
           location: job.city_name || job.location || 'Location',
           type: job.employment_type || job.type || 'Full Time',
-          tags: [
-            ...(job.skills?.slice(0, 2) || ['Business']),
-            `Match: ${matchScore}%`
-          ],
+          tags: job.skills?.slice(0, 3) || ['Business'],
           logo: job.company?.name?.charAt(0) || 'C',
           logoColor: `bg-${['blue', 'green', 'purple', 'red', 'teal'][index % 5]}-500 text-white`,
-          match: matchScore,
+          match: 0, // Will be set by AI matching when CV is selected
           applied: job.applicationsCount || 0,
           capacity: job.openPositions || 1,
           salary: job.salary,

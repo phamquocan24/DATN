@@ -141,6 +141,15 @@ export const getAIJobRecommendations = async (candidateId: string, topK: number 
     };
   } catch (error: any) {
     console.error('Error getting AI job recommendations:', error);
+    
+    // Handle specific error cases
+    if (error.message?.includes('CV content not found')) {
+      return {
+        success: false,
+        error: 'CV is still being processed. Please try again in a few moments.'
+      };
+    }
+    
     return {
       success: false,
       error: error.message || 'Failed to get job recommendations'
@@ -271,6 +280,10 @@ export const batchCalculateAIMatchScores = async (
   data?: Array<{
     job_id: string;
     match_score: number;
+    ky_nang_similarity?: number;
+    kinh_nghiem_similarity?: number;
+    hoc_van_similarity?: number;
+    mo_ta_ban_than_similarity?: number;
     error?: string;
   }>;
   error?: string;
@@ -286,7 +299,11 @@ export const batchCalculateAIMatchScores = async (
       if (result.status === 'fulfilled' && result.value.success) {
         return {
           job_id: jobId,
-          match_score: result.value.data!.overall_score
+          match_score: result.value.data!.overall_score,
+          ky_nang_similarity: result.value.data!.detailed_scores.skills_similarity / 100,
+          kinh_nghiem_similarity: result.value.data!.detailed_scores.experience_similarity / 100,
+          hoc_van_similarity: result.value.data!.detailed_scores.education_similarity / 100,
+          mo_ta_ban_than_similarity: result.value.data!.detailed_scores.description_similarity / 100
         };
       } else {
         const error = result.status === 'rejected' 

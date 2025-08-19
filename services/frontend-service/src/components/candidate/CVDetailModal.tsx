@@ -26,8 +26,8 @@ interface MatchScore {
     skill_match: number;
     experience_match: number;
     education_match: number;
-    location_match: number;
-    salary_match: number;
+    description_match: number;
+    overall_match: number;
   };
 }
 
@@ -327,7 +327,7 @@ export const CVDetailModal: React.FC<CVDetailModalProps> = ({ isOpen, onClose, r
                 {match.detailed_scores && (
                                       <div className="mt-3 p-3 bg-gray-50 rounded-xl">
                     <h6 className="text-sm font-medium text-gray-700 mb-3 text-left">Detailed Analysis:</h6>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       <div className="text-center">
                         <div className="text-lg font-semibold text-blue-600">{Math.round(match.detailed_scores.skill_match)}%</div>
                         <div className="text-xs text-gray-600">Skills</div>
@@ -341,12 +341,8 @@ export const CVDetailModal: React.FC<CVDetailModalProps> = ({ isOpen, onClose, r
                         <div className="text-xs text-gray-600">Education</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-lg font-semibold text-orange-600">{Math.round(match.detailed_scores.location_match)}%</div>
-                        <div className="text-xs text-gray-600">Location</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-red-600">{Math.round(match.detailed_scores.salary_match)}%</div>
-                        <div className="text-xs text-gray-600">Salary</div>
+                        <div className="text-lg font-semibold text-orange-600">{Math.round(match.detailed_scores.description_match)}%</div>
+                        <div className="text-xs text-gray-600">Description</div>
                       </div>
                     </div>
                   </div>

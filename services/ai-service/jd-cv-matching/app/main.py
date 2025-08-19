@@ -3,6 +3,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from models import MatchRequest, MatchResponse
 from db import (
     get_db_connection,
@@ -24,6 +25,15 @@ app = FastAPI(
     title="JD-CV Matching API",
     description="AI-powered job description and CV matching service",
     version="1.0.0"
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Frontend URLs
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.post("/api/v1/ai/calculate-match", response_model=MatchResponse)
@@ -103,65 +113,8 @@ async def calculate_match(request: MatchRequest):
         )
         parsed_result = cursor.fetchone()
         
-        # FIX: If no parsed content found, create a basic one from CV metadata
         if not parsed_result:
-            print(f"No parsed content found for CV {request.cv_id}, creating basic structure")
-            
-            # Get CV basic info
-            cursor.execute(
-                """
-                SELECT cv_name, file_name, candidate_id FROM candidate_cvs
-                WHERE cv_id = %s
-                """,
-                (request.cv_id,),
-            )
-            cv_info = cursor.fetchone()
-            
-            if not cv_info:
-                raise HTTPException(status_code=404, detail="CV not found in database")
-            
-            cv_name, file_name, cv_candidate_id = cv_info
-            
-            # Create basic parsed content structure
-            parsed_content = {
-                "full_name": (cv_name or "").replace("'s CV", "").replace(" CV", "").strip() or "Unknown",
-                "email": "",
-                "phone": "",
-                "address": "",
-                "mo_ta_ban_than": f"CV file: {file_name}",
-                "ky_nang": [],
-                "kinh_nghiem": [],
-                "hoc_van": [],
-                "du_an": [],
-                "chung_chi": [],
-                "ngoai_ngu": []
-            }
-            
-            # Save this basic structure to cv_content for future use
-            # Check if record exists first
-            cursor.execute("SELECT content_id FROM cv_content WHERE cv_id = %s", (request.cv_id,))
-            existing = cursor.fetchone()
-            
-            if existing:
-                # Update existing record
-                cursor.execute(
-                    """
-                    UPDATE cv_content 
-                    SET parsed_content = %s, updated_at = NOW()
-                    WHERE cv_id = %s
-                    """,
-                    (json.dumps(parsed_content), request.cv_id)
-                )
-            else:
-                # Insert new record
-                cursor.execute(
-                    """
-                    INSERT INTO cv_content (cv_id, parsed_content, created_at, updated_at)
-                    VALUES (%s, %s, NOW(), NOW())
-                    """,
-                    (request.cv_id, json.dumps(parsed_content))
-                )
-            print(f"Created basic parsed content for CV {request.cv_id}")
+            raise HTTPException(status_code=404, detail="CV content not found. Please wait for CV processing to complete or contact support.")
         else:
             parsed_content = parsed_result[0]
             parsed_content = json.loads(parsed_content) if isinstance(parsed_content, str) else parsed_content
@@ -364,8 +317,10 @@ async def get_similarity(
         if not job_emb:
             raise HTTPException(status_code=404, detail="Job embedding not found")
         
-        # Calculate similarity
-        similarity = cos_sim(np.array(cv_emb), np.array(job_emb)).item()
+        # Calculate similarity - ensure same dtype
+        cv_array = np.array(cv_emb, dtype=np.float32)
+        job_array = np.array(job_emb, dtype=np.float32)
+        similarity = cos_sim(cv_array, job_array).item()
         
         try:
             cursor.close()
@@ -431,47 +386,7 @@ async def recommend_jobs(candidate_id: str, top_k: int = Query(5, ge=1, le=50)):
             cursor.execute("SELECT parsed_content FROM cv_content WHERE cv_id = %s", (cv_id,))
             result = cursor.fetchone()
             if not result:
-                # FIX: Create basic parsed content if not found (same logic as calculate_match)
-                cursor.execute("SELECT cv_name, file_name FROM candidate_cvs WHERE cv_id = %s", (cv_id,))
-                cv_info = cursor.fetchone()
-                
-                if not cv_info:
-                    raise HTTPException(status_code=404, detail="CV not found")
-                
-                cv_name, file_name = cv_info
-                parsed_content = {
-                    "full_name": (cv_name or "").replace("'s CV", "").replace(" CV", "").strip() or "Unknown",
-                    "mo_ta_ban_than": f"CV file: {file_name}",
-                    "ky_nang": [],
-                    "kinh_nghiem": [],
-                    "hoc_van": []
-                }
-                
-                # Save basic content
-                # Check if record exists first
-                cursor.execute("SELECT content_id FROM cv_content WHERE cv_id = %s", (cv_id,))
-                existing = cursor.fetchone()
-                
-                if existing:
-                    # Update existing record
-                    cursor.execute(
-                        """
-                        UPDATE cv_content 
-                        SET parsed_content = %s, updated_at = NOW()
-                        WHERE cv_id = %s
-                        """,
-                        (json.dumps(parsed_content), cv_id)
-                    )
-                else:
-                    # Insert new record
-                    cursor.execute(
-                        """
-                        INSERT INTO cv_content (cv_id, parsed_content, created_at, updated_at)
-                        VALUES (%s, %s, NOW(), NOW())
-                        """,
-                        (cv_id, json.dumps(parsed_content))
-                    )
-                print(f"Created basic parsed content for CV {cv_id}")
+                raise HTTPException(status_code=404, detail="CV content not found. Please wait for CV processing to complete or contact support.")
             else:
                 parsed_content = json.loads(result[0]) if isinstance(result[0], str) else result[0]
 
@@ -513,9 +428,11 @@ async def recommend_jobs(candidate_id: str, top_k: int = Query(5, ge=1, le=50)):
             if not jd_emb:
                 continue
 
-            # Calculate similarity
+            # Calculate similarity - ensure same dtype
             try:
-                sim = cos_sim(np.array(cv_emb), np.array(jd_emb)).item()
+                cv_array = np.array(cv_emb, dtype=np.float32)
+                jd_array = np.array(jd_emb, dtype=np.float32)
+                sim = cos_sim(cv_array, jd_array).item()
             except Exception as e:
                 print(f"Cosine error for job_id={job_id}: {e}")
                 continue

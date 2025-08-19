@@ -4,6 +4,8 @@ const CV = require('../models/CV');
 const User = require('../models/User');
 const { authenticateToken, requireRole } = require('../modules/auth');
 const winston = require('winston');
+const axios = require('axios');
+const FormData = require('form-data');
 
 // Create cvModel instance
 const cvModel = new CV();
@@ -23,6 +25,70 @@ const logger = winston.createLogger({
     new winston.transports.File({ filename: 'logs/cv-controller.log' })
   ]
 });
+
+// AI Extraction Service Configuration
+const AI_EXTRACTION_SERVICE_URL = process.env.AI_EXTRACTION_SERVICE_URL || 'http://localhost:8003';
+
+// Helper function to auto-extract CV content
+async function extractCVContentAsync(cvId, cvFileUrl) {
+  try {
+    // Download CV file
+    const fileResponse = await axios.get(cvFileUrl, { responseType: 'arraybuffer' });
+    const fileBuffer = Buffer.from(fileResponse.data);
+    
+    // Create form data for AI extraction service
+    const formData = new FormData();
+    formData.append('cv', fileBuffer, {
+      filename: 'cv.pdf',
+      contentType: 'application/pdf'
+    });
+    
+    // Call AI extraction service
+    const extractResponse = await axios.post(`${AI_EXTRACTION_SERVICE_URL}/extract-cv`, formData, {
+      headers: {
+        ...formData.getHeaders(),
+      },
+      timeout: 30000 // 30 second timeout
+    });
+    
+    if (extractResponse.data) {
+      const parsedContent = typeof extractResponse.data === 'string' 
+        ? JSON.parse(extractResponse.data) 
+        : extractResponse.data;
+      
+      // Save extracted content to cv_content table
+      const contentData = {
+        parsed_content: parsedContent,
+        ai_analysis: { status: 'extracted', timestamp: new Date() },
+        extracted_skills: parsedContent.ky_nang || [],
+        extracted_experience: {
+          positions: parsedContent.kinh_nghiem_lam_viec?.map(exp => exp.vi_tri) || [],
+          companies: parsedContent.kinh_nghiem_lam_viec?.map(exp => exp.cong_ty) || [],
+          years: parsedContent.kinh_nghiem_lam_viec?.length || 0
+        },
+        extracted_education: {
+          level: parsedContent.hoc_van?.[0]?.cap_do || null,
+          degrees: parsedContent.hoc_van || []
+        },
+        extracted_contact: {
+          email: parsedContent.email || '',
+          phone: parsedContent.so_dien_thoai || '',
+          address: parsedContent.dia_chi || '',
+          full_name: parsedContent.full_name || ''
+        }
+      };
+      
+      await cvModel.parseCVContent(cvId, contentData);
+      logger.info('CV content extracted successfully', { cv_id: cvId });
+    }
+  } catch (error) {
+    logger.error('Failed to extract CV content:', {
+      cv_id: cvId,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+}
 
 // Validation schemas
 const createCVSchema = Joi.object({
@@ -368,6 +434,14 @@ router.post('/', authenticateToken, requireRole(['CANDIDATE']), async (req, res)
       cv_id: cv.cv_id,
       user_id: req.user.user_id,
       cv_title: cv.cv_title
+    });
+
+    // Auto-extract CV content using AI service (async, don't block response)
+    extractCVContentAsync(cv.cv_id, cv.cv_file_url).catch(error => {
+      logger.error('Failed to auto-extract CV content:', {
+        cv_id: cv.cv_id,
+        error: error.message
+      });
     });
 
     res.status(201).json({
