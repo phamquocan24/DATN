@@ -5,6 +5,7 @@ import AgentAI from './AgentAI';
 import Avatar from '../../assets/Avatar17.png';
 import DashboardSidebar from './DashboardSidebar';
 import candidateApi from '../../services/candidateApi';
+import { getAIJobRecommendations } from '../../services/aiMatchingApi';
 
 interface Job {
   job_id: string; // Primary ID (UUID from database)
@@ -140,38 +141,73 @@ const Dashboard: React.FC<DashboardProps> = ({
     fetchApplicationsData();
   }, []);
 
-  // Fetch suggested jobs data
+  // Fetch suggested jobs data using AI service
   useEffect(() => {
     const fetchSuggestedJobs = async () => {
       try {
         setJobsLoading(true);
         setJobsError(null);
-        const response = await candidateApi.getJobRecommendations({ 
-          page: 1, 
-          limit: 10 
-        });
         
-        if (response && response.data) {
-          // Transform the data to match the expected Job interface
-          const transformedJobs = response.data.map((job: any) => ({
-            job_id: job.job_id || job.id,
-            id: job.id,
-            title: job.title,
-            company: job.company_name || job.company,
-            location: job.location,
-            type: job.employment_type || job.type || 'Full-Time',
-            tags: [
-              ...(job.skills || []).slice(0, 2),
-              `Match: ${job.match_score || 0}%`
-            ],
-            logo: (job.company_name || job.company || 'C').charAt(0).toUpperCase(),
-            logoColor: 'bg-blue-500 text-white',
-            match: job.match_score || 0,
-            applied: job.applications_count || 0,
-            capacity: job.max_applications || 10,
-            salary: job.salary_range || job.salary
-          }));
-          setSuggestedJobs(transformedJobs);
+        // Get current user's candidate ID
+        const userProfile = JSON.parse(localStorage.getItem('userInfo') || '{}');
+        
+        if (userProfile.user_id) {
+          // Use AI service for job recommendations
+          const aiResponse = await getAIJobRecommendations(userProfile.user_id, 10);
+          
+          if (aiResponse.success && aiResponse.data) {
+            // Transform AI response to match the expected Job interface
+            const transformedJobs = aiResponse.data.recommendations.map((job: any) => ({
+              job_id: job.job_id,
+              id: job.job_id,
+              title: job.title,
+              company: job.group,
+              location: 'Various', // AI service doesn't provide location yet
+              type: 'Full-Time', // Default type
+              tags: [
+                'AI Recommended',
+                `Match: ${Math.round(job.overall_similarity * 100)}%`
+              ],
+              logo: (job.group || 'C').charAt(0).toUpperCase(),
+              logoColor: 'bg-green-500 text-white', // Green for AI recommendations
+              match: Math.round(job.overall_similarity * 100),
+              applied: 0,
+              capacity: 10,
+              salary: 'Competitive'
+            }));
+            setSuggestedJobs(transformedJobs);
+          } else {
+            // Fallback to business service if AI service fails
+            console.warn('AI recommendations failed, falling back to business service');
+            const response = await candidateApi.getJobRecommendations({ 
+              page: 1, 
+              limit: 10 
+            });
+            
+            if (response && response.data) {
+              const transformedJobs = response.data.map((job: any) => ({
+                job_id: job.job_id || job.id,
+                id: job.id,
+                title: job.title,
+                company: job.company_name || job.company,
+                location: job.location,
+                type: job.employment_type || job.type || 'Full-Time',
+                tags: [
+                  ...(job.skills || []).slice(0, 2),
+                  `Match: ${job.match_score || 0}%`
+                ],
+                logo: (job.company_name || job.company || 'C').charAt(0).toUpperCase(),
+                logoColor: 'bg-blue-500 text-white',
+                match: job.match_score || 0,
+                applied: job.applications_count || 0,
+                capacity: job.max_applications || 10,
+                salary: job.salary_range || job.salary
+              }));
+              setSuggestedJobs(transformedJobs);
+            } else {
+              setSuggestedJobs([]);
+            }
+          }
         } else {
           setSuggestedJobs([]);
         }

@@ -179,13 +179,7 @@ class MatchingService extends Database {
         SELECT 
           *,
           (skill_match_score + experience_match_score + education_match_score + location_match_score + salary_match_score) as total_match_score,
-          CASE 
-            WHEN (skill_match_score + experience_match_score + education_match_score + location_match_score + salary_match_score) >= 90 THEN 'EXCELLENT'
-            WHEN (skill_match_score + experience_match_score + education_match_score + location_match_score + salary_match_score) >= 80 THEN 'VERY_GOOD'
-            WHEN (skill_match_score + experience_match_score + education_match_score + location_match_score + salary_match_score) >= 70 THEN 'GOOD'
-            WHEN (skill_match_score + experience_match_score + education_match_score + location_match_score + salary_match_score) >= 60 THEN 'FAIR'
-            ELSE 'POOR'
-          END as match_grade
+
         FROM match_calculation
       `;
 
@@ -200,15 +194,13 @@ class MatchingService extends Database {
       logger.info('Detailed match score calculated', {
         candidate_id: candidateId,
         job_id: jobId,
-        total_match_score: matchData.total_match_score,
-        match_grade: matchData.match_grade
+        total_match_score: matchData.total_match_score
       });
 
       return {
         candidate_id: candidateId,
         job_id: jobId,
         total_match_score: Math.round(matchData.total_match_score),
-        match_grade: matchData.match_grade,
         detailed_scores: {
           skill_match: Math.round(matchData.skill_match_score),
           experience_match: Math.round(matchData.experience_match_score),

@@ -4,6 +4,7 @@ import JobDetail from './JobDetail';
 import GroupUnderline from '../../assets/Group.png';
 import candidateApi from '../../services/candidateApi'; // Sử dụng candidateApi
 import favoritesService from '../../services/favoritesService';
+import { calculateAIMatchScore } from '../../services/aiMatchingApi';
 
 
 interface Job {
@@ -80,44 +81,69 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
         jobsArray = jobsData.jobs;
       }
 
-      const formattedJobs = jobsArray.map((job: any, index: number) => ({
-        job_id: job.job_id, // Primary ID from database
-        id: job.id || job._id, // Fallback for legacy data
-        title: job.title,
-        company: job.company_name || job.company?.name || 'Company',
-        location: job.city_name || job.location || 'Location',
-        type: job.employment_type || job.type || 'Full Time',
-        tags: [
-          ...(job.skills?.slice(0, 2) || ['Business']),
-          `Match: ${job.matchScore || Math.floor(Math.random() * 40) + 40}%`
-        ],
-        logo: job.company?.name?.charAt(0) || 'C',
-        logoColor: `bg-${['blue', 'green', 'purple', 'red', 'teal'][index % 5]}-500 text-white`,
-        match: job.matchScore || Math.floor(Math.random() * 40) + 40,
-        applied: job.applicationsCount || 0,
-        capacity: job.openPositions || 1,
-        salary: job.salary,
-        description: job.description || 'No description available.',
-        requirements: Array.isArray(job.requirements) 
-          ? job.requirements 
-          : typeof job.requirements === 'string' 
-            ? job.requirements.split('\n').filter((item: string) => item.trim())
-            : ['No requirements listed.'],
-        whoYouAre: Array.isArray(job.qualifications) 
-          ? job.qualifications 
-          : typeof job.qualifications === 'string' 
-            ? job.qualifications.split('\n').filter((item: string) => item.trim())
-            : ['No qualifications listed.'],
-        niceToHaves: Array.isArray(job.niceToHave) 
-          ? job.niceToHave 
-          : typeof job.niceToHave === 'string' 
-            ? job.niceToHave.split('\n').filter((item: string) => item.trim())
-            : ['No nice-to-haves listed.'],
-        benefits: Array.isArray(job.benefits) 
-          ? job.benefits 
-          : typeof job.benefits === 'string' 
-            ? job.benefits.split('\n').filter((item: string) => item.trim())
-            : ['Competitive salary', 'Health insurance', 'Flexible working hours']
+      const formattedJobs = await Promise.all(jobsArray.map(async (job: any, index: number) => {
+        // Calculate AI match score if user has CV
+        let matchScore = 0;
+        
+        try {
+          // Get current user's primary CV
+          const userProfile = JSON.parse(localStorage.getItem('userInfo') || '{}');
+          if (userProfile.user_id) {
+            const cvData = await candidateApi.getMyCVs();
+            const primaryCV = cvData?.data?.find((cv: any) => cv.is_primary) || cvData?.data?.[0];
+            
+            if (primaryCV && job.job_id) {
+              const matchResult = await calculateAIMatchScore(primaryCV.cv_id, job.job_id);
+              if (matchResult.success && matchResult.data) {
+                matchScore = matchResult.data.overall_score;
+              }
+            }
+          }
+        } catch (error) {
+          console.warn(`Failed to calculate AI match for job ${job.job_id}:`, error);
+          // Use fallback random score for demo
+          matchScore = Math.floor(Math.random() * 40) + 40;
+        }
+
+        return {
+          job_id: job.job_id, // Primary ID from database
+          id: Number(job.id || job._id) || 0, // Ensure it's a number
+          title: job.title,
+          company: job.company_name || job.company?.name || 'Company',
+          location: job.city_name || job.location || 'Location',
+          type: job.employment_type || job.type || 'Full Time',
+          tags: [
+            ...(job.skills?.slice(0, 2) || ['Business']),
+            `Match: ${matchScore}%`
+          ],
+          logo: job.company?.name?.charAt(0) || 'C',
+          logoColor: `bg-${['blue', 'green', 'purple', 'red', 'teal'][index % 5]}-500 text-white`,
+          match: matchScore,
+          applied: job.applicationsCount || 0,
+          capacity: job.openPositions || 1,
+          salary: job.salary,
+          description: job.description || 'No description available.',
+          requirements: Array.isArray(job.requirements) 
+            ? job.requirements 
+            : typeof job.requirements === 'string' 
+              ? job.requirements.split('\n').filter((item: string) => item.trim())
+              : ['No requirements listed.'],
+          whoYouAre: Array.isArray(job.qualifications) 
+            ? job.qualifications 
+            : typeof job.qualifications === 'string' 
+              ? job.qualifications.split('\n').filter((item: string) => item.trim())
+              : ['No qualifications listed.'],
+          niceToHaves: Array.isArray(job.niceToHave) 
+            ? job.niceToHave 
+            : typeof job.niceToHave === 'string' 
+              ? job.niceToHave.split('\n').filter((item: string) => item.trim())
+              : ['No nice-to-haves listed.'],
+          benefits: Array.isArray(job.benefits) 
+            ? job.benefits 
+            : typeof job.benefits === 'string' 
+              ? job.benefits.split('\n').filter((item: string) => item.trim())
+              : ['Competitive salary', 'Health insurance', 'Flexible working hours']
+        };
       }));
 
       setJobs(formattedJobs);
@@ -200,7 +226,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
 
   const JobCard = ({ job }: { job: Job }) => {
     const [isJobSaved, setIsJobSaved] = useState(() => 
-      favoritesService.isJobFavorited(job.id)
+      favoritesService.isJobFavorited(Number(job.id) || 0)
     );
 
     const handleBookmarkClick = (e: React.MouseEvent) => {
@@ -210,7 +236,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
       const isCurrentlySaved = isJobSaved;
       
       const favoriteJob = {
-        id: job.id,
+        id: Number(job.id) || 0,
         title: job.title,
         company: job.company,
         location: job.location,
@@ -226,7 +252,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
 
       const success = favoritesService.toggleFavorite(favoriteJob);
       if (success) {
-        setIsJobSaved(favoritesService.isJobFavorited(job.id));
+        setIsJobSaved(favoritesService.isJobFavorited(Number(job.id) || 0));
         
         const action = isCurrentlySaved ? 'removed from' : 'added to';
         console.log(`Job "${job.title}" ${action} favorites`);

@@ -63,7 +63,6 @@ export const calculateAIMatchScore = async (cvId: string, jobId: string): Promis
       education_similarity: number;
       description_similarity: number;
     };
-    match_grade: string;
   };
   error?: string;
 }> => {
@@ -89,14 +88,7 @@ export const calculateAIMatchScore = async (cvId: string, jobId: string): Promis
     // Convert similarity scores (0-1) to percentages (0-100)
     const overallScore = Math.round(result.overall_similarity * 100);
     
-    // Determine match grade based on overall score
-    const getMatchGrade = (score: number): string => {
-      if (score >= 85) return 'EXCELLENT';
-      if (score >= 75) return 'VERY_GOOD';
-      if (score >= 65) return 'GOOD';
-      if (score >= 50) return 'FAIR';
-      return 'POOR';
-    };
+
 
     return {
       success: true,
@@ -108,8 +100,7 @@ export const calculateAIMatchScore = async (cvId: string, jobId: string): Promis
           experience_similarity: Math.round(result.kinh_nghiem_similarity * 100),
           education_similarity: Math.round(result.hoc_van_similarity * 100),
           description_similarity: Math.round(result.mo_ta_ban_than_similarity * 100),
-        },
-        match_grade: getMatchGrade(overallScore)
+        }
       }
     };
   } catch (error: any) {
@@ -280,7 +271,6 @@ export const batchCalculateAIMatchScores = async (
   data?: Array<{
     job_id: string;
     match_score: number;
-    match_grade: string;
     error?: string;
   }>;
   error?: string;
@@ -296,8 +286,7 @@ export const batchCalculateAIMatchScores = async (
       if (result.status === 'fulfilled' && result.value.success) {
         return {
           job_id: jobId,
-          match_score: result.value.data!.overall_score,
-          match_grade: result.value.data!.match_grade
+          match_score: result.value.data!.overall_score
         };
       } else {
         const error = result.status === 'rejected' 
@@ -307,7 +296,6 @@ export const batchCalculateAIMatchScores = async (
         return {
           job_id: jobId,
           match_score: 0,
-          match_grade: 'POOR',
           error
         };
       }
