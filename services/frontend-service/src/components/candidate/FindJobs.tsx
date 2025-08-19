@@ -4,7 +4,10 @@ import JobDetail from './JobDetail';
 import GroupUnderline from '../../assets/Group.png';
 import candidateApi from '../../services/candidateApi'; // Sử dụng candidateApi
 import favoritesService from '../../services/favoritesService';
-import { calculateAIMatchScore } from '../../services/aiMatchingApi';
+import { 
+  batchCalculateAIMatchScores,
+  calculateAIMatchScore
+} from '../../services/aiMatchingApi';
 
 
 interface Job {
@@ -28,6 +31,16 @@ interface Job {
   benefits?: string[];
   whoYouAre?: string[];
   niceToHaves?: string[];
+  // AI Matching fields
+  aiMatchScore?: number;
+  matchGrade?: string;
+  isCalculatingMatch?: boolean;
+  detailedScores?: {
+    skills_similarity: number;
+    experience_similarity: number;
+    education_similarity: number;
+    description_similarity: number;
+  };
 }
 
 interface FindJobsProps {
@@ -43,7 +56,96 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
   const [currentView, setCurrentView] = useState<'list' | 'detail'>('list');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  
+  // AI Matching states
+  const [selectedCVId, setSelectedCVId] = useState<string | null>(null);
 
+  // Load selected CV from localStorage (triggered by Resume component)
+  const loadSelectedCV = useCallback(() => {
+    try {
+      const selectedCV = localStorage.getItem('selectedCVForMatching');
+      if (selectedCV) {
+        const cvData = JSON.parse(selectedCV);
+        setSelectedCVId(cvData.cv_id);
+        console.log('Loaded selected CV for matching:', cvData.full_name);
+      }
+    } catch (error) {
+      console.error('Error loading selected CV:', error);
+    }
+  }, []);
+
+  // Helper function to get match grade
+  const getMatchGrade = (score: number): string => {
+    if (score >= 80) return 'EXCELLENT';
+    if (score >= 70) return 'VERY_GOOD';
+    if (score >= 60) return 'GOOD';
+    if (score >= 50) return 'FAIR';
+    return 'POOR';
+  };
+
+  // Function to calculate AI match scores for all jobs
+  const calculateAIMatchScoresForJobs = async (cvId: string) => {
+    if (!cvId || jobs.length === 0) return;
+
+    console.log(`Calculating AI match scores for ${jobs.length} jobs with CV: ${cvId}`);
+
+    try {
+      // Extract job IDs
+      const jobIds = jobs.map(job => job.job_id).filter(Boolean);
+      
+      if (jobIds.length === 0) {
+        console.warn('No valid job IDs found');
+        return;
+      }
+
+      // Set calculating state for all jobs
+      setJobs(prevJobs => 
+        prevJobs.map(job => ({
+          ...job,
+          isCalculatingMatch: true
+        }))
+      );
+
+      // Calculate batch match scores
+      const batchResult = await batchCalculateAIMatchScores(cvId, jobIds);
+      
+      if (batchResult.success && batchResult.data) {
+        // Update jobs with match scores
+        setJobs(prevJobs => 
+          prevJobs.map(job => {
+            const matchResult = batchResult.data?.find(result => result.job_id === job.job_id);
+            
+            if (matchResult && !matchResult.error) {
+              return {
+                ...job,
+                aiMatchScore: matchResult.match_score,
+                matchGrade: getMatchGrade(matchResult.match_score),
+                isCalculatingMatch: false,
+                match: matchResult.match_score // Update the existing match field too
+              };
+            }
+            
+            return {
+              ...job,
+              isCalculatingMatch: false
+            };
+          })
+        );
+        
+        console.log(`Successfully calculated match scores for ${batchResult.data.filter(r => !r.error).length} jobs`);
+      }
+    } catch (error) {
+      console.error('Error calculating AI match scores:', error);
+      
+      // Reset calculating state for all jobs
+      setJobs(prevJobs => 
+        prevJobs.map(job => ({
+          ...job,
+          isCalculatingMatch: false
+        }))
+      );
+    }
+  };
 
   const [filters, setFilters] = useState({
     employmentType: [] as string[],
@@ -160,9 +262,37 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
   }, [searchQuery, location, pagination.page, pagination.limit, filters]);
 
   // Use direct dependencies instead of fetchJobs callback to avoid infinite loops
+  // Load selected CV on component mount
+  useEffect(() => {
+    loadSelectedCV();
+  }, [loadSelectedCV]);
+
+  // Listen for CV selection from Resume component
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'triggerJobMatching') {
+        loadSelectedCV();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [loadSelectedCV]);
+
+  // Fetch jobs
   useEffect(() => {
     fetchJobs();
   }, [searchQuery, location, pagination.page, pagination.limit, filters]);
+
+  // Calculate match scores when jobs are loaded or CV is selected
+  useEffect(() => {
+    if (selectedCVId && jobs.length > 0) {
+      calculateAIMatchScoresForJobs(selectedCVId);
+    }
+  }, [selectedCVId, jobs.length]);
 
   const handleFilterChange = (filterType: keyof typeof filters, value: string) => {
     setFilters(prev => ({
@@ -276,7 +406,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
               <p className="text-sm text-gray-500">{job.company} • {job.location}</p>
             </div>
           </div>
-          <button 
+                    <button 
             onClick={handleBookmarkClick}
             className={`p-2 rounded-lg transition-colors ${
               isJobSaved
@@ -294,14 +424,40 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
           <span className="px-3 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">
             {job.type}
           </span>
-          {job.tags.map((tag, index) => (
+          
+          {/* AI Match Score Tag */}
+          {selectedCVId && job.aiMatchScore !== undefined && (
+            <span className={`px-3 py-1 text-xs rounded-full font-medium ${
+              job.aiMatchScore >= 80 
+                ? 'bg-green-100 text-green-700'
+                : job.aiMatchScore >= 70 
+                ? 'bg-blue-100 text-blue-700' 
+                : job.aiMatchScore >= 60 
+                ? 'bg-yellow-100 text-yellow-700'
+                : job.aiMatchScore >= 50 
+                ? 'bg-orange-100 text-orange-700'
+                : 'bg-red-100 text-red-700'
+            }`}>
+              Match: {job.aiMatchScore}%
+            </span>
+          )}
+          
+          {/* Calculating Match Tag */}
+          {selectedCVId && job.isCalculatingMatch && (
+            <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
+              <svg className="animate-spin h-3 w-3 inline mr-1" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Calculating Match...
+            </span>
+          )}
+          
+          {/* Other tags (filter out old Match tags) */}
+          {job.tags.filter(tag => !tag.includes('Match:')).map((tag, index) => (
             <span 
               key={`${job.id}-tag-${index}`}
-              className={`px-3 py-1 text-xs rounded-full font-medium ${
-                tag.includes('Match:') 
-                  ? 'bg-[#007BFF]/10 text-[#007BFF]' 
-                  : 'bg-yellow-100 text-yellow-700'
-              }`}
+              className="px-3 py-1 text-xs rounded-full font-medium bg-yellow-100 text-yellow-700"
             >
               {tag}
             </span>

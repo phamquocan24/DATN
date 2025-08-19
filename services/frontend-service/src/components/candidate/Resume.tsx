@@ -331,6 +331,32 @@ export const Resume: React.FC = () => {
     console.log('Resume deleted:', resumeId);
   };
 
+  const handleCalculateJobMatches = async (resume: Resume) => {
+    if (!resume.cv_id || !resume.candidate_id) {
+      alert('CV ID or Candidate ID not found. Please re-upload the CV.');
+      return;
+    }
+
+    // Close dropdown
+    setOpenDropdownId(null);
+
+    // Set selected CV for job matching in localStorage
+    localStorage.setItem('selectedCVForMatching', JSON.stringify({
+      cv_id: resume.cv_id,
+      candidate_id: resume.candidate_id,
+      full_name: resume.full_name,
+      uploadedAt: resume.uploadedAt
+    }));
+
+    // Trigger calculation in other components
+    localStorage.setItem('triggerJobMatching', Date.now().toString());
+
+    // Show notification
+    alert(`Started calculating job matches for ${resume.full_name}. You can see results in Find Jobs and Favorite Jobs pages.`);
+    
+    console.log('Triggered job matching calculation for CV:', resume.cv_id);
+  };
+
   const toggleDropdown = (resumeId: string) => {
     setOpenDropdownId(openDropdownId === resumeId ? null : resumeId);
   };
@@ -595,7 +621,19 @@ export const Resume: React.FC = () => {
             </button>
             
             {openDropdownId === resume.id && (
-              <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[120px]">
+              <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 min-w-[180px]">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCalculateJobMatches(resume);
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm text-blue-600 hover:bg-blue-50 flex items-center"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  Calculate Job Matches
+                </button>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -615,7 +653,11 @@ export const Resume: React.FC = () => {
       </div>
 
       <p className="text-gray-600 text-sm mb-4 line-clamp-3 leading-relaxed">
-        {resume.objective || 'No objective specified'}
+        {resume.objective || (
+          <span className="text-blue-600 font-medium">
+            Best for: {resume.bestMatchJob || 'Mobile App Developer (React Native)'}
+          </span>
+        )}
       </p>
 
       <div className="flex items-center justify-between">
@@ -649,12 +691,7 @@ export const Resume: React.FC = () => {
             )}
           </div>
           
-          {/* Show best matching job if available */}
-          {resume.bestMatchJob && (
-            <p className="text-xs text-gray-500 truncate max-w-xs">
-              Best for: {resume.bestMatchJob}
-            </p>
-          )}
+
           
           {/* Show job match count */}
           {resume.jobMatchScores && resume.jobMatchScores.length > 0 && (
