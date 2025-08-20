@@ -49,6 +49,9 @@ interface Resume {
   address: string;
   objective: string;
   file?: File;
+  fileBase64?: string; // Store file as base64 for persistence
+  fileName?: string; // Store original file name
+  fileType?: string; // Store original file type
   extractedData?: CVExtractResponse;
   uploadedAt: Date;
   matchingScore?: number; // Điểm matching với JD mẫu (deprecated)
@@ -58,6 +61,38 @@ interface Resume {
   bestMatchJob?: string; // Tên job có điểm match cao nhất
   hasJobMatches?: boolean; // Có match scores với jobs không
 }
+
+// Helper functions for file persistence
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
+  });
+};
+
+const base64ToFile = (base64: string, fileName: string, fileType: string): File => {
+  const arr = base64.split(',');
+  const mime = arr[0].match(/:(.*?);/)?.[1] || fileType;
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], fileName, { type: mime });
+};
+
+// Helper function to save resumes to localStorage (excluding File objects)
+const saveResumesToLocalStorage = (resumes: Resume[]) => {
+  const resumesToSave = resumes.map(resume => ({
+    ...resume,
+    file: undefined // Remove File object for localStorage storage
+    // Keep fileBase64, fileName, fileType for recreation
+  }));
+  localStorage.setItem('userResumes', JSON.stringify(resumesToSave));
+};
 
 export const Resume: React.FC = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -89,7 +124,19 @@ export const Resume: React.FC = () => {
       try {
         const savedResumes = localStorage.getItem('userResumes');
         if (savedResumes) {
-          setResumes(JSON.parse(savedResumes));
+          const parsedResumes = JSON.parse(savedResumes);
+          // Recreate File objects from base64 data where available
+          const resumesWithFiles = parsedResumes.map((resume: Resume) => {
+            if (resume.fileBase64 && resume.fileName && resume.fileType && !resume.file) {
+              try {
+                resume.file = base64ToFile(resume.fileBase64, resume.fileName, resume.fileType);
+              } catch (error) {
+                console.warn('Failed to recreate file for resume:', resume.id, error);
+              }
+            }
+            return resume;
+          });
+          setResumes(resumesWithFiles);
         }
       } catch (err) {
         console.error('Error loading saved resumes:', err);
@@ -160,6 +207,17 @@ export const Resume: React.FC = () => {
     if (resume.file && resume.file instanceof File) {
       setSelectedResume(resume);
       setIsEnhanceModalOpen(true);
+    } else if (resume.fileBase64 && resume.fileName && resume.fileType) {
+      // Recreate File object from base64 data
+      try {
+        const recreatedFile = base64ToFile(resume.fileBase64, resume.fileName, resume.fileType);
+        const resumeWithFile = { ...resume, file: recreatedFile };
+        setSelectedResume(resumeWithFile);
+        setIsEnhanceModalOpen(true);
+      } catch (error) {
+        console.error('Failed to recreate file from base64:', error);
+        alert("Unable to recreate CV file for enhancement. Please re-upload your CV.");
+      }
     } else {
       alert("CV file is not available for enhancement. Please re-upload your CV to use the enhancement feature. Note: CV files are only available for enhancement during the current session after upload.");
     }
@@ -294,7 +352,7 @@ export const Resume: React.FC = () => {
         }
         return r;
       });
-      localStorage.setItem('userResumes', JSON.stringify(updatedList));
+      saveResumesToLocalStorage(updatedList);
       return updatedList;
     });
 
@@ -335,7 +393,7 @@ export const Resume: React.FC = () => {
     setResumes(updatedResumes);
     
     // Update localStorage
-    localStorage.setItem('userResumes', JSON.stringify(updatedResumes));
+    saveResumesToLocalStorage(updatedResumes);
     
     // Close dropdown
     setOpenDropdownId(null);
@@ -506,6 +564,10 @@ export const Resume: React.FC = () => {
         // Create resume object with saved CV data
         const resumeId = cvId;
         const candidateId = savedCV.data?.cv?.candidate_id;
+        
+        // Convert file to base64 for persistence
+        const fileBase64 = await fileToBase64(file);
+        
         const newResume: Resume = {
           id: resumeId,
           cv_id: cvId,
@@ -516,6 +578,9 @@ export const Resume: React.FC = () => {
           address: extractedData.address || '',
           objective: extractedData.objective || '',
           file: file,
+          fileBase64: fileBase64,
+          fileName: file.name,
+          fileType: file.type,
           extractedData: extractedData,
           uploadedAt: new Date(),
           matchingScore: 0,
@@ -529,11 +594,7 @@ export const Resume: React.FC = () => {
         setResumes(updatedResumes);
         
         // Save to localStorage but exclude File objects (they can't be serialized)
-        const resumesToSave = updatedResumes.map(resume => ({
-          ...resume,
-          file: undefined // Remove File object for localStorage storage
-        }));
-        localStorage.setItem('userResumes', JSON.stringify(resumesToSave));
+        saveResumesToLocalStorage(updatedResumes);
 
         // Calculate AI match scores with all available jobs in background
         setTimeout(async () => {
@@ -553,7 +614,7 @@ export const Resume: React.FC = () => {
               const updatedList = prevResumes.map(r => 
                 r.id === resumeId ? { ...r, isCalculatingMatch: false } : r
               );
-              localStorage.setItem('userResumes', JSON.stringify(updatedList));
+              saveResumesToLocalStorage(updatedList);
               return updatedList;
             });
             
@@ -564,7 +625,7 @@ export const Resume: React.FC = () => {
               const updatedList = prevResumes.map(r => 
                 r.id === resumeId ? { ...r, isCalculatingMatch: false } : r
               );
-              localStorage.setItem('userResumes', JSON.stringify(updatedList));
+              saveResumesToLocalStorage(updatedList);
               return updatedList;
             });
           }
@@ -672,9 +733,15 @@ export const Resume: React.FC = () => {
 
       <p className="text-gray-600 text-sm mb-4 line-clamp-3 leading-relaxed">
         {resume.objective || (
-          <span className="text-blue-600 font-medium">
-            Best for: {resume.bestMatchJob || 'Mobile App Developer (React Native)'}
-          </span>
+          resume.bestMatchJob && !resume.isCalculatingMatch ? (
+            <span className="text-blue-600 font-medium">
+              Best for: {resume.bestMatchJob}
+            </span>
+          ) : (
+            <span className="text-gray-400 italic">
+              {resume.isCalculatingMatch ? 'Analyzing job matches...' : 'No job matches calculated yet'}
+            </span>
+          )
         )}
       </p>
 
@@ -727,7 +794,11 @@ export const Resume: React.FC = () => {
                 handleOpenEnhanceModal(resume);
               }}
               className="bg-[#007BFF] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#0056b3] transition-colors"
-              title={resume.file instanceof File ? "Enhance this resume with AI" : "Re-upload CV to enable enhancement"}
+              title={
+                (resume.file instanceof File) || (resume.fileBase64 && resume.fileName) 
+                  ? "Enhance this resume with AI" 
+                  : "Re-upload CV to enable enhancement"
+              }
             >
               Enhance resume
             </button>
@@ -745,7 +816,11 @@ export const Resume: React.FC = () => {
                 handleOpenEnhanceModal(resume);
               }}
               className="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-600 transition-colors"
-              title={resume.file instanceof File ? "Enhance this resume with AI" : "Re-upload CV to enable enhancement"}
+              title={
+                (resume.file instanceof File) || (resume.fileBase64 && resume.fileName) 
+                  ? "Enhance this resume with AI" 
+                  : "Re-upload CV to enable enhancement"
+              }
             >
               View resume
             </button>
