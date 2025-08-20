@@ -7,10 +7,13 @@ import CreateTestModal from './CreateTestModal';
 
 interface Test {
     id: string;
+    test_id: string;
     test_name: string;
-    test_description: string;
-    test_type: string;
-    time_limit: number; // in minutes
+    test_description?: string;
+    description?: string; // Backend might return this field name
+    test_type?: string;
+    time_limit: number; // in minutes (mapped from duration_minutes)
+    duration_minutes?: number; // Backend field name
     passing_score: number;
     is_active: boolean;
     created_at: string;
@@ -83,12 +86,17 @@ const TestManagement: React.FC = () => {
             // Fetch test results for each test to calculate statistics
             const statsPromises = tests.map(async (test) => {
                 try {
-                    const results = await testApi.getTestResults(test.id, { limit: 100 });
+                    const testId = test.id || test.test_id;
+                    if (!testId) {
+                        console.warn('Test missing ID:', test);
+                        return;
+                    }
+                    const results = await testApi.getTestResults(testId, { limit: 100 });
                     const testCandidates = results.data || results.results || [];
                     totalCandidates += testCandidates.length;
                     completedTests += testCandidates.filter((c: any) => c.status === 'COMPLETED').length;
                 } catch (err) {
-                    console.error(`Error loading stats for test ${test.id}:`, err);
+                    console.error(`Error loading stats for test ${test.id || test.test_id}:`, err);
                 }
             });
             
@@ -239,28 +247,34 @@ const TestManagement: React.FC = () => {
                                 </td>
                             </tr>
                         ) : (
-                            tests.map(test => (
-                                <tr key={test.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/hr/test-management/${test.id}`)}>
-                                    <td className="px-4 py-4 font-medium">{test.test_name}</td>
-                                    <td className="px-4 py-4">{formatDuration(test.time_limit)}</td>
-                                    <td className="px-4 py-4">{test.questions?.length || 0} questions</td>
-                                    <td className="px-4 py-4">
-                                        <span className={`px-3 py-1 text-xs font-semibold rounded-full ${test.is_active ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                                            {test.is_active ? 'Active' : 'Inactive'}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-4">{formatDate(test.created_at)}</td>
-                                    <td className="px-4 py-4">{formatDate(test.updated_at)}</td>
-                                    <td className="px-4 py-4">
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); navigate(`/hr/test-management/${test.id}`)}} 
-                                            className="text-[#007BFF] border border-[#007BFF] rounded-md px-3 py-1 hover:bg-blue-50"
-                                        >
-                                            See Details
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))
+                            tests.map(test => {
+                                // Handle both possible field names from backend
+                                const testId = test.id || test.test_id;
+                                const timeLimit = test.time_limit || test.duration_minutes || 0;
+                                
+                                return (
+                                    <tr key={testId} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/hr/test-management/${testId}`)}>
+                                        <td className="px-4 py-4 font-medium">{test.test_name}</td>
+                                        <td className="px-4 py-4">{formatDuration(timeLimit)}</td>
+                                        <td className="px-4 py-4">{test.questions?.length || 0} questions</td>
+                                        <td className="px-4 py-4">
+                                            <span className={`px-3 py-1 text-xs font-semibold rounded-full ${test.is_active ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                                {test.is_active ? 'Active' : 'Inactive'}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-4">{formatDate(test.created_at)}</td>
+                                        <td className="px-4 py-4">{formatDate(test.updated_at)}</td>
+                                        <td className="px-4 py-4">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); navigate(`/hr/test-management/${testId}`)}} 
+                                                className="text-[#007BFF] border border-[#007BFF] rounded-md px-3 py-1 hover:bg-blue-50"
+                                            >
+                                                See Details
+                                            </button>
+                                        </td>
+                                    </tr>
+                                );
+                            })
                         )}
                     </tbody>
                 </table>

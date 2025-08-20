@@ -211,12 +211,12 @@ class TestController {
       // Main query
       const testsQuery = `
         SELECT 
+          t.test_id as id,
           t.test_id,
           t.job_id,
           t.test_name,
-          t.description,
-
-          t.duration_minutes,
+          t.description as test_description,
+          t.duration_minutes as time_limit,
           t.passing_score,
           t.is_active,
           t.created_at,
@@ -516,10 +516,18 @@ class TestController {
         }));
       }
 
+      // Map field names for frontend compatibility
+      const mappedTest = {
+        ...test,
+        id: test.test_id,
+        time_limit: test.duration_minutes,
+        test_description: test.description
+      };
+
       res.json({
         success: true,
         message: 'Test retrieved successfully',
-        data: test
+        data: mappedTest
       });
     } catch (error) {
       logger.error('Failed to get test by ID:', error);
@@ -1126,7 +1134,7 @@ class TestController {
         test_id: id,
         candidate_id: candidateId,
         application_id,
-        score: testResult.percentage_score,
+        score: testResult.percentage,
         passed: testResult.passed
       });
 
@@ -1452,13 +1460,13 @@ class TestController {
           u.full_name as candidate_name,
           u.email as candidate_email,
           u.phone as candidate_phone,
-          a.status as application_status
+          a.current_status as application_status
         FROM test_results tr
         JOIN users u ON tr.candidate_id = u.user_id
         LEFT JOIN applications a ON tr.application_id = a.application_id
         WHERE tr.test_id = $1
         ${status ? 'AND tr.status = $2' : ''}
-        ORDER BY tr.assigned_at DESC
+        ORDER BY tr.created_at DESC
         LIMIT $${status ? 3 : 2} OFFSET $${status ? 4 : 3}
       `;
 

@@ -22,23 +22,31 @@ const createJobSchema = Joi.object({
   job_title: Joi.string().required().min(3).max(200),
   job_description: Joi.string().required().min(10),
   job_requirements: Joi.string().optional(),
+  job_responsibilities: Joi.string().optional(),
   job_benefits: Joi.string().optional(),
   employment_type: Joi.string().valid('FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERNSHIP', 'FREELANCE').required(),
   work_location: Joi.string().optional(),
   salary_min: Joi.number().min(0).optional(),
   salary_max: Joi.number().min(0).optional(),
   currency: Joi.string().valid('VND', 'USD', 'EUR').default('VND'),
-  experience_required: Joi.number().min(0).max(50).optional(),
-  education_required: Joi.string().valid('HIGH_SCHOOL', 'COLLEGE', 'BACHELOR', 'MASTER', 'PHD').optional(),
+  experience_level: Joi.string().valid('ENTRY', 'JUNIOR', 'MIDDLE', 'SENIOR', 'LEAD', 'MANAGER').optional(),
+  min_experience_years: Joi.number().min(0).max(50).optional(),
+  max_experience_years: Joi.number().min(0).max(50).optional(),
+  education_requirements: Joi.string().optional(),
+  language_requirements: Joi.array().items(Joi.string()).optional(),
   deadline: Joi.date().greater('now').optional(),
   number_of_positions: Joi.number().min(1).max(1000).default(1),
-  job_level: Joi.string().valid('ENTRY', 'JUNIOR', 'MIDDLE', 'SENIOR', 'LEAD', 'MANAGER', 'DIRECTOR').optional(),
   work_type: Joi.string().valid('ONSITE', 'REMOTE', 'HYBRID').optional(),
+  auto_review_threshold: Joi.number().min(0).max(1).default(0.70).optional(),
+  priority_level: Joi.string().valid('LOW', 'NORMAL', 'HIGH', 'URGENT').default('NORMAL').optional(),
+  featured: Joi.boolean().default(false).optional(),
   city_id: Joi.string().uuid().optional(),
   district_id: Joi.string().uuid().optional(),
   skills: Joi.array().items(Joi.object({
     skill_id: Joi.string().uuid().required(),
-    is_required: Joi.boolean().default(false)
+    is_required: Joi.boolean().default(false),
+    importance_level: Joi.string().valid('LOW', 'MEDIUM', 'HIGH', 'CRITICAL').default('MEDIUM').optional(),
+    min_years_experience: Joi.number().min(0).default(0).optional()
   })).optional()
 });
 

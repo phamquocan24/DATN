@@ -96,6 +96,7 @@ const JobInformation = ({ jobData, handleInputChange }: { jobData: any, handleIn
                     <option value="MIDDLE">Middle</option>
                     <option value="SENIOR">Senior</option>
                     <option value="LEAD">Lead</option>
+                    <option value="MANAGER">Manager</option>
                 </select>
             </div>
             <div>
@@ -276,7 +277,7 @@ const PostNewJob: React.FC = () => {
       // Format the data as per API requirements
       const payload = {
         job_title: jobData.title,
-        job_description: jobData.description, // Fixed: use job_description instead of description
+        job_description: jobData.description,
         job_requirements: jobData.requirements,
         job_benefits: jobData.benefits,
         employment_type: jobData.employment_type,
@@ -285,8 +286,12 @@ const PostNewJob: React.FC = () => {
         salary_max: Number(jobData.salary_max) || 0,
         currency: jobData.currency,
         experience_level: jobData.experience_level,
-        work_location: jobData.location, // Fixed: use work_location instead of location
-        deadline: jobData.application_deadline, // Fixed: use deadline instead of application_deadline
+        work_location: jobData.location,
+        deadline: jobData.application_deadline,
+        // Add default values for new fields
+        priority_level: 'NORMAL',
+        featured: false,
+        auto_review_threshold: 0.70
       };
 
       console.log('Creating job with payload:', payload);
