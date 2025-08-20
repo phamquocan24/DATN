@@ -156,11 +156,12 @@ export const Resume: React.FC = () => {
   }, []);
 
   const handleOpenEnhanceModal = (resume: Resume) => {
-    if (resume.file) {
+    // Check if we have a valid File object
+    if (resume.file && resume.file instanceof File) {
       setSelectedResume(resume);
       setIsEnhanceModalOpen(true);
     } else {
-      alert("No file associated with this resume. Please re-upload the file.");
+      alert("CV file is not available for enhancement. Please re-upload your CV to use the enhancement feature. Note: CV files are only available for enhancement during the current session after upload.");
     }
   };
 
@@ -526,7 +527,13 @@ export const Resume: React.FC = () => {
         // Add to resumes list and save to localStorage
         const updatedResumes = [...resumes, newResume];
         setResumes(updatedResumes);
-        localStorage.setItem('userResumes', JSON.stringify(updatedResumes));
+        
+        // Save to localStorage but exclude File objects (they can't be serialized)
+        const resumesToSave = updatedResumes.map(resume => ({
+          ...resume,
+          file: undefined // Remove File object for localStorage storage
+        }));
+        localStorage.setItem('userResumes', JSON.stringify(resumesToSave));
 
         // Calculate AI match scores with all available jobs in background
         setTimeout(async () => {
@@ -720,6 +727,7 @@ export const Resume: React.FC = () => {
                 handleOpenEnhanceModal(resume);
               }}
               className="bg-[#007BFF] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#0056b3] transition-colors"
+              title={resume.file instanceof File ? "Enhance this resume with AI" : "Re-upload CV to enable enhancement"}
             >
               Enhance resume
             </button>
@@ -737,6 +745,7 @@ export const Resume: React.FC = () => {
                 handleOpenEnhanceModal(resume);
               }}
               className="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-600 transition-colors"
+              title={resume.file instanceof File ? "Enhance this resume with AI" : "Re-upload CV to enable enhancement"}
             >
               View resume
             </button>

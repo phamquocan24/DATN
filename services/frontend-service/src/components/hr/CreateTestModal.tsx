@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiX, FiPlus, FiTrash2, FiZap } from 'react-icons/fi';
 import testApi from '../../services/testApi';
 import hrApi from '../../services/hrApi';
+import { generateInterviewQuestions } from '../../services/questionGenerationApi';
 
 interface Question {
   question_text: string;
@@ -20,6 +21,7 @@ interface CreateTestModalProps {
 const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTestCreated }) => {
   const [loading, setLoading] = useState(false);
   const [loadingJobs, setLoadingJobs] = useState(false);
+  const [generatingQuestions, setGeneratingQuestions] = useState(false);
   const [jobs, setJobs] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     job_id: '',
@@ -110,6 +112,41 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
 
   const removeQuestion = (index: number) => {
     setQuestions(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const generateAIQuestions = async () => {
+    if (!formData.job_id) {
+      alert('Please select a job first to generate AI questions');
+      return;
+    }
+
+    try {
+      setGeneratingQuestions(true);
+      const result = await generateInterviewQuestions(formData.job_id);
+
+      if (result.success && result.data) {
+        // Convert AI-generated questions to our format
+        const aiQuestions: Question[] = result.data.questions_saved.map((q, index) => ({
+          question_text: q.question_text,
+          question_type: 'ESSAY' as const, // AI generates essay questions
+          options: [],
+          correct_answer: '', // AI questions don't have predefined answers
+          points: 5
+        }));
+
+        // Add to existing questions
+        setQuestions(prev => [...prev, ...aiQuestions]);
+
+        alert(`Generated ${aiQuestions.length} AI questions successfully!`);
+      } else {
+        throw new Error(result.error || 'Failed to generate questions');
+      }
+    } catch (error: any) {
+      console.error('Error generating AI questions:', error);
+      alert(`Failed to generate AI questions: ${error.message || 'Unknown error'}`);
+    } finally {
+      setGeneratingQuestions(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -386,7 +423,19 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
 
           {/* Questions Section */}
           <div className="border-t pt-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Questions ({questions.length})</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">Questions ({questions.length})</h3>
+              <button
+                type="button"
+                onClick={generateAIQuestions}
+                disabled={!formData.job_id || generatingQuestions}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                title={!formData.job_id ? 'Please select a job first' : 'Generate questions using AI based on job description'}
+              >
+                <FiZap className={generatingQuestions ? 'animate-spin' : ''} />
+                {generatingQuestions ? 'Generating...' : 'AI Generate'}
+              </button>
+            </div>
             
             {/* Add Question Form */}
             <div className="bg-gray-50 p-4 rounded-lg mb-4">

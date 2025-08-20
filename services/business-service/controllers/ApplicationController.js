@@ -30,22 +30,22 @@ const createApplicationSchema = Joi.object({
 });
 
 const updateApplicationStatusSchema = Joi.object({
-  status: Joi.string().valid('PENDING', 'REVIEWING', 'SHORTLISTED', 'INTERVIEWING', 'TESTING', 'OFFERED', 'HIRED', 'REJECTED').required(),
+  current_status: Joi.string().valid('APPLIED', 'SCREENING', 'INTERVIEW', 'ASSESSMENT', 'OFFER', 'HIRED', 'REJECTED', 'WITHDRAWN').required(),
   reason: Joi.string().max(1000).optional(),
   scheduled_date: Joi.date().optional()
 });
 
 const bulkUpdateSchema = Joi.object({
   application_ids: Joi.array().items(Joi.string().uuid()).min(1).max(100).required(),
-  status: Joi.string().valid('PENDING', 'REVIEWING', 'SHORTLISTED', 'INTERVIEWING', 'TESTING', 'OFFERED', 'HIRED', 'REJECTED').required(),
+  current_status: Joi.string().valid('APPLIED', 'SCREENING', 'INTERVIEW', 'ASSESSMENT', 'OFFER', 'HIRED', 'REJECTED', 'WITHDRAWN').required(),
   reason: Joi.string().max(1000).optional()
 });
 
 const searchApplicationsSchema = Joi.object({
   job_id: Joi.string().uuid().optional(),
-  status: Joi.alternatives().try(
-    Joi.string().valid('PENDING', 'REVIEWING', 'SHORTLISTED', 'INTERVIEWING', 'TESTING', 'OFFERED', 'HIRED', 'REJECTED'),
-    Joi.array().items(Joi.string().valid('PENDING', 'REVIEWING', 'SHORTLISTED', 'INTERVIEWING', 'TESTING', 'OFFERED', 'HIRED', 'REJECTED'))
+  current_status: Joi.alternatives().try(
+    Joi.string().valid('APPLIED', 'SCREENING', 'INTERVIEW', 'ASSESSMENT', 'OFFER', 'HIRED', 'REJECTED', 'WITHDRAWN'),
+    Joi.array().items(Joi.string().valid('APPLIED', 'SCREENING', 'INTERVIEW', 'ASSESSMENT', 'OFFER', 'HIRED', 'REJECTED', 'WITHDRAWN'))
   ).optional(),
   search: Joi.string().optional(),
   date_from: Joi.date().optional(),
@@ -170,8 +170,8 @@ class ApplicationController {
         candidate_id,
         cv_id,
         cover_letter,
-        status: 'PENDING',
-        applied_at: new Date()
+        current_status: 'APPLIED', // Fixed: use current_status instead of status
+        submitted_at: new Date() // Fixed: use submitted_at instead of applied_at (matches database schema)
       };
 
       const application = await this.applicationModel.create(applicationData);

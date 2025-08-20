@@ -1449,12 +1449,12 @@ class TestController {
       const query = `
         SELECT 
           tr.*,
-          cp.full_name as candidate_name,
-          cp.email as candidate_email,
-          cp.phone as candidate_phone,
+          u.full_name as candidate_name,
+          u.email as candidate_email,
+          u.phone as candidate_phone,
           a.status as application_status
         FROM test_results tr
-        JOIN candidate_profiles cp ON tr.candidate_id = cp.profile_id
+        JOIN users u ON tr.candidate_id = u.user_id
         LEFT JOIN applications a ON tr.application_id = a.application_id
         WHERE tr.test_id = $1
         ${status ? 'AND tr.status = $2' : ''}
