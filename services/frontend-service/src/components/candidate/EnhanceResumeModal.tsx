@@ -133,7 +133,8 @@ export const EnhanceResumeModal: React.FC<EnhanceResumeModalProps> = ({ isOpen, 
   // Helper function to clean text lines but preserve **text** formatting
   const cleanTextLine = (line: string): string => {
     return line
-      .replace(/^[-*+•]\s*/, '') // Remove bullet points only
+      .replace(/^[-+•]\s+/, '') // Remove bullet points (-, +, •) followed by space
+      .replace(/^\*\s+/, '') // Remove single * bullet points followed by space
       .replace(/^\d+\.\s*/, '') // Remove numbered lists only  
       .replace(/^[:\-]\s*/, '') // Remove leading colons and dashes
       .trim();
@@ -141,16 +142,19 @@ export const EnhanceResumeModal: React.FC<EnhanceResumeModalProps> = ({ isOpen, 
 
   // Helper function to render text with **bold** formatting
   const renderFormattedText = (text: string) => {
-    // Split text by **text** pattern while preserving the markers
-    const parts = text.split(/(\*\*[^*]+\*\*)/);
+    // More comprehensive regex to match **text** patterns including multiword and special chars
+    const parts = text.split(/(\*\*[^*]+?\*\*)/g);
     
     return parts.map((part, index) => {
-      if (part.startsWith('**') && part.endsWith('**')) {
+      if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
         // Remove the ** markers and make it bold
-        const boldText = part.slice(2, -2);
-        return <strong key={index} className="font-semibold">{boldText}</strong>;
+        const boldText = part.slice(2, -2).trim();
+        if (boldText) {
+          return <strong key={index} className="font-semibold">{boldText}</strong>;
+        }
       }
-      return part;
+      // Clean up any remaining single or malformed asterisks
+      return part.replace(/^\*{1}\s*|\s*\*{1}$/g, '').replace(/\*{1}([^*])/g, '$1');
     });
   };
 
