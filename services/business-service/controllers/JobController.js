@@ -143,6 +143,12 @@ class JobController {
    */
   async createJob(req, res) {
     try {
+      console.log('=== DEBUG: CreateJob Request ===');
+      console.log('User ID:', req.user?.user_id);
+      console.log('User Role:', req.user?.role);
+      console.log('User company_id:', req.user?.company_id);
+      console.log('User recruiter_profile:', req.user?.recruiter_profile);
+      
       const { error, value } = createJobSchema.validate(req.body);
       if (error) {
         return res.status(400).json({
@@ -157,7 +163,10 @@ class JobController {
 
       // Check if user has company profile
       const companyId = req.user.company_id || (req.user.recruiter_profile && req.user.recruiter_profile.company_id);
+      console.log('Resolved company_id:', companyId);
+      
       if (!companyId) {
+        console.log('ERROR: No company ID found for user');
         return res.status(403).json({
           success: false,
           message: 'You must be associated with a company to create job postings'
@@ -962,8 +971,8 @@ class JobController {
 
       const options = {
         ...value,
-        company_id: companyId,
-        status: 'ACTIVE'
+        company_id: companyId
+        // Remove status filter - allow all statuses for company jobs
       };
 
       const result = await this.jobModel.getJobs(options);
@@ -2122,8 +2131,8 @@ class JobController {
 
       const options = {
         ...value,
-        company_id: companyId,
-        status: 'ACTIVE'
+        company_id: companyId
+        // Removed status filter to show all company jobs
       };
 
       const result = await this.jobModel.getJobs(options);

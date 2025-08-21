@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiEdit, FiExternalLink, FiPlus, FiArrowRight } from 'react-icons/fi';
 import { FaHtml5, FaCss3Alt, FaJs, FaGem, FaTwitter, FaFacebookF, FaLinkedinIn, FaEnvelope, FaPhoneAlt, FaInstagram, FaStethoscope, FaSwimmingPool, FaVideo, FaMountain, FaCoffee, FaTrain } from 'react-icons/fa';
 import { SiFramer } from 'react-icons/si';
@@ -11,25 +11,118 @@ import work1 from '../../assets/work1.png';
 import work2 from '../../assets/work2.png';
 import work3 from '../../assets/work3.png';
 import work4 from '../../assets/work4.png';
+import { companyApi } from '../../services/companyApi';
+import { hrApi } from '../../services/hrApi';
+import { getCompanyId } from '../../services/tokenUtils';
 
 
 const HrCompanyProfile: React.FC = () => {
     const [showMoreJobs, setShowMoreJobs] = useState(false);
+    const [companyDetails, setCompanyDetails] = useState<any>(null);
+    const [companyJobs, setCompanyJobs] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-  // Mock data - replace with actual API call
-  const companyDetails = {
-    companyName: 'Nomad',
-    companyLogo: companyLogo,
-    companyInfo: {
-      address: 'District 1, Ho Chi Minh City, Vietnam',
-      industry: 'Social & Non-Profit',
-      size: '4000+',
-      website: 'https://nomad.com',
-    },
-    phone: '+84 123 456 789',
-    activeJobs: 15,
-    totalCandidates: 245,
-  };
+    useEffect(() => {
+        loadCompanyData();
+    }, []);
+
+    const loadCompanyData = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            // Get current HR user's company ID
+            const companyId = getCompanyId();
+            if (!companyId) {
+                setError('No company ID found. Please contact administrator.');
+                return;
+            }
+
+            console.log('Loading company data for ID:', companyId);
+
+            // Load company details
+            const companyResponse = await companyApi.getCompanyById(companyId);
+            console.log('Company API Response:', companyResponse);
+            
+            if (companyResponse.success && companyResponse.data) {
+                const company = companyResponse.data.company || companyResponse.data;
+                
+                setCompanyDetails({
+                    companyName: company.company_name || 'Unknown Company',
+                    companyLogo: company.company_logo_url || companyLogo,
+                    companyInfo: {
+                        address: company.company_address || 'Address not provided',
+                        industry: company.industry || 'Industry not specified',
+                        size: company.company_size || 'Size not specified',
+                        website: company.company_website || '#',
+                        description: company.company_description || 'No description available',
+                        email: company.company_email || '',
+                        phone: company.company_phone || ''
+                    },
+                    phone: company.company_phone || '+84 123 456 789',
+                    activeJobs: 0, // Will be updated with jobs data
+                    totalCandidates: 0, // Will be updated with stats
+                    foundedYear: company.founded_year,
+                    taxCode: company.tax_code
+                });
+            } else {
+                setError('Failed to load company information');
+            }
+
+            // Load company jobs
+            try {
+                const jobsResponse = await hrApi.getJobsByCompany(companyId);
+                console.log('Jobs API Response:', jobsResponse);
+                
+                const jobs = jobsResponse?.data || [];
+                setCompanyJobs(jobs);
+                
+                // Update active jobs count
+                if (companyDetails) {
+                    setCompanyDetails(prev => ({
+                        ...prev,
+                        activeJobs: jobs.filter((job: any) => 
+                            job.status === 'PUBLISHED' || job.status === 'ACTIVE'
+                        ).length
+                    }));
+                }
+            } catch (jobsError) {
+                console.error('Error loading jobs:', jobsError);
+                // Jobs loading is optional, don't set main error
+            }
+
+        } catch (err: any) {
+            console.error('Error loading company data:', err);
+            setError(err.message || 'Failed to load company data');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center p-8">
+                <div className="text-lg">Loading company profile...</div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex items-center justify-center p-8">
+                <div className="text-red-500">{error}</div>
+            </div>
+        );
+    }
+
+    if (!companyDetails) {
+        return (
+            <div className="flex items-center justify-center p-8">
+                <div className="text-gray-500">No company data available</div>
+            </div>
+        );
+    }
 
   const getTagStyle = (tag: string) => {
     switch (tag) {
@@ -62,7 +155,7 @@ const HrCompanyProfile: React.FC = () => {
             <div className="flex justify-between items-start">
                 <div>
                     <h2 className="text-3xl font-semibold text-gray-900 mb-1" style={{fontFamily:'ABeeZee, sans-serif'}}>{companyDetails.companyName}</h2>
-                    <a href={companyDetails.companyInfo.website} className="text-[#007BFF] text-sm hover:underline mb-4">{companyDetails.companyInfo.website}</a>
+                    <a href={companyDetails.companyInfo.website} target="_blank" rel="noopener noreferrer" className="text-[#007BFF] text-sm hover:underline mb-4">{companyDetails.companyInfo.website}</a>
                 </div>
                 <div className="flex">
                     <button className="flex items-center gap-2 px-4 py-2 border border-[#007BFF] text-[#007BFF] rounded-md bg-white hover:bg-blue-50 text-sm font-medium mr-4">

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiFilter, FiMoreHorizontal, FiChevronDown } from 'react-icons/fi';
 import calendarIcon from '../../assets/scheme.png';
 import hrApi from '../../services/hrApi';
+import { getCompanyId } from '../../services/tokenUtils';
 
 interface Job {
   job_id: string;
@@ -40,8 +41,62 @@ const JobManagement: React.FC = () => {
     const fetchJobs = async () => {
       setIsLoading(true);
       try {
-        const response = await hrApi.getMyJobs();
+        // Get current user's company ID
+        const companyId = getCompanyId();
+        
+        // Debug logging
+        console.log('=== JobManagement Debug ===');
+        console.log('Company ID from getCompanyId():', companyId);
+        
+        const token = localStorage.getItem('token');
+        const userStr = localStorage.getItem('user');
+        console.log('Raw token:', token);
+        console.log('Raw user string:', userStr);
+        
+        if (token) {
+          try {
+            // Decode token manually to see what's inside
+            const parts = token.split('.');
+            if (parts.length === 3) {
+              const payload = JSON.parse(atob(parts[1]));
+              console.log('Decoded token payload:', payload);
+            }
+          } catch (e) {
+            console.error('Error decoding token:', e);
+          }
+        }
+        
+        if (userStr) {
+          try {
+            const user = JSON.parse(userStr);
+            console.log('Parsed user object:', user);
+            console.log('User role:', user?.role);
+            console.log('User company_id:', user?.company_id);
+            console.log('User recruiter_profile:', user?.recruiter_profile);
+          } catch (e) {
+            console.error('Error parsing user:', e);
+          }
+        }
+        
+        if (!companyId) {
+          console.error('No company ID found - HR user must be assigned to a company');
+          setError('No company assigned. Please contact administrator to assign you to a company.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Use the business service endpoint to get jobs by company
+        console.log('Calling API with companyId:', companyId);
+        const response = await hrApi.getJobsByCompany(companyId, {
+          page: 1,
+          limit: 100,
+          orderBy: 'created_at',
+          direction: 'DESC'
+        });
+        
+        console.log('API Response:', response);
         const jobsArray = response?.data || response || [];
+        console.log('Jobs array:', jobsArray);
         
         // Transform API data to component format
         const transformedJobs = jobsArray.map((job: any) => ({
@@ -58,16 +113,26 @@ const JobManagement: React.FC = () => {
           role: job.title,
           datePosted: new Date(job.created_at).toLocaleDateString() || 'N/A',
           dueDate: new Date(job.application_deadline).toLocaleDateString() || 'N/A',
-          jobType: job.employment_type === 'FULL_TIME' ? 'Fulltime' : 'Freelance',
+          jobType: job.employment_type === 'FULL_TIME' ? 'Fulltime' : 
+                   job.employment_type === 'PART_TIME' ? 'Part-time' :
+                   job.employment_type === 'CONTRACT' ? 'Contract' :
+                   job.employment_type === 'INTERNSHIP' ? 'Internship' :
+                   job.employment_type === 'FREELANCE' ? 'Freelance' : 'Other',
           applicants: job.applications_count || 0,
           needs: `${job.applications_count || 0}/${job.open_positions || 1}`
         }));
         
         setJobs(transformedJobs);
-        setError(null);
-      } catch (err) {
-        setError('Failed to load your jobs.');
-        console.error(err);
+        
+        // Show a helpful message if user has no company ID
+        if (!companyId && transformedJobs.length === 0) {
+          setError('No jobs found. You may need to create or join a company first to see company jobs.');
+        } else {
+          setError(null);
+        }
+      } catch (err: any) {
+        console.error('Error fetching jobs:', err);
+        setError(err?.response?.data?.message || 'Failed to load company jobs.');
       } finally {
         setIsLoading(false);
       }
@@ -94,7 +159,12 @@ const JobManagement: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-gray-800">Job Listing</h1>
-          <p className="text-gray-600">Here is your jobs listing status from July 19 - July 25.</p>
+          <p className="text-gray-600">
+            {getCompanyId() 
+              ? `Here are all jobs posted by your company. Total: ${jobs.length} jobs`
+              : `Here are jobs you have posted. Total: ${jobs.length} jobs (Note: Company profile setup recommended)`
+            }
+          </p>
         </div>
         <div className="relative">
           <input ref={dateInputRef} type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="absolute opacity-0 w-full h-full cursor-pointer" />
@@ -148,12 +218,29 @@ const JobManagement: React.FC = () => {
               <tr key={job.job_id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => navigate(`/hr/job-management/${job.job_id}`)}>
                 <td className="px-4 py-4 font-medium">{job.role}</td>
                 <td className="px-4 py-4">
-                  <span className={`px-3 py-1 text-xs font-semibold rounded-full ${job.status === 'Live' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>{job.status}</span>
+                  <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                    job.status === 'ACTIVE' || job.status === 'PUBLISHED' || job.status === 'Live' ? 'bg-green-100 text-green-600' : 
+                    job.status === 'DRAFT' ? 'bg-yellow-100 text-yellow-600' :
+                    job.status === 'PAUSED' ? 'bg-orange-100 text-orange-600' :
+                    'bg-red-100 text-red-600'
+                  }`}>
+                    {job.status === 'ACTIVE' || job.status === 'PUBLISHED' ? 'Live' : 
+                     job.status === 'DRAFT' ? 'Draft' :
+                     job.status === 'PAUSED' ? 'Paused' :
+                     job.status === 'CLOSED' ? 'Closed' : job.status}
+                  </span>
                 </td>
                 <td className="px-4 py-4 text-gray-700">{job.datePosted}</td>
                 <td className="px-4 py-4 text-gray-700">{job.dueDate}</td>
                 <td className="px-4 py-4">
-                <span className={`px-3 py-1 text-xs font-semibold rounded-full ${job.jobType === 'Fulltime' ? 'bg-blue-100 text-blue-600' : 'bg-yellow-100 text-yellow-600'}`}>{job.jobType}</span>
+                <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                  job.jobType === 'Fulltime' ? 'bg-blue-100 text-blue-600' : 
+                  job.jobType === 'Part-time' ? 'bg-purple-100 text-purple-600' :
+                  job.jobType === 'Contract' ? 'bg-green-100 text-green-600' :
+                  job.jobType === 'Internship' ? 'bg-indigo-100 text-indigo-600' :
+                  job.jobType === 'Freelance' ? 'bg-yellow-100 text-yellow-600' :
+                  'bg-gray-100 text-gray-600'
+                }`}>{job.jobType}</span>
                 </td>
                 <td className="px-4 py-4 text-gray-700">{job.applicants}</td>
                 <td className="px-4 py-4 text-gray-700">{job.needs}</td>

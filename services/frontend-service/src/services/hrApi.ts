@@ -1,4 +1,5 @@
 import apiClient from './api';
+import { getCompanyId } from './tokenUtils';
 
 // HR API Service
 export const hrApi = {
@@ -54,14 +55,7 @@ export const hrApi = {
     return response.data;
   },
 
-  getMyJobs: async (params?: {
-    page?: number;
-    limit?: number;
-    status?: string;
-  }) => {
-    const response = await apiClient.get('/api/v1/jobs/my-jobs', { params });
-    return response.data;
-  },
+  // Removed getMyJobs - use getJobsByCompany instead
 
   getJobById: async (jobId: string, includeStats: boolean = false) => {
     const params = includeStats ? { include_stats: includeStats } : {};
@@ -96,6 +90,23 @@ export const hrApi = {
   // Fixed endpoint path to match API spec
   getCompanyJobs: async (companyId: string, params?: { page?: number; limit?: number }) => {
     const response = await apiClient.get(`/api/v1/companies/${companyId}/jobs`, { params });
+    return response.data;
+  },
+
+  // Get jobs by company ID (using business service endpoint)
+  getJobsByCompany: async (companyId: string, params?: {
+    search?: string;
+    employment_type?: string;
+    work_type?: string;
+    salary_min?: number;
+    salary_max?: number;
+    experience_required?: number;
+    page?: number;
+    limit?: number;
+    orderBy?: string;
+    direction?: string;
+  }) => {
+    const response = await apiClient.get(`/api/v1/jobs/company/${companyId}`, { params });
     return response.data;
   },
 
@@ -172,13 +183,19 @@ export const hrApi = {
     return response.data;
   },
 
-  // Dashboard Stats - Calculate from HR's jobs
+  // Dashboard Stats - Calculate from company jobs
   getJobStats: async () => {
     try {
-      const jobsResponse = await apiClient.get('/api/v1/jobs/my-jobs', { 
-        params: { limit: 100 } 
+      // Get jobs from company jobs endpoint
+      const companyId = getCompanyId();
+      if (!companyId) {
+        throw new Error('No company ID found for HR user');
+      }
+      
+      const jobsResponse = await hrApi.getJobsByCompany(companyId, { 
+        limit: 100 
       });
-      const jobs = jobsResponse.data?.data || [];
+      const jobs = jobsResponse?.data || [];
       
       // Calculate basic stats from jobs
       const totalJobs = jobs.length;
@@ -207,11 +224,16 @@ export const hrApi = {
 
   getApplicationStats: async () => {
     try {
-      // Get applications from HR's jobs
-      const jobsResponse = await apiClient.get('/api/v1/jobs/my-jobs', { 
-        params: { limit: 100 } 
+      // Get applications from company jobs
+      const companyId = getCompanyId();
+      if (!companyId) {
+        throw new Error('No company ID found for HR user');
+      }
+      
+      const jobsResponse = await hrApi.getJobsByCompany(companyId, { 
+        limit: 100 
       });
-      const jobs = jobsResponse.data?.data || [];
+      const jobs = jobsResponse?.data || [];
       
       // Get applications for each job and calculate stats
       let totalApplications = 0;

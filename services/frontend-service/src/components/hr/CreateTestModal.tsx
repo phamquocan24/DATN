@@ -3,6 +3,7 @@ import { FiX, FiPlus, FiTrash2, FiZap } from 'react-icons/fi';
 import testApi from '../../services/testApi';
 import hrApi from '../../services/hrApi';
 import { generateInterviewQuestions } from '../../services/questionGenerationApi';
+import { getCompanyId } from '../../services/tokenUtils';
 
 interface Question {
   question_text: string;
@@ -51,7 +52,14 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
   const loadJobs = async () => {
     try {
       setLoadingJobs(true);
-      const response = await hrApi.getMyJobs();
+      
+      // Get company ID from user token
+      const companyId = getCompanyId();
+      if (!companyId) {
+        throw new Error('No company ID found. Please contact administrator.');
+      }
+      
+      const response = await hrApi.getJobsByCompany(companyId);
       const jobsArray = response?.data || response?.jobs || (Array.isArray(response) ? response : []);
       setJobs(jobsArray);
     } catch (error) {
@@ -126,7 +134,7 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
 
       if (result.success && result.data) {
         // Convert AI-generated questions to our format
-        const aiQuestions: Question[] = result.data.questions_saved.map((q, index) => ({
+        const aiQuestions: Question[] = result.data.questions_saved.map((q) => ({
           question_text: q.question_text,
           question_type: 'ESSAY' as const, // AI generates essay questions
           options: [],

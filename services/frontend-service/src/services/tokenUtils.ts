@@ -68,13 +68,33 @@ export function getCandidateProfileId(): string | null {
   return decoded?.candidate_profile_id || null;
 }
 
-// Get company ID from token  
+// Get company ID from token or user data
 export function getCompanyId(): string | null {
+  // First try to get from token
   const token = localStorage.getItem('token');
-  if (!token) return null;
+  if (token) {
+    const decoded = decodeToken(token);
+    if (decoded?.company_id) {
+      return decoded.company_id;
+    }
+  }
   
-  const decoded = decodeToken(token);
-  return decoded?.company_id || null;
+  // Fallback: try to get from user data in localStorage
+  try {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      // Check various possible fields where company_id might be stored
+      return user?.company_id || 
+             user?.recruiter_profile?.company_id || 
+             user?.profile?.company_id ||
+             null;
+    }
+  } catch (error) {
+    console.error('Error parsing user from localStorage:', error);
+  }
+  
+  return null;
 }
 
 // Clear all auth-related data from localStorage

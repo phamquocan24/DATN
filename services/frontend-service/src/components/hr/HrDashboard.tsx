@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getCompanyId } from '../../services/tokenUtils';
 import bellIcon from '../../assets/bell-outlined.png';
 import nomadIcon from '../../assets/Nomad.png';
 import calendarIcon from '../../assets/scheme.png';
@@ -132,8 +133,13 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ notifOpen, hasUnread, toggleN
         }
 
         try {
-          myJobs = await hrApi.getMyJobs();
-          console.log('My Jobs Response:', myJobs);
+          // Get company ID and use getJobsByCompany instead
+          const companyId = getCompanyId();
+          if (!companyId) {
+            throw new Error('No company ID found for HR user');
+          }
+          myJobs = await hrApi.getJobsByCompany(companyId);
+          console.log('Company Jobs Response:', myJobs);
         } catch (jobsErr) {
           console.error('Error fetching jobs:', jobsErr);
           myJobs = { data: [] };

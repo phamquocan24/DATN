@@ -1,5 +1,6 @@
 import React from 'react';
 import { adminApi, hrApi, candidateApi } from './index';
+import { getCompanyId } from './tokenUtils';
 
 // Role-based API access
 export const getApiForRole = (role: 'admin' | 'hr' | 'candidate') => {
@@ -155,7 +156,12 @@ export const useJobsApi = (role: 'admin' | 'hr' | 'candidate') => {
         case 'admin':
           return adminApi.getAllJobs();
         case 'hr':
-          return hrApi.getMyJobs();
+          // Get company ID and use getJobsByCompany instead
+          const companyId = getCompanyId();
+          if (!companyId) {
+            throw new Error('No company ID found for HR user');
+          }
+          return hrApi.getJobsByCompany(companyId);
         case 'candidate':
           return candidateApi.getAllJobs();
       }
