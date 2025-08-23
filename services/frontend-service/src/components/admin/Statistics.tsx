@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
-import { FiEye, FiBriefcase, FiChevronDown, FiUpload } from 'react-icons/fi';
+import { FiChevronDown, FiUpload, FiUsers, FiUserCheck, FiCheckCircle } from 'react-icons/fi';
+import { HiOfficeBuilding } from 'react-icons/hi';
 import { Doughnut, Line } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Filler, TooltipItem } from 'chart.js';
+import html2canvas from 'html2canvas';
 
 import BellIcon from '../../assets/bell-outlined.png';
 import NotificationPanel from './NotificationPanelAdmin';
@@ -31,6 +33,196 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
     const [isTrendsDropdownOpen, setIsTrendsDropdownOpen] = useState(false);
     const [initialLoad, setInitialLoad] = useState(true);
     const fetchingRef = useRef(false);
+
+    // Export functionality
+    const exportData = (format: 'PDF' | 'CSV' | 'PNG' | 'XLSX') => {
+        if (!statsData) {
+            console.warn('No data available for export');
+            return;
+        }
+
+        try {
+            switch (format) {
+                case 'CSV':
+                    exportToCSV();
+                    break;
+                case 'PDF':
+                    exportToPDF();
+                    break;
+                case 'PNG':
+                    exportToPNG();
+                    break;
+                case 'XLSX':
+                    exportToExcel();
+                    break;
+                default:
+                    console.warn('Unsupported export format:', format);
+            }
+            setIsExportOpen(false);
+        } catch (error) {
+            console.error('Export failed:', error);
+            alert('Export failed. Please try again.');
+        }
+    };
+
+    const exportToCSV = () => {
+        const csvData = [
+            ['Metric', 'Value'],
+            ['Total Users', statsData?.users?.total_users || 0],
+            ['Active Users', statsData?.users?.active_users || 0],
+            ['Candidates', statsData?.users?.candidates || 0],
+            ['Recruiters', (statsData?.users?.recruiters || 0) + (statsData?.users?.hr_users || 0)],
+            ['Admins', statsData?.users?.admins || 0],
+            ['Total Companies', statsData?.companies?.total_companies || 0],
+            ['Active Companies', statsData?.companies?.active_companies || 0],
+            ['Report Period', getTimePeriodDisplay()],
+            ['Generated At', new Date().toLocaleDateString()]
+        ];
+
+        const csvContent = csvData.map(row => row.join(',')).join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `statistics_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+    };
+
+    const exportToPDF = () => {
+        window.print();
+    };
+
+    const exportToPNG = async () => {
+        let loadingElement: HTMLElement | null = null;
+        
+        try {
+            // Find the main statistics container
+            const element = document.querySelector('.statistics-container') as HTMLElement;
+            if (!element) {
+                console.error('Statistics container not found');
+                alert('Unable to find statistics content for export.');
+                return;
+            }
+
+            // Show loading state
+            loadingElement = document.createElement('div');
+            loadingElement.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #007BFF; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    <span>Generating PNG...</span>
+                </div>
+                <style>
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                </style>
+            `;
+            loadingElement.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999; font-family: Arial, sans-serif;';
+            document.body.appendChild(loadingElement);
+
+            // Configure html2canvas options for better chart rendering
+            const canvas = await html2canvas(element, {
+                scale: 2, // Higher resolution
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff',
+                width: element.scrollWidth,
+                height: element.scrollHeight,
+                scrollX: 0,
+                scrollY: 0,
+                windowWidth: element.scrollWidth,
+                windowHeight: element.scrollHeight,
+                onclone: (clonedDoc) => {
+                    // Force canvas charts to render properly in clone
+                    const canvasElements = clonedDoc.querySelectorAll('canvas');
+                    canvasElements.forEach((canvas, index) => {
+                        const originalCanvas = element.querySelectorAll('canvas')[index];
+                        if (originalCanvas) {
+                            const ctx = canvas.getContext('2d');
+                            if (ctx && originalCanvas instanceof HTMLCanvasElement) {
+                                ctx.drawImage(originalCanvas, 0, 0);
+                            }
+                        }
+                    });
+                    
+                    // Remove any interactive elements that shouldn't be in export
+                    const interactiveElements = clonedDoc.querySelectorAll('button, .dropdown, .notification-panel');
+                    interactiveElements.forEach(el => {
+                        if (el.classList.contains('notification-panel') || 
+                            el.closest('.notification-panel') ||
+                            el.textContent?.includes('Export')) {
+                            el.remove();
+                        }
+                    });
+                }
+            });
+
+            // Remove loading element
+            if (document.body.contains(loadingElement)) {
+                document.body.removeChild(loadingElement);
+            }
+
+            // Create download link
+            const link = document.createElement('a');
+            link.download = `statistics_${new Date().toISOString().split('T')[0]}.png`;
+            link.href = canvas.toDataURL('image/png', 0.9); // Slightly compressed for smaller file size
+            
+            // Trigger download
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            console.log('PNG export completed successfully');
+            
+            // Show success message
+            const successElement = document.createElement('div');
+            successElement.innerHTML = 'PNG export completed!';
+            successElement.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #10B981; color: white; padding: 12px 20px; border-radius: 8px; z-index: 9999; font-family: Arial, sans-serif; font-size: 14px;';
+            document.body.appendChild(successElement);
+            setTimeout(() => {
+                if (document.body.contains(successElement)) {
+                    document.body.removeChild(successElement);
+                }
+            }, 3000);
+            
+        } catch (error) {
+            console.error('PNG export failed:', error);
+            
+            // Remove loading element if still exists
+            if (loadingElement && document.body.contains(loadingElement)) {
+                document.body.removeChild(loadingElement);
+            }
+            
+            // Show error message
+            alert(`PNG export failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again or use PDF export instead.`);
+        }
+    };
+
+    const exportToExcel = () => {
+        const data = [
+            ['Statistics Report'],
+            ['Generated on', new Date().toLocaleDateString()],
+            ['Period', getTimePeriodDisplay()],
+            [],
+            ['User Statistics'],
+            ['Total Users', statsData?.users?.total_users || 0],
+            ['Active Users', statsData?.users?.active_users || 0],
+            ['Candidates', statsData?.users?.candidates || 0],
+            ['Recruiters', (statsData?.users?.recruiters || 0) + (statsData?.users?.hr_users || 0)],
+            ['Admins', statsData?.users?.admins || 0],
+            [],
+            ['Company Statistics'],
+            ['Total Companies', statsData?.companies?.total_companies || 0],
+            ['Active Companies', statsData?.companies?.active_companies || 0]
+        ];
+
+        const csvContent = data.map(row => row.join('\t')).join('\n');
+        const blob = new Blob([csvContent], { type: 'application/vnd.ms-excel' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `statistics_${new Date().toISOString().split('T')[0]}.xlsx`;
+        link.click();
+    };
 
     // Helper function to calculate date ranges based on current system time
     const getDateRange = (period: '7days' | '30days' | '1year') => {
@@ -120,6 +312,7 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
                     period: '7days'
                 });
                 console.log('Initial Statistics API Response:', systemStats);
+                console.log('Registration trends data:', systemStats?.registration_trends?.length || 0, 'records');
                 
                 setStatsData(systemStats);
             } catch (err: any) {
@@ -188,6 +381,7 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
                     period: trendsPeriod
                 });
                 console.log(`Chart data for ${trendsPeriod}:`, chartStats);
+                console.log(`Registration trends for ${trendsPeriod}:`, chartStats?.registration_trends?.length || 0, 'records');
                 
                 // Update only the chart-related data, keep user/company stats
                 setStatsData((prevData: any) => ({
@@ -220,7 +414,7 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
             value: loading ? "..." : (statsData?.users?.total_users || "0"), 
             change: "6.4%", 
             changeType: "increase", 
-            icon: <FiEye className="text-blue-500" />, 
+            icon: <FiUsers className="text-blue-500" />, 
             iconBg: "bg-blue-100" 
         },
         { 
@@ -228,7 +422,7 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
             value: loading ? "..." : (statsData?.users?.active_users || "0"), 
             change: "2.1%", 
             changeType: "increase", 
-            icon: <FiBriefcase className="text-green-500" />, 
+            icon: <FiUserCheck className="text-green-500" />, 
             iconBg: "bg-green-100" 
         },
         { 
@@ -236,7 +430,7 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
             value: loading ? "..." : (statsData?.companies?.total_companies || "0"), 
             change: "1.2%", 
             changeType: "increase", 
-            icon: <FiBriefcase className="text-yellow-500" />, 
+            icon: <HiOfficeBuilding className="text-yellow-500" />, 
             iconBg: "bg-yellow-100" 
         },
         { 
@@ -244,7 +438,7 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
             value: loading ? "..." : (statsData?.companies?.active_companies || "0"), 
             change: "0.8%", 
             changeType: "increase", 
-            icon: <FiEye className="text-purple-500" />, 
+            icon: <FiCheckCircle className="text-purple-500" />, 
             iconBg: "bg-purple-100" 
         }
     ];
@@ -253,10 +447,10 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
     const getDoughnutData = () => {
         if (loading || !statsData) {
             return {
-                labels: ['Candidates', 'Recruiters', 'HR Users', 'Admins'],
+                labels: ['Admins', 'Recruiters', 'Candidates'],
                 datasets: [{
-                    data: [0, 0, 0, 0],
-                    backgroundColor: ['#4D7DFF', '#FFB836', '#2ED47A', '#FF6B6B'],
+                    data: [0, 0, 0],
+                    backgroundColor: ['#FF6B6B', '#4D7DFF', '#FFB836'],
                     borderWidth: 0,
                     cutout: '75%',
                 }],
@@ -264,16 +458,18 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
         }
 
         const userData = statsData?.users;
+        // Combine HR Users and Recruiters for better display  
+        const recruitersCount = (userData?.recruiters || 0) + (userData?.hr_users || 0);
+        
         return {
-            labels: ['Candidates', 'Recruiters', 'HR Users', 'Admins'],
+            labels: ['Admins', 'Recruiters', 'Candidates'],
             datasets: [{
                 data: [
-                    userData?.candidates || 0,
-                    userData?.recruiters || 0,
-                    userData?.hr_users || 0,
-                    userData?.admins || 0
+                    userData?.admins || 0,
+                    recruitersCount,
+                    userData?.candidates || 0
                 ],
-                backgroundColor: ['#FFB836', '#4D7DFF', '#2ED47A', '#FF6B6B'],
+                backgroundColor: ['#FF6B6B', '#4D7DFF', '#FFB836'],
                 borderWidth: 0,
                 cutout: '75%',
             }],
@@ -317,16 +513,13 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
             return labels;
         };
 
-        // Generate sample data based on time period
-        const generateSampleData = (length: number, baseValue: number, variance: number) => {
-            return new Array(length).fill(0).map(() => 
-                Math.floor(Math.random() * variance) + baseValue
-            );
-        };
+
 
         // Use API data directly - trust the backend to return correct data for the period
         const trendData = statsData?.registration_trends || [];
-        let labels, totalRegistrations, candidateRegistrations;
+        let labels = [];
+        let totalRegistrations = [];
+        let candidateRegistrations = [];
         
         if (trendData.length > 0) {
             // Use API data directly - backend returns filtered data for the selected period
@@ -351,27 +544,13 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
             candidateRegistrations = reversedData.map((item: any) => item.candidate_registrations || 0);
             
         } else {
-            // Fallback to sample data only if no API data available
-            console.log(`No API data available, using sample data for ${trendsPeriod}`);
-            labels = generateLabels();
+            // Show empty chart if no data available
+            console.log(`No registration data available for ${trendsPeriod}`);
             
-            switch (trendsPeriod) {
-                case '7days':
-                    totalRegistrations = generateSampleData(7, 20, 30);
-                    candidateRegistrations = generateSampleData(7, 15, 25);
-                    break;
-                case '30days':
-                    totalRegistrations = generateSampleData(30, 15, 25);
-                    candidateRegistrations = generateSampleData(30, 10, 20);
-                    break;
-                case '1year':
-                    totalRegistrations = generateSampleData(12, 300, 200);
-                    candidateRegistrations = generateSampleData(12, 250, 150);
-                    break;
-                default:
-                    totalRegistrations = generateSampleData(7, 20, 30);
-                    candidateRegistrations = generateSampleData(7, 15, 25);
-            }
+            // Generate empty labels based on current time period
+            labels = generateLabels();
+            totalRegistrations = new Array(labels.length).fill(0);
+            candidateRegistrations = new Array(labels.length).fill(0);
         }
 
         return {
@@ -465,7 +644,7 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
 
     return (
         <AdminLayout>
-            <div className="p-8 bg-white text-left">
+            <div className="p-8 bg-white text-left statistics-container" style={{ minHeight: 'auto' }}>
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                     <AdminHeaderDropdown currentUser={currentUser} />
@@ -486,7 +665,7 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
                         <p className="text-gray-600">
                             Overall report on system performance
                             {!loading && (
-                                <span className="ml-2 text-sm text-blue-600 font-medium">
+                                <span className="ml-2 text-sm text-gray-600">
                                     ({getTimePeriodDisplay()})
                                 </span>
                             )}
@@ -501,10 +680,10 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
                         </button>
                         {isExportOpen && (
                             <div className="absolute right-0 mt-2 w-full bg-white border border-gray-200 rounded-md shadow-lg z-10">
-                                <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-[#007BFF]">PDF</a>
-                                <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-[#007BFF]">CSV</a>
-                                <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-[#007BFF]">PNG</a>
-                                <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-[#007BFF]">Word</a>
+                                <button onClick={() => exportData('PDF')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-[#007BFF]">PDF</button>
+                                <button onClick={() => exportData('CSV')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-[#007BFF]">CSV</button>
+                                <button onClick={() => exportData('PNG')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-[#007BFF]">PNG</button>
+                                <button onClick={() => exportData('XLSX')} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-[#007BFF]">Excel</button>
                             </div>
                         )}
                     </div>
@@ -621,7 +800,19 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="h-80"><Line data={getLineData()} options={getLineOptions()} /></div>
+                                <div className="h-80">
+                                    {statsData?.registration_trends?.length > 0 ? (
+                                        <Line data={getLineData()} options={getLineOptions()} />
+                                    ) : (
+                                        <div className="h-full flex items-center justify-center text-gray-500">
+                                            <div className="text-center">
+                                                <div className="text-4xl mb-2">📊</div>
+                                                <p className="text-lg font-medium">No registration data</p>
+                                                <p className="text-sm">No user registrations found for the selected period</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             )}
                         </div>
                     </div>
@@ -636,16 +827,32 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
                             <div className="relative h-48 w-48 mx-auto">
                                 <Doughnut data={getDoughnutData()} options={getDoughnutOptions()} />
                             </div>
-                            <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                                {getDoughnutData().labels.map((label, i) => (
-                                    <div key={label} className="flex items-center justify-between">
+                            <div className="mt-4 text-sm">
+                                <div className="grid grid-cols-2 gap-x-6 gap-y-2 mb-2">
+                                    {getDoughnutData().labels.filter(label => label !== 'Candidates').map((label) => {
+                                        // Find original index for color
+                                        const originalIndex = getDoughnutData().labels.indexOf(label);
+                                        return (
+                                            <div key={label} className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-2.5 h-2.5 rounded-full" style={{backgroundColor: getDoughnutData().datasets[0].backgroundColor[originalIndex]}}></span>
+                                                    <span className="whitespace-nowrap">{label}</span>
+                                                </div>
+                                                <span className="font-medium">{getDoughnutData().datasets[0].data[originalIndex]}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                {/* Candidates row centered */}
+                                {getDoughnutData().labels.includes('Candidates') && (
+                                    <div className="flex items-center justify-center">
                                         <div className="flex items-center gap-2">
-                                            <span className="w-2.5 h-2.5 rounded-full" style={{backgroundColor: getDoughnutData().datasets[0].backgroundColor[i]}}></span>
-                                            <span>{label}</span>
+                                            <span className="w-2.5 h-2.5 rounded-full" style={{backgroundColor: getDoughnutData().datasets[0].backgroundColor[getDoughnutData().labels.indexOf('Candidates')]}}></span>
+                                            <span className="whitespace-nowrap">Candidates</span>
                                         </div>
-                                        <span className="font-medium">{getDoughnutData().datasets[0].data[i]}</span>
+                                        <span className="font-medium ml-3">{getDoughnutData().datasets[0].data[getDoughnutData().labels.indexOf('Candidates')]}</span>
                                     </div>
-                                ))}
+                                )}
                             </div>
                         </div>
 
@@ -668,8 +875,9 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
                                                 <div>
                                                     <p className="font-medium">{activity.user_name || 'Unknown User'}</p>
                                                     <p className="text-gray-500 text-xs">
-                                                        {activity.activity_type === 'user_registration' ? 'New Registration' : activity.activity_type}
-                                                        {activity.role && ` • ${activity.role.toLowerCase()}`}
+                                                        {activity.activity_type.replace(/_/g, ' ').split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                                                        {activity.entity_type && ` • ${activity.entity_type}`}
+                                                        {activity.success === false && ' • Failed'}
                                                     </p>
                                                 </div>
                                             </div>

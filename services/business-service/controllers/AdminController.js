@@ -764,17 +764,20 @@ router.get('/statistics', authenticateToken, requireRole(['ADMIN']), async (req,
 
     const trendResult = await database.query(trendQuery, queryParams, 'get_registration_trends');
 
-    // Get recent activities
+    // Get recent activities from audit logs
     const recentActivitiesQuery = `
       SELECT 
-        'user_registration' as activity_type,
-        u.created_at as activity_date,
-        u.full_name as user_name,
+        al.action as activity_type,
+        al.created_at as activity_date,
+        COALESCE(u.full_name, 'System') as user_name,
         u.email,
-        u.role
-      FROM users u
-      WHERE u.created_at >= NOW() - INTERVAL '7 days'
-      ORDER BY u.created_at DESC
+        u.role,
+        al.entity_type,
+        al.success
+      FROM audit_logs al
+      LEFT JOIN users u ON al.user_id = u.user_id
+      WHERE al.created_at >= NOW() - INTERVAL '7 days'
+      ORDER BY al.created_at DESC
       LIMIT 10
     `;
 
