@@ -1,23 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
-import { FiSearch, FiFilter, FiMoreHorizontal, FiChevronDown } from 'react-icons/fi';
+import { FiSearch, FiChevronDown } from 'react-icons/fi';
  
 import BellIcon from '../../assets/bell-outlined.png';
 import NotificationPanel from './NotificationPanelAdmin';
-import SchemeIcon from '../../assets/scheme.png';
+
 import QuestionDetails from './QuestionDetails'; // Import the new component
 import adminApi from '../../services/adminApi';
 import AdminHeaderDropdown from './AdminHeaderDropdown';
 
-interface QuestionItem {
-  id: number;
-  position: string;
-  createdBy: 'HR';
-  fullName: string;
-  contents: string;
-  status: 'Opening' | 'Closed';
-  created: string;
-  due: string;
+interface TestItem {
+  id: string;
+  test_id: string;
+  job_id: string;
+  test_name: string;
+  test_description: string;
+  time_limit: number;
+  passing_score: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  title: string; // job title
+  company_id: string;
+  company_name: string;
 }
 
 interface QuestionManagementProps {
@@ -31,73 +36,100 @@ const QuestionManagement: React.FC<QuestionManagementProps> = ({ currentUser }) 
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [notifOpen, setNotifOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(true);
-  const [selectedDate, setSelectedDate] = useState('2023-07-19');
-  const dateInputRef = useRef<HTMLInputElement | null>(null);
-  const [selectedQuestionSet, setSelectedQuestionSet] = useState<QuestionItem | null>(null);
+
+  const [selectedTest, setSelectedTest] = useState<TestItem | null>(null);
   
   // API data states
-  const [questions, setQuestions] = useState<QuestionItem[]>([]);
+  const [tests, setTests] = useState<TestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
 
-  const openDatePicker = () => {
-    dateInputRef.current?.showPicker?.();
-    dateInputRef.current?.click();
-  };
+
   
   const [isPageSelectOpen, setIsPageSelectOpen] = useState(false);
   const pageOptions = [10, 20, 30];
   const pageSelectRef = useRef<HTMLDivElement>(null);
 
 
-  // Fetch questions data
+  // Fetch tests data
   useEffect(() => {
-    const fetchQuestions = async () => {
+    const fetchTests = async () => {
       try {
         setLoading(true);
         setError(null);
-        
-        const apiResult = await adminApi.getAllTestsAdmin({ page: currentPage, limit: itemsPerPage });
-        const testsData = apiResult?.data || [];
-        const paginationInfo = apiResult?.pagination;
-        setTotalPages(paginationInfo?.totalPages || 1);
-        setTotalQuestions(paginationInfo?.total || testsData.length);
-        
-        if (Array.isArray(testsData)) {
-          // Transform API data to component format
-          const transformedQuestions = testsData.map((test: any, index: number) => ({
-            id: test.id || index + 1,
-            position: test.position || test.title || 'Unknown Position',
-            createdBy: 'HR' as const,
-            fullName: test.created_by_name || test.creator_name || 'HR Manager',
-            contents: test.title || test.name || test.description || 'Test Questions',
-            status: test.status === 'active' ? 'Opening' as const : 'Closed' as const,
-            created: test.created_at ? new Date(test.created_at).toISOString().split('T')[0] : '2025-06-08',
-            due: test.due_date ? new Date(test.due_date).toISOString().split('T')[0] : '2025-06-08'
-          }));
-          setQuestions(transformedQuestions);
-        } else {
-          setQuestions([]);
+
+        const params: any = {
+          page: currentPage,
+          limit: itemsPerPage
+        };
+
+        if (searchQuery.trim()) {
+          params.search = searchQuery;
         }
-      } catch (err) {
-        console.error('Error fetching questions:', err);
-        setError('Failed to load questions data');
-        setQuestions([]);
+
+        if (statusFilter !== 'all') {
+          params.is_active = statusFilter === 'active';
+        }
+
+        const response = await adminApi.getAllTestsAdmin(params);
+        
+        if (response.success) {
+          const testsData = response.data || [];  // API trả về data trực tiếp là array
+          const paginationInfo = response.pagination;  // pagination ở level root
+          
+          setTests(testsData);
+          setTotalQuestions(paginationInfo?.total || 0);
+          setTotalPages(paginationInfo?.totalPages || 1);
+        } else {
+          setError(response.message || 'Failed to load tests');
+          setTests([]);
+        }
+      } catch (err: any) {
+        console.error('Error fetching tests:', err);
+        setError('Failed to load tests. Please try again.');
+        setTests([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchQuestions();
-  }, [currentPage, itemsPerPage]);
+    fetchTests();
+  }, [currentPage, itemsPerPage, searchQuery, statusFilter]);
 
-  const handleQuestionSetClick = (questionSet: QuestionItem) => {
-    setSelectedQuestionSet(questionSet);
+  const handleTestClick = (test: TestItem) => {
+    setSelectedTest(test);
   };
 
   const handleBackToList = () => {
-    setSelectedQuestionSet(null);
+    setSelectedTest(null);
+  };
+
+  const handleDelete = async (testId: string) => {
+    if (window.confirm('Are you sure you want to delete this test?')) {
+      try {
+        await adminApi.deleteTest(testId);
+        // Refresh the list
+        const response = await adminApi.getAllTestsAdmin({ page: currentPage, limit: itemsPerPage });
+        if (response.success) {
+          setTests(response.data || []);
+          setTotalQuestions(response.pagination?.total || 0);
+        }
+      } catch (error) {
+        console.error('Error deleting test:', error);
+        setError('Failed to delete test');
+      }
+    }
+  };
+
+  const getStatusColor = (isActive: boolean) => {
+    return isActive ? 'border-green-400 bg-green-50 text-green-700' : 'border-red-400 bg-red-50 text-red-700';
+  };
+
+  const getStatusText = (isActive: boolean) => {
+    return isActive ? 'Active' : 'Inactive';
   };
 
 
@@ -116,31 +148,15 @@ const QuestionManagement: React.FC<QuestionManagementProps> = ({ currentUser }) 
         </div>
         <div className="border-t border-gray-200 mb-6"></div>
 
-        {selectedQuestionSet ? (
-          <QuestionDetails questionSet={selectedQuestionSet} onBack={handleBackToList} />
+        {selectedTest ? (
+          <QuestionDetails test={selectedTest} onBack={handleBackToList} />
         ) : (
           <>
             {/* Header */}
-            <div className="flex justify-between items-center mb-6">
+            <div className="mb-6">
               <div className="text-left">
-                <h1 className="text-2xl font-semibold text-gray-800">Question Management</h1>
-                <p className="text-gray-600">Here is your Q&A from July 19 - July 25.</p>
-              </div>
-              <div className="relative">
-                <input
-                  ref={dateInputRef}
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                />
-                <div 
-                  className="flex items-center pl-4 pr-10 py-2 w-48 text-left text-gray-700 border rounded-md bg-white select-none cursor-pointer" 
-                  onClick={openDatePicker}
-                >
-                  <span>{new Date(selectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(new Date(selectedDate).getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { day: 'numeric' })}</span>
-                  <img src={SchemeIcon} alt="calendar" onClick={openDatePicker} className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 cursor-pointer" />
-                </div>
+                <h1 className="text-2xl font-semibold text-gray-800">Test Management</h1>
+                <p className="text-gray-600">Manage tests and their questions for job positions.</p>
               </div>
             </div>
 
@@ -148,7 +164,7 @@ const QuestionManagement: React.FC<QuestionManagementProps> = ({ currentUser }) 
             <div className="mb-6 border-b border-gray-200">
               <nav className="flex space-x-8">
                 <button className="py-4 px-1 border-b-2 font-medium text-sm border-[#007BFF] text-[#007BFF]">
-                  Questions
+                  Tests
                 </button>
               </nav>
             </div>
@@ -157,51 +173,67 @@ const QuestionManagement: React.FC<QuestionManagementProps> = ({ currentUser }) 
             <div className="bg-white rounded-lg border border-gray-200">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
-                  <div className="text-lg font-semibold text-gray-800 text-left">Total Questions: {totalQuestions}</div>
+                  <div className="text-lg font-semibold text-gray-800 text-left">Total Tests: {totalQuestions}</div>
                   <div className="flex items-center space-x-4">
                     <div className="relative">
                       <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input type="text" placeholder="Search roles, contents" className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300" />
+                      <input 
+                        type="text" 
+                        placeholder="Search test names, descriptions" 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-80 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300" 
+                      />
                     </div>
-                    <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg">
-                      <FiFilter />
-                      <span>Filter</span>
-                    </button>
+
                   </div>
                 </div>
 
                 <table className="w-full text-left">
                   <thead>
                     <tr className="text-gray-500 text-sm">
-                      {['Positions', 'Created by', 'Full name', 'Contents', 'Statuses', 'Created', 'Due'].map(header => (
+                      {['Test Name', 'Job Title', 'Company', 'Time Limit', 'Passing Score', 'Status', 'Created', 'Actions'].map(header => (
                         <th key={header} className="pb-4 font-medium">
                           {header} <FiChevronDown className="inline-block" />
                         </th>
                       ))}
-                      <th className="pb-4 font-medium"></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {questions.map((q) => (
+                    {loading ? (
+                      <tr><td colSpan={8} className="text-center py-8">Loading tests...</td></tr>
+                    ) : error ? (
+                      <tr><td colSpan={8} className="text-center py-8 text-red-500">{error}</td></tr>
+                    ) : tests.length === 0 ? (
+                      <tr><td colSpan={8} className="text-center py-8 text-gray-500">No tests found</td></tr>
+                    ) : tests.map((test) => (
                       <tr 
-                        key={q.id} 
+                        key={test.id} 
                         className="border-t border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors"
-                        onClick={() => handleQuestionSetClick(q)}
+                        onClick={() => handleTestClick(test)}
                       >
-                        <td className="py-4 font-medium">{q.position}</td>
+                        <td className="py-4 font-medium">{test.test_name}</td>
+                        <td className="py-4 text-gray-700">{test.title || 'N/A'}</td>
+                        <td className="py-4 text-gray-700">{test.company_name || 'N/A'}</td>
+                        <td className="py-4 text-gray-700">{test.time_limit} mins</td>
+                        <td className="py-4 text-gray-700">{test.passing_score}%</td>
                         <td className="py-4">
-                          <span className="px-3 py-1 rounded-full text-sm border bg-yellow-100 text-yellow-800">{q.createdBy}</span>
-                        </td>
-                        <td className="py-4 text-gray-700">{q.fullName}</td>
-                        <td className="py-4 text-gray-700">{q.contents}</td>
-                        <td className="py-4">
-                          <span className={`px-3 py-1 rounded-full text-sm border ${ q.status === 'Opening' ? 'border-green-400 bg-green-50 text-green-700' : 'border-red-400 bg-red-50 text-red-700' }`}>
-                            {q.status}
+                          <span className={`px-3 py-1 rounded-full text-sm border ${getStatusColor(test.is_active)}`}>
+                            {getStatusText(test.is_active)}
                           </span>
                         </td>
-                        <td className="py-4 text-gray-500">{q.created}</td>
-                        <td className="py-4 text-gray-500">{q.due}</td>
-                        <td className="py-4 text-right"><button className="text-gray-400 hover:text-gray-600"><FiMoreHorizontal /></button></td>
+                        <td className="py-4 text-gray-500">{new Date(test.created_at).toLocaleDateString()}</td>
+                        <td className="py-4 text-left">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(test.test_id);
+                            }}
+                            className="px-3 py-1 rounded-full text-sm border border-red-400 bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

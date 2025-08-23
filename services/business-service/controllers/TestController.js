@@ -22,13 +22,13 @@ const createTestSchema = Joi.object({
   job_id: Joi.string().uuid().required(),
   test_name: Joi.string().required().min(3).max(200),
   test_description: Joi.string().optional(),
-  test_type: Joi.string().valid('MULTIPLE_CHOICE', 'TRUE_FALSE', 'ESSAY', 'CODING', 'MIXED').default('MULTIPLE_CHOICE'),
+  test_type: Joi.string().valid('MULTIPLE_CHOICE', 'TRUE_FALSE', 'ESSAY', 'CODE').default('MULTIPLE_CHOICE'),
   time_limit: Joi.number().min(1).max(480).default(60), // 1 minute to 8 hours
   passing_score: Joi.number().min(0).max(100).default(70),
   is_active: Joi.boolean().default(true),
   questions: Joi.array().items(Joi.object({
     question_text: Joi.string().required(),
-    question_type: Joi.string().valid('MULTIPLE_CHOICE', 'TRUE_FALSE', 'ESSAY', 'CODING').default('MULTIPLE_CHOICE'),
+    question_type: Joi.string().valid('MULTIPLE_CHOICE', 'SINGLE_CHOICE', 'TRUE_FALSE', 'ESSAY', 'CODE').default('MULTIPLE_CHOICE'),
     options: Joi.array().items(Joi.string()).optional(),
     correct_answer: Joi.string().required(),
     points: Joi.number().min(1).max(100).default(1)
@@ -38,9 +38,17 @@ const createTestSchema = Joi.object({
 const updateTestSchema = Joi.object({
   test_name: Joi.string().min(3).max(200).optional(),
   test_description: Joi.string().optional(),
+  test_type: Joi.string().valid('MULTIPLE_CHOICE', 'TRUE_FALSE', 'ESSAY', 'CODE').optional(),
   time_limit: Joi.number().min(1).max(480).optional(),
   passing_score: Joi.number().min(0).max(100).optional(),
-  is_active: Joi.boolean().optional()
+  is_active: Joi.boolean().optional(),
+  questions: Joi.array().items(Joi.object({
+    question_text: Joi.string().required(),
+    question_type: Joi.string().valid('MULTIPLE_CHOICE', 'SINGLE_CHOICE', 'TRUE_FALSE', 'ESSAY', 'CODE').default('MULTIPLE_CHOICE'),
+    options: Joi.array().items(Joi.string()).optional(),
+    correct_answer: Joi.string().required(),
+    points: Joi.number().min(1).max(100).default(1)
+  })).optional()
 });
 
 const assignTestSchema = Joi.object({
