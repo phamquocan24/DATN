@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNotifications } from '../../hooks/useNotifications';
 import { FiSearch, FiFilter, FiMoreHorizontal, FiChevronDown } from 'react-icons/fi';
 import AdminLayout from './AdminLayout';
 
@@ -29,12 +30,12 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [hasUnread, setHasUnread] = useState(true);
+  // Use notifications hook
+  const { unreadCount, markAllAsRead } = useNotifications();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [totalJobs, setTotalJobs] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
 
   // Date picker state from Dashboard
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -51,8 +52,7 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
   useEffect(() => {
     const fetchJobs = async () => {
       try {
-        setLoading(true);
-        setError(null);
+
         const apiResult = await adminApi.getAllJobs({ page: currentPage, limit: itemsPerPage });
         const jobsData = apiResult?.data || [];
         const paginationInfo = apiResult?.pagination;
@@ -80,9 +80,7 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
         setJobs(formattedJobs);
       } catch (err) {
         console.error('Error fetching jobs:', err);
-        setError('Failed to load jobs data');
-      } finally {
-        setLoading(false);
+        console.error('Failed to load jobs data', err);
       }
     };
 
@@ -176,13 +174,17 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
           <div className="flex items-center space-x-6 relative">
             <button onClick={() => setNotifOpen(!notifOpen)} className="relative focus:outline-none">
               <img src={BellIcon} alt="Notifications" className="w-5 h-5" />
-              {hasUnread && <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />}
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 text-red-500 text-xs font-bold">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </button>
             <button className="text-white flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-[#007BFF]">
               <span className="mr-2 text-lg leading-none">+</span>
               Add new job
             </button>
-            <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} position="header" onMarkAllAsRead={() => setHasUnread(false)} />
+            <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} position="header" onMarkAllAsRead={markAllAsRead} />
           </div>
         </div>
 

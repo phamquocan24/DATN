@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
+import { useNotifications } from '../../hooks/useNotifications';
 
 import BellIcon from '../../assets/bell-outlined.png';
 import NotificationPanel from './NotificationPanelAdmin';
@@ -115,7 +116,7 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
 
   // Notification logic
   const [notifOpen, setNotifOpen] = useState(false);
-  const [hasUnread, setHasUnread] = useState(true);
+  const { unreadCount, markAllAsRead } = useNotifications();
 
   // Fetch dashboard data
   useEffect(() => {
@@ -279,7 +280,11 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
             {/* Notification */}
             <button onClick={toggleNotif} className="relative focus:outline-none">
               <img src={BellIcon} alt="Notifications" className="w-5 h-5" />
-              {hasUnread && <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />}
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 text-red-500 text-xs font-bold">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </button>
 
             {/* Add account button */}
@@ -293,7 +298,7 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
               isOpen={notifOpen}
               onClose={() => setNotifOpen(false)}
               position="header"
-              onMarkAllAsRead={() => setHasUnread(false)}
+              onMarkAllAsRead={markAllAsRead}
             />
           </div>
         </div>

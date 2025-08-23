@@ -10,6 +10,7 @@ import BellIcon from '../../assets/bell-outlined.png';
 import NotificationPanel from './NotificationPanelAdmin';
 import adminApi from '../../services/adminApi';
 import AdminHeaderDropdown from './AdminHeaderDropdown';
+import { useNotifications } from '../../hooks/useNotifications';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Filler);
 
@@ -19,7 +20,7 @@ interface StatisticsProps {
 
 const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
     const [notifOpen, setNotifOpen] = useState(false);
-    const [hasUnread, setHasUnread] = useState(true);
+    const { unreadCount, markAllAsRead } = useNotifications();
     const [isExportOpen, setIsExportOpen] = useState(false);
     const exportRef = useRef<HTMLDivElement>(null);
     const trendsDropdownRef = useRef<HTMLDivElement>(null);
@@ -651,9 +652,13 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
                     <div className="flex items-center space-x-6 relative">
                         <button onClick={() => setNotifOpen(!notifOpen)} className="relative focus:outline-none">
                             <img src={BellIcon} alt="Notifications" className="w-5 h-5" />
-                            {hasUnread && <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />}
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-1 -right-1 text-red-500 text-xs font-bold">
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                </span>
+                            )}
                         </button>
-                        <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} position="header" onMarkAllAsRead={() => setHasUnread(false)} />
+                        <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} position="header" onMarkAllAsRead={markAllAsRead} />
                     </div>
                 </div>
 

@@ -209,6 +209,58 @@ export const adminApi = {
     return response.data;
   },
 
+  // Notifications Management
+  getAllNotifications: async (params?: { 
+    is_read?: boolean; 
+    type?: string; 
+    priority?: string; 
+    page?: number; 
+    limit?: number;
+    orderBy?: string;
+    direction?: string;
+  }) => {
+    const response = await apiClient.get('/api/v1/notifications', { params });
+    return response.data;
+  },
+
+  createNotification: async (notificationData: {
+    title: string;
+    message: string;
+    type: string;
+    data?: object;
+    priority?: string;
+    send_email?: boolean;
+    send_sms?: boolean;
+  }) => {
+    const response = await apiClient.post('/api/v1/notifications', notificationData);
+    return response.data;
+  },
+
+  getNotificationById: async (notificationId: string) => {
+    const response = await apiClient.get(`/api/v1/notifications/${notificationId}`);
+    return response.data;
+  },
+
+  deleteNotification: async (notificationId: string) => {
+    const response = await apiClient.delete(`/api/v1/notifications/${notificationId}`);
+    return response.data;
+  },
+
+  markNotificationAsRead: async (notificationId: string) => {
+    const response = await apiClient.put(`/api/v1/notifications/${notificationId}/read`);
+    return response.data;
+  },
+
+  markAllNotificationsAsRead: async () => {
+    const response = await apiClient.put('/api/v1/notifications/mark-all-read');
+    return response.data;
+  },
+
+  getUnreadCount: async () => {
+    const response = await apiClient.get('/api/v1/notifications/unread/count');
+    return response.data;
+  },
+
   // Activity Logs Management
   getLogs: async (params?: { 
     page?: number; 

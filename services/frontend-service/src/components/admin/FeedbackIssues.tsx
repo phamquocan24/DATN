@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
 import { FiSearch, FiFilter, FiChevronDown, FiMoreHorizontal, FiBold, FiItalic, FiLink, FiX, FiSmile, FiList } from 'react-icons/fi';
+import { useNotifications } from '../../hooks/useNotifications';
 import AvatarImg from '../../assets/Avatar17.png';
 import BellIcon from '../../assets/bell-outlined.png';
 import NotificationPanel from './NotificationPanelAdmin';
@@ -25,7 +26,7 @@ const FeedbackIssues: React.FC<FeedbackIssuesProps> = ({ currentUser }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [notifOpen, setNotifOpen] = useState(false);
-    const [hasUnread, setHasUnread] = useState(true);
+    const { unreadCount, markAllAsRead } = useNotifications();
     const [selectedDate, setSelectedDate] = useState('2023-07-19');
     const dateInputRef = useRef<HTMLInputElement | null>(null);
     const [isPageSelectOpen, setIsPageSelectOpen] = useState(false);
@@ -116,8 +117,15 @@ const FeedbackIssues: React.FC<FeedbackIssuesProps> = ({ currentUser }) => {
                 <div className="flex items-center justify-between mb-6">
                     <AdminHeaderDropdown currentUser={currentUser} />
                     <div className="flex items-center space-x-6 relative">
-                        <button onClick={() => setNotifOpen(!notifOpen)} className="relative focus:outline-none"><img src={BellIcon} alt="Notifications" className="w-5 h-5" />{hasUnread && <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />}</button>
-                        <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} position="header" onMarkAllAsRead={() => setHasUnread(false)} />
+                        <button onClick={() => setNotifOpen(!notifOpen)} className="relative focus:outline-none">
+                            <img src={BellIcon} alt="Notifications" className="w-5 h-5" />
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-1 -right-1 text-red-500 text-xs font-bold">
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                </span>
+                            )}
+                        </button>
+                        <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} position="header" onMarkAllAsRead={markAllAsRead} />
                     </div>
                 </div>
                 <div className="border-t border-gray-200 mb-6"></div>

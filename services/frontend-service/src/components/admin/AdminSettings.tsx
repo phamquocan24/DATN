@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
+import { useNotifications } from '../../hooks/useNotifications';
 import AdminMyProfileSettings from './AdminMyProfileSettings';
 import AdminLoginDetailsSettings from './AdminLoginDetailsSettings';
 import AdminNotificationsSettings from './AdminNotificationsSettings';
@@ -14,7 +15,7 @@ interface AdminSettingsProps {
 const AdminSettings: React.FC<AdminSettingsProps> = ({ currentUser }) => {
   const [activeTab, setActiveTab] = useState<'my-profile' | 'login-details' | 'notifications'>('my-profile');
   const [notifOpen, setNotifOpen] = useState(false);
-  const [hasUnread, setHasUnread] = useState(true);
+  const { unreadCount, markAllAsRead } = useNotifications();
   const navigate = useNavigate();
 
   const renderTabContent = () => {
@@ -46,9 +47,13 @@ const AdminSettings: React.FC<AdminSettingsProps> = ({ currentUser }) => {
             <div className="relative">
               <button onClick={() => setNotifOpen(!notifOpen)} className="relative focus:outline-none">
                 <img src={BellIcon} alt="Notifications" className="w-5 h-5" />
-                {hasUnread && <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />}
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 text-red-500 text-xs font-bold">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
               </button>
-              <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} position="header" onMarkAllAsRead={() => setHasUnread(false)} />
+              <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} position="header" onMarkAllAsRead={markAllAsRead} />
             </div>
           </div>
         </div>

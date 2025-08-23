@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, BellRing, Calendar, Clock, User, AlertCircle, Briefcase, FileText, Users, X, Settings } from 'lucide-react';
-import { notificationApi, type Notification, type NotificationType } from '../../services/notificationApi';
+import { Bell, AlertCircle, Briefcase, FileText, Users, X } from 'lucide-react';
+import { adminApi } from '../../services/adminApi';
 
 interface NotificationPanelProps {
   isOpen: boolean;
@@ -9,17 +9,29 @@ interface NotificationPanelProps {
   onMarkAllAsRead?: () => void;
 }
 
+interface Notification {
+  notification_id: string;
+  title: string;
+  message: string;
+  type: string;
+  priority: string;
+  is_read: boolean;
+  created_at: string;
+  read_at?: string;
+  action_url?: string;
+  action_type?: string;
+  data?: any;
+}
+
 const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose, position = 'header', onMarkAllAsRead }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [unreadCount, setUnreadCount] = useState(0);
 
   // Load notifications on component mount
   useEffect(() => {
     if (isOpen) {
       loadNotifications();
-      loadUnreadCount();
     }
   }, [isOpen]);
 
@@ -27,37 +39,33 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose, 
     try {
       setLoading(true);
       setError(null);
-      // Admin users should see SYSTEM_UPDATE notifications and all types for management
-      const response = await notificationApi.getNotifications({
+      // Admin users should see all notifications for management
+      const response = await adminApi.getAllNotifications({
         limit: 20,
         orderBy: 'created_at',
         direction: 'DESC'
       });
-      setNotifications(response.data);
+      
+      // Handle different response structures
+      const notificationData = response.data ?? response;
+      setNotifications(Array.isArray(notificationData) ? notificationData : []);
     } catch (err) {
       setError('Failed to load notifications');
       console.error('Error loading notifications:', err);
+      setNotifications([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadUnreadCount = async () => {
-    try {
-      const response = await notificationApi.getUnreadCount();
-      setUnreadCount(response.data.unread_count);
-    } catch (err) {
-      console.error('Error loading unread count:', err);
-    }
-  };
+
 
   const markAsRead = async (notificationId: string) => {
     try {
-      await notificationApi.markAsRead(notificationId);
+      await adminApi.markNotificationAsRead(notificationId);
       setNotifications(prev => prev.map(notif => 
         notif.notification_id === notificationId ? { ...notif, is_read: true, read_at: new Date().toISOString() } : notif
       ));
-      setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (err) {
       console.error('Error marking notification as read:', err);
     }
@@ -65,13 +73,12 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose, 
 
   const markAllAsRead = async () => {
     try {
-      await notificationApi.markAllAsRead();
+      await adminApi.markAllNotificationsAsRead();
       setNotifications(prev => prev.map(notif => ({ 
         ...notif, 
         is_read: true, 
         read_at: new Date().toISOString() 
       })));
-      setUnreadCount(0);
       onMarkAllAsRead?.();
     } catch (err) {
       console.error('Error marking all notifications as read:', err);
@@ -80,30 +87,28 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose, 
 
   const deleteNotification = async (notificationId: string) => {
     try {
-      await notificationApi.deleteNotification(notificationId);
+      await adminApi.deleteNotification(notificationId);
       setNotifications(prev => prev.filter(notif => notif.notification_id !== notificationId));
-      loadUnreadCount();
     } catch (err) {
       console.error('Error deleting notification:', err);
     }
   };
 
   // Helper function to get notification icon (admin-focused)
-  const getNotificationIcon = (type: NotificationType) => {
+  const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'SYSTEM_UPDATE':
-        return <Settings className="w-5 h-5 text-blue-500" />;
-      case 'NEW_APPLICATION':
+      case 'INFO':
+        return <Bell className="w-5 h-5 text-blue-500" />;
+      case 'SUCCESS':
         return <Users className="w-5 h-5 text-green-500" />;
-      case 'APPLICATION_UPDATE':
-        return <Briefcase className="w-5 h-5 text-blue-500" />;
-      case 'INTERVIEW_SCHEDULED':
-        return <Calendar className="w-5 h-5 text-green-500" />;
-      case 'TEST_ASSIGNED':
-        return <FileText className="w-5 h-5 text-purple-500" />;
-      case 'JOB_MATCH':
+      case 'WARNING':
+        return <AlertCircle className="w-5 h-5 text-yellow-500" />;
+      case 'ERROR':
+        return <AlertCircle className="w-5 h-5 text-red-500" />;
+      case 'JOB_ALERT':
         return <Briefcase className="w-5 h-5 text-orange-500" />;
-      case 'GENERAL':
+      case 'APPLICATION_UPDATE':
+        return <FileText className="w-5 h-5 text-purple-500" />;
       default:
         return <Bell className="w-5 h-5 text-gray-500" />;
     }
@@ -131,8 +136,13 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose, 
       case 'MEDIUM':
         return 'border-l-yellow-500';
       case 'LOW':
-      default:
         return 'border-l-green-500';
+      case 'URGENT':
+        return 'border-l-red-600';
+      case 'NORMAL':
+        return 'border-l-blue-500';
+      default:
+        return 'border-l-gray-500';
     }
   };
 
@@ -206,7 +216,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose, 
                       <div className="flex items-center space-x-2">
                         {notification.priority === 'HIGH' && (
                           <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">
-                            High Priority
+                            Priority
                           </span>
                         )}
                         <button
@@ -229,12 +239,12 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose, 
                         {formatTime(notification.created_at)}
                       </p>
                       <span className={`text-xs px-2 py-1 rounded-full ${
-                        notification.type === 'SYSTEM_UPDATE' ? 'bg-blue-100 text-blue-700' :
-                        notification.type === 'NEW_APPLICATION' ? 'bg-green-100 text-green-700' :
-                        notification.type === 'APPLICATION_UPDATE' ? 'bg-blue-100 text-blue-700' :
-                        notification.type === 'INTERVIEW_SCHEDULED' ? 'bg-purple-100 text-purple-700' :
-                        notification.type === 'TEST_ASSIGNED' ? 'bg-orange-100 text-orange-700' :
-                        notification.type === 'JOB_MATCH' ? 'bg-yellow-100 text-yellow-700' :
+                        notification.type === 'ERROR' ? 'bg-red-100 text-red-700' :
+                        notification.type === 'WARNING' ? 'bg-yellow-100 text-yellow-700' :
+                        notification.type === 'SUCCESS' ? 'bg-green-100 text-green-700' :
+                        notification.type === 'INFO' ? 'bg-blue-100 text-blue-700' :
+                        notification.type === 'JOB_ALERT' ? 'bg-orange-100 text-orange-700' :
+                        notification.type === 'APPLICATION_UPDATE' ? 'bg-purple-100 text-purple-700' :
                         'bg-gray-100 text-gray-700'
                       }`}>
                         {notification.type.replace('_', ' ')}
@@ -271,12 +281,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose, 
           )}
         </div>
         
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-200 text-center">
-          <button className="text-[#007BFF] hover:text-[#0056b3] text-sm font-medium">
-            View all notifications
-          </button>
-        </div>
+
       </div>
     </>
   );

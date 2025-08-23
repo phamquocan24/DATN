@@ -204,7 +204,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose, 
                       <div className="flex items-center space-x-2">
                         {notification.priority === 'HIGH' && (
                           <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">
-                            High Priority
+                            Priority
                           </span>
                         )}
                         <button

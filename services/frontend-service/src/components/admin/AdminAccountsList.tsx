@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiSearch, FiChevronDown } from 'react-icons/fi';
+import { useNotifications } from '../../hooks/useNotifications';
 import AdminLayout from './AdminLayout';
 import AdminCreateUserForm from './AdminCreateUserForm';
 
@@ -25,7 +26,7 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
   
 
   const [notifOpen, setNotifOpen] = useState(false);
-  const [hasUnread, setHasUnread] = useState(true);
+  const { unreadCount, markAllAsRead } = useNotifications();
   const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
   const navigate = useNavigate();
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
@@ -323,7 +324,11 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
           {/* Notification */}
           <button onClick={() => setNotifOpen(!notifOpen)} className="relative focus:outline-none">
             <img src={BellIcon} alt="Notifications" className="w-5 h-5" />
-            {hasUnread && <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />}
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 text-red-500 text-xs font-bold">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
           </button>
 
           {/* Add account button */}
@@ -341,7 +346,7 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
             isOpen={notifOpen}
             onClose={() => setNotifOpen(false)}
             position="header"
-            onMarkAllAsRead={() => setHasUnread(false)}
+            onMarkAllAsRead={markAllAsRead}
           />
         </div>
       </div>

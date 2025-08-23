@@ -200,7 +200,7 @@ class NotificationAPI {
   }
 
   /**
-   * Get high priority notifications
+   * Get Priority notifications
    */
   async getHighPriorityNotifications(limit: number = 10): Promise<NotificationResponse<Notification[]>> {
     return this.getNotifications({
