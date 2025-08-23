@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiSearch, FiMoreHorizontal, FiChevronDown } from 'react-icons/fi';
+import { FiSearch, FiChevronDown } from 'react-icons/fi';
 import AdminLayout from './AdminLayout';
 import AdminCreateUserForm from './AdminCreateUserForm';
 
@@ -51,6 +51,25 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // State for filter dropdowns
+  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const roleDropdownRef = useRef<HTMLDivElement>(null);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
+  
+  const roleOptions = [
+    { value: 'all', label: 'All Roles' },
+    { value: 'candidate', label: 'Candidate' },
+    { value: 'recruiter', label: 'HR' },
+    { value: 'admin', label: 'Admin' }
+  ];
+  
+  const statusOptions = [
+    { value: 'all', label: 'All Status' },
+    { value: 'active', label: 'Active' },
+    { value: 'inactive', label: 'Locked' }
+  ];
   
   // Modal states
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
@@ -147,12 +166,18 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
       if (pageSelectRef.current && !pageSelectRef.current.contains(event.target as Node)) {
         setIsPageSelectOpen(false);
       }
+      if (roleDropdownRef.current && !roleDropdownRef.current.contains(event.target as Node)) {
+        setIsRoleDropdownOpen(false);
+      }
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
+        setIsStatusDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [pageSelectRef]);
+  }, [pageSelectRef, roleDropdownRef, statusDropdownRef]);
   
   const handleDeactivate = (e: React.MouseEvent, userId: number, userEmail: string) => {
     e.stopPropagation(); // Prevent navigation
@@ -287,7 +312,7 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
 
   return (
     <AdminLayout>
-    <div className="p-8">
+    <div className="p-8 bg-white">
       {/* Top Admin Bar */}
       <div className="flex items-center justify-between mb-6">
         {/* User Info */}
@@ -324,155 +349,192 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
       {/* Divider */}
       <div className="border-t border-gray-200 mb-6"></div>
 
-      {/* Controls (Total Accounts + Search / Filter / Toggle) */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-        {/* Total Accounts */}
-        <h1 className="text-2xl font-medium text-gray-900 whitespace-nowrap">
-          Total Accounts : {pagination ? pagination.total : accounts.length}
-        </h1>
-
-        {/* Right Controls */}
-        <div className="flex items-center gap-4 flex-wrap">
-          {/* Search */}
-          <div className="relative w-64">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search name, email"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-            />
-          </div>
-
-          {/* Role Filter */}
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 min-w-[140px]"
-          >
-            <option value="all">All Roles</option>
-            <option value="candidate">Candidate</option>
-            <option value="recruiter">HR</option>
-            <option value="admin">Admin</option>
-          </select>
-
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 min-w-[140px]"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Locked</option>
-          </select>
-
-
+      {/* Sub-header for List View */}
+      <div className="flex justify-between items-center mb-6">
+        <div className="text-left">
+          <h1 className="text-2xl font-semibold text-gray-800">Accounts</h1>
+          <p className="text-gray-600">Manage user accounts and their permissions.</p>
         </div>
       </div>
 
-      {/* Table */}
+      {/* Tabs and Table */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="flex space-x-8">
+          <button className="py-4 px-1 border-b-2 border-[#007BFF] text-[#007BFF] font-medium text-sm">Accounts</button>
+        </nav>
+      </div>
       <div className="bg-white rounded-lg border border-gray-200">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-gray-200">
-              <th className="w-6 p-4">
-                <input type="checkbox" className="rounded border-gray-300" />
-              </th>
-              <th className="px-6 py-4 text-left font-medium text-gray-600 w-1/4">Full Name <FiChevronDown className="inline-block ml-1 text-gray-400" /></th>
-              <th className="px-6 py-4 text-left font-medium text-gray-600 w-1/4">Email <FiChevronDown className="inline-block ml-1 text-gray-400" /></th>
-              <th className="px-6 py-4 text-left font-medium text-gray-600 w-1/6">Status <FiChevronDown className="inline-block ml-1 text-gray-400" /></th>
-              <th className="px-6 py-4 text-left font-medium text-gray-600 w-1/6">Type <FiChevronDown className="inline-block ml-1 text-gray-400" /></th>
-              <th className="px-6 py-4 text-left font-medium text-gray-600 w-1/6">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr><td colSpan={6} className="text-center p-4">Loading accounts...</td></tr>
-            ) : error ? (
-              <tr><td colSpan={6} className="text-center p-4 text-red-500">{error}</td></tr>
-            ) : accounts.map((account) => (
-              <tr key={account.id} className={`border-b border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors ${account.status === 'Locked' ? 'bg-red-50 opacity-75' : ''}`} onClick={() => {
-                const path = account.type === 'Candidate' ? `/admin/candidates/${account.id}` : 
-                             account.type === 'Admin' ? `/admin/admins/${account.id}` :
-                             `/admin/hr/${account.id}`;
-                navigate(path);
-              }}>
-                <td className="p-4">
-                  <input type="checkbox" className="rounded border-gray-300" />
-                </td>
-                <td className="px-6 py-4 text-left">
-                  <div className="flex items-center gap-3">
-                    <img src={`https://i.pravatar.cc/40?u=${account.id}`} alt={account.fullName} className="w-10 h-10 rounded-full" />
-                    <span className="font-medium text-left">{account.fullName}</span>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-left text-gray-600">{account.email}</td>
-                <td className="px-6 py-4 text-left">
-                  <span className={`px-3 py-1 rounded-full text-sm ${
-                    account.status === 'Active' 
-                      ? 'bg-green-100 text-green-600' 
-                      : 'bg-red-100 text-red-600'
-                  }`}>
-                    {account.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-left">
-                  <span className={`px-3 py-1 rounded-full text-sm ${
-                    account.type === 'HR'
-                      ? 'bg-yellow-100 text-yellow-600'
-                      : account.type === 'Admin'
-                      ? 'bg-red-100 text-red-600'
-                      : 'bg-blue-100 text-blue-600'
-                  }`}>
-                    {account.type}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-left">
-                  <div className="flex items-center gap-2">
-                    {account.status === 'Active' ? (
-                      <button 
-                        onClick={(e) => handleDeactivate(e, account.id, account.email)}
-                        className="px-3 py-1 text-sm border border-orange-500 text-orange-500 rounded hover:bg-orange-50"
-                        disabled={isLoading}
+        {/* Table content and search controls */}
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
+            <div className="text-lg font-semibold text-gray-800 text-left">Total Accounts: {pagination ? pagination.total : accounts.length}</div>
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search name, email" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300" 
+                />
+              </div>
+              <div ref={roleDropdownRef} className="relative inline-block">
+                <button
+                  onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
+                  className="flex items-center justify-between w-32 px-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:border-[#007BFF]"
+                >
+                  <span>{roleOptions.find(option => option.value === roleFilter)?.label}</span>
+                  <FiChevronDown className="text-gray-500" />
+                </button>
+                {isRoleDropdownOpen && (
+                  <div className="absolute top-full mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                    {roleOptions.map((option) => (
+                      <div
+                        key={option.value}
+                        onClick={() => {
+                          setRoleFilter(option.value);
+                          setIsRoleDropdownOpen(false);
+                        }}
+                        className="px-4 py-2 text-left cursor-pointer hover:bg-[#007BFF] hover:text-white transition-colors"
                       >
-                        {isLoading ? 'Processing...' : 'Deactivate'}
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={(e) => handleReactivate(e, account.id, account.email)}
-                        className="px-3 py-1 text-sm border border-green-500 text-green-500 rounded hover:bg-green-50"
-                        disabled={isLoading}
-                      >
-                        {isLoading ? 'Processing...' : 'Reactivate'}
-                      </button>
-                    )}
-                    <button className="px-3 py-1 text-sm border border-blue-500 text-blue-500 rounded hover:bg-blue-50" onClick={(e) => {
-                      e.stopPropagation(); 
-                      const path = account.type === 'Candidate' ? `/admin/candidates/${account.id}` : 
-                                   account.type === 'Admin' ? `/admin/admins/${account.id}` :
-                                   `/admin/hr/${account.id}`; 
-                      navigate(path);
-                    }}>
-                      Details
-                    </button>
-                    <button className="p-1 hover:bg-gray-100 rounded">
-                      <FiMoreHorizontal className="text-gray-600" />
-                    </button>
+                        {option.label}
+                      </div>
+                    ))}
                   </div>
-                </td>
+                )}
+              </div>
+              <div ref={statusDropdownRef} className="relative inline-block">
+                <button
+                  onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                  className="flex items-center justify-between w-32 px-4 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:border-[#007BFF]"
+                >
+                  <span>{statusOptions.find(option => option.value === statusFilter)?.label}</span>
+                  <FiChevronDown className="text-gray-500" />
+                </button>
+                {isStatusDropdownOpen && (
+                  <div className="absolute top-full mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                    {statusOptions.map((option) => (
+                      <div
+                        key={option.value}
+                        onClick={() => {
+                          setStatusFilter(option.value);
+                          setIsStatusDropdownOpen(false);
+                        }}
+                        className="px-4 py-2 text-left cursor-pointer hover:bg-[#007BFF] hover:text-white transition-colors"
+                      >
+                        {option.label}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <table className="w-full text-left">
+            <thead>
+              <tr className="text-gray-500 text-sm">
+                <th className="pb-4 font-medium">Full Name <FiChevronDown className="inline-block" /></th>
+                <th className="pb-4 font-medium">Email <FiChevronDown className="inline-block" /></th>
+                <th className="pb-4 font-medium">Status <FiChevronDown className="inline-block" /></th>
+                <th className="pb-4 font-medium">Type <FiChevronDown className="inline-block" /></th>
+                <th className="pb-4 font-medium text-left w-48">Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr><td colSpan={5} className="text-center p-4">Loading accounts...</td></tr>
+              ) : error ? (
+                <tr><td colSpan={5} className="text-center p-4 text-red-500">{error}</td></tr>
+              ) : accounts.map((account) => (
+                <tr 
+                  key={account.id} 
+                  className="border-t border-gray-100 hover:bg-blue-50 hover:rounded-md cursor-pointer transition-colors"
+                  onClick={() => {
+                    const path = account.type === 'Candidate' ? `/admin/candidates/${account.id}` : 
+                                 account.type === 'Admin' ? `/admin/admins/${account.id}` :
+                                 `/admin/hr/${account.id}`;
+                    navigate(path);
+                  }}
+                >
+                  <td className="py-4 font-medium">
+                    <div className="flex items-center gap-3">
+                      <img src={`https://i.pravatar.cc/40?u=${account.id}`} alt={account.fullName} className="w-10 h-10 rounded-full" />
+                      <span>{account.fullName}</span>
+                    </div>
+                  </td>
+                  <td className="py-4 text-gray-500">{account.email}</td>
+                  <td className="py-4">
+                    <span className={`px-3 py-1 rounded-full text-sm border ${
+                      account.status === 'Active' 
+                        ? 'border-green-500 text-green-500 bg-green-50' 
+                        : 'border-red-500 text-red-500 bg-red-50'
+                    }`}>
+                      {account.status}
+                    </span>
+                  </td>
+                  <td className="py-4">
+                    <span className={`px-3 py-1 rounded-full text-sm border ${
+                      account.type === 'HR'
+                        ? 'border-yellow-500 text-yellow-500 bg-yellow-50'
+                        : account.type === 'Admin'
+                        ? 'border-red-500 text-red-500 bg-red-50'
+                        : 'border-blue-500 text-blue-500 bg-blue-50'
+                    }`}>
+                      {account.type}
+                    </span>
+                  </td>
+                  <td className="py-4 text-left w-48">
+                    <div className="flex items-center space-x-2 justify-start">
+                      {account.status === 'Active' ? (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeactivate(e, account.id, account.email);
+                          }}
+                          className="px-3 py-1 rounded-full text-sm border border-red-500 text-red-500 bg-red-50 hover:bg-red-100 transition-colors"
+                          disabled={isLoading}
+                        >
+                          {isLoading ? 'Processing...' : 'Deactivate'}
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReactivate(e, account.id, account.email);
+                          }}
+                          className="px-3 py-1 rounded-full text-sm border border-green-500 text-green-500 bg-green-50 hover:bg-green-100 transition-colors"
+                          disabled={isLoading}
+                        >
+                          {isLoading ? 'Processing...' : 'Reactivate'}
+                        </button>
+                      )}
+                      <button 
+                        className="px-3 py-1 rounded-full text-sm border border-[#007BFF] text-[#007BFF] bg-blue-50 hover:bg-blue-100 transition-colors" 
+                        onClick={(e) => {
+                          e.stopPropagation(); 
+                          const path = account.type === 'Candidate' ? `/admin/candidates/${account.id}` : 
+                                       account.type === 'Admin' ? `/admin/admins/${account.id}` :
+                                       `/admin/hr/${account.id}`; 
+                          navigate(path);
+                        }}
+                      >
+                        Details
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
         {/* Pagination */}
-        <div className="px-4 py-4 flex items-center justify-between border-t border-gray-200">
+        <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200">
           <div className="flex items-center gap-2">
             <span className="text-gray-600">View</span>
             <div ref={pageSelectRef} className="relative inline-block">
-              {/* Custom Select Button */}
               <button
                 onClick={() => setIsPageSelectOpen(!isPageSelectOpen)}
                 className="flex items-center justify-between w-16 border border-gray-300 rounded px-2 py-0.5 bg-white focus:outline-none focus:border-[#007BFF]"
@@ -480,8 +542,6 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
                 <span>{accountsPerPage}</span>
                 <FiChevronDown className="text-gray-500" />
               </button>
-
-              {/* Custom Dropdown Options */}
               {isPageSelectOpen && (
                 <div className="absolute bottom-full mb-1 w-16 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                   {pageOptions.map((option) => (
@@ -489,6 +549,7 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
                       key={option}
                       onClick={() => {
                         setAccountsPerPage(option);
+                        setCurrentPage(1);
                         setIsPageSelectOpen(false);
                       }}
                       className="px-2 py-0.5 text-center cursor-pointer hover:bg-[#007BFF] hover:text-white"
@@ -501,45 +562,31 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
             </div>
             <span className="text-gray-600 whitespace-nowrap">Accounts per page</span>
           </div>
-          
           <div className="flex items-center gap-2">
-            {/* Previous Button */}
-            <button 
-              onClick={goToPreviousPage}
-              disabled={!pagination?.hasPrev}
-              className={`min-w-[32px] h-8 px-2 flex items-center justify-center border rounded ${
-                pagination?.hasPrev 
-                  ? 'border-gray-300 hover:bg-gray-50 cursor-pointer' 
-                  : 'border-gray-200 text-gray-400 cursor-not-allowed'
-              }`}
+            <button
+              disabled={currentPage === 1}
+              onClick={() => goToPreviousPage()}
+              className={`min-w-[32px] h-8 px-2 flex items-center justify-center border rounded ${currentPage === 1 ? 'border-gray-200 text-gray-300 cursor-not-allowed' : 'border-gray-300 hover:bg-gray-50'}`}
             >
               &lt;
             </button>
-            
-            {/* Page Numbers */}
             {getPageNumbers().map((page) => (
               <button
                 key={page}
-                onClick={() => goToPage(page)}
                 className={`min-w-[32px] h-8 px-2 flex items-center justify-center rounded ${
                   currentPage === page
                     ? 'bg-[#007BFF] text-white'
-                    : 'border border-[#007BFF] text-[#007BFF] hover:bg-blue-50'
+                    : 'border border-transparent text-[#007BFF] hover:bg-blue-50'
                 }`}
+                onClick={() => goToPage(page)}
               >
                 {page}
               </button>
             ))}
-            
-            {/* Next Button */}
-            <button 
-              onClick={goToNextPage}
-              disabled={!pagination?.hasNext}
-              className={`min-w-[32px] h-8 px-2 flex items-center justify-center border rounded ${
-                pagination?.hasNext 
-                  ? 'border-gray-300 hover:bg-gray-50 cursor-pointer' 
-                  : 'border-gray-200 text-gray-400 cursor-not-allowed'
-              }`}
+            <button
+              disabled={currentPage === (pagination?.totalPages || 1)}
+              onClick={() => goToNextPage()}
+              className={`min-w-[32px] h-8 px-2 flex items-center justify-center border rounded ${currentPage === (pagination?.totalPages || 1) ? 'border-gray-200 text-gray-300 cursor-not-allowed' : 'border-gray-300 hover:bg-gray-50'}`}
             >
               &gt;
             </button>

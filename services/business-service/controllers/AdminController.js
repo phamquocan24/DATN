@@ -3,7 +3,9 @@ const Joi = require('joi');
 const crypto = require('crypto');
 const User = require('../models/User');
 const Company = require('../models/Company');
+const { Database } = require('../models/Database');
 const { authenticateToken, requireRole } = require('../modules/auth');
+const { auditLogger } = require('../middleware/auditLogger');
 const winston = require('winston');
 
 const router = express.Router();
@@ -25,6 +27,7 @@ const logger = winston.createLogger({
 // Initialize models
 const userModel = new User();
 const companyModel = new Company();
+const database = new Database();
 
 // Validation schemas
 const updateUserStatusSchema = Joi.object({
@@ -239,7 +242,7 @@ router.get('/users/:user_id', authenticateToken, requireRole(['ADMIN']), async (
           JOIN companies c ON rp.company_id = c.company_id
           WHERE rp.user_id = $1
         `;
-        const companiesResult = await userModel.db.query(companiesQuery, [user_id], 'get_user_companies');
+        const companiesResult = await database.query(companiesQuery, [user_id], 'get_user_companies');
         additionalData.companies = companiesResult.rows;
       } catch (error) {
         logger.warn('Failed to get user companies:', error);
@@ -268,7 +271,7 @@ router.get('/users/:user_id', authenticateToken, requireRole(['ADMIN']), async (
         ORDER BY activity_date DESC
         LIMIT 10
       `;
-      const activityResult = await userModel.db.query(activityQuery, [user_id], 'get_user_activity');
+      const activityResult = await database.query(activityQuery, [user_id], 'get_user_activity');
       additionalData.recent_activity = activityResult.rows;
     } catch (error) {
       logger.warn('Failed to get user activity:', error);
@@ -326,15 +329,28 @@ router.put('/users/:user_id/status', authenticateToken, requireRole(['ADMIN']), 
       });
     }
 
-    const updatedUser = await userModel.update(user_id, { is_active });
-
-    if (!updatedUser) {
+    // Get user before update for audit trail
+    const currentUser = await userModel.findOne({ user_id });
+    if (!currentUser) {
       return res.status(404).json({
         success: false,
         error: 'User not found',
         code: 'USER_NOT_FOUND'
       });
     }
+
+    const updatedUser = await userModel.update(user_id, { is_active });
+
+    // Log admin action to audit trail
+    await auditLogger.logAdminAction(
+      req.user.user_id,
+      is_active ? 'activate' : 'deactivate',
+      'user',
+      user_id,
+      reason,
+      req,
+      true
+    );
 
     // Log admin action
     logger.info('User status updated by admin', {
@@ -746,7 +762,7 @@ router.get('/statistics', authenticateToken, requireRole(['ADMIN']), async (req,
     console.log('SQL Query:', trendQuery);
     console.log('Query Params:', queryParams);
 
-    const trendResult = await userModel.db.query(trendQuery, queryParams, 'get_registration_trends');
+    const trendResult = await database.query(trendQuery, queryParams, 'get_registration_trends');
 
     // Get recent activities
     const recentActivitiesQuery = `
@@ -762,7 +778,7 @@ router.get('/statistics', authenticateToken, requireRole(['ADMIN']), async (req,
       LIMIT 10
     `;
 
-    const recentActivitiesResult = await userModel.db.query(recentActivitiesQuery, [], 'get_recent_activities');
+    const recentActivitiesResult = await database.query(recentActivitiesQuery, [], 'get_recent_activities');
 
     const statistics = {
       users: userStats,
@@ -900,27 +916,147 @@ router.get('/statistics', authenticateToken, requireRole(['ADMIN']), async (req,
 router.get('/logs', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
   try {
     const {
-      level = 'info',
+      level = 'all',
       start_date,
       end_date,
       page = 1,
-      limit = 50
+      limit = 50,
+      search = ''
     } = req.query;
 
-    // This is a simplified implementation
-    // In production, you'd want to integrate with a proper logging system
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Build WHERE conditions
+    let whereConditions = [];
+    let queryParams = [];
+    let paramIndex = 1;
+
+    // Search filter
+    if (search && search.trim()) {
+      whereConditions.push(`(
+        u.full_name ILIKE $${paramIndex} OR 
+        al.action ILIKE $${paramIndex} OR 
+        al.entity_type ILIKE $${paramIndex} OR
+        al.ip_address::text ILIKE $${paramIndex}
+      )`);
+      queryParams.push(`%${search.trim()}%`);
+      paramIndex++;
+    }
+
+    // Level filter (based on success status and action type)
+    if (level && level !== 'all') {
+      let levelCondition = '';
+      switch (level.toLowerCase()) {
+        case 'error':
+          levelCondition = `(al.success = false OR al.error_message IS NOT NULL OR al.action ILIKE '%fail%' OR al.action ILIKE '%error%')`;
+          break;
+        case 'warn':
+        case 'warning':
+          levelCondition = `(al.action ILIKE '%delete%' OR al.action ILIKE '%deactivate%' OR al.action ILIKE '%remove%')`;
+          break;
+        case 'info':
+          levelCondition = `(al.action ILIKE '%login%' OR al.action ILIKE '%create%' OR al.action ILIKE '%register%' OR al.action ILIKE '%activate%')`;
+          break;
+        case 'debug':
+          levelCondition = `(al.action ILIKE '%logout%' OR al.action ILIKE '%view%' OR al.action ILIKE '%read%')`;
+          break;
+      }
+      if (levelCondition) {
+        whereConditions.push(levelCondition);
+      }
+    }
+
+    // Date range filter
+    if (start_date) {
+      whereConditions.push(`al.created_at >= $${paramIndex}`);
+      queryParams.push(start_date);
+      paramIndex++;
+    }
+
+    if (end_date) {
+      whereConditions.push(`al.created_at <= $${paramIndex}`);
+      queryParams.push(end_date);
+      paramIndex++;
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    // Get total count
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM audit_logs al
+      LEFT JOIN users u ON al.user_id = u.user_id
+      ${whereClause}
+    `;
+
+    const countResult = await database.query(countQuery, queryParams, 'get_logs_count');
+    const total = parseInt(countResult.rows[0]?.total || 0);
+    const totalPages = Math.ceil(total / parseInt(limit));
+
+    // Get logs data
+    const logsQuery = `
+      SELECT 
+        al.log_id,
+        al.user_id,
+        al.action,
+        al.entity_type,
+        al.entity_id,
+        al.old_values,
+        al.new_values,
+        al.ip_address,
+        al.user_agent,
+        al.session_id,
+        al.success,
+        al.error_message,
+        al.created_at,
+        u.full_name,
+        u.email,
+        u.role
+      FROM audit_logs al
+      LEFT JOIN users u ON al.user_id = u.user_id
+      ${whereClause}
+      ORDER BY al.created_at DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+
+    queryParams.push(parseInt(limit), offset);
+    const logsResult = await database.query(logsQuery, queryParams, 'get_audit_logs');
+
+    // Transform data for frontend
+    const logs = logsResult.rows.map(log => ({
+      log_id: log.log_id,
+      user_id: log.user_id,
+      action: log.action,
+      entity_type: log.entity_type,
+      entity_id: log.entity_id,
+      old_values: log.old_values,
+      new_values: log.new_values,
+      ip_address: log.ip_address,
+      user_agent: log.user_agent,
+      session_id: log.session_id,
+      success: log.success,
+      error_message: log.error_message,
+      created_at: log.created_at,
+      user: {
+        full_name: log.full_name || 'System',
+        email: log.email,
+        role: log.role || 'SYSTEM'
+      }
+    }));
+
     res.json({
       success: true,
       message: 'Logs retrieved successfully',
       data: {
-        logs: [],
+        logs,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
-          total: 0,
-          totalPages: 0
-        },
-        note: 'Log integration not implemented yet. Please check log files or use external logging service.'
+          total,
+          totalPages,
+          hasNext: parseInt(page) < totalPages,
+          hasPrev: parseInt(page) > 1
+        }
       }
     });
 

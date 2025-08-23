@@ -2,12 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap');
+
 @layer base {
   html {
-    font-family: 'ABeeZee', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+    font-family: 'Quicksand', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
   }
   
   body {
-    font-family: 'ABeeZee', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+    font-family: 'Quicksand', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+    overflow-x: hidden;
+  }
+}
+
+@layer utilities {
+  /* Prevent layout shift during transitions */
+  .layout-stable {
+    contain: layout style;
+    will-change: transform;
+  }
+  
+  /* Smooth transitions for sidebar with GPU acceleration */
+  .sidebar-transition {
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: width;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+  
+  /* Stable content area */
+  .content-stable {
+    min-height: 100vh;
+    contain: layout;
+    will-change: auto;
+    transform: translateZ(0);
+  }
+  
+  /* Prevent content jumping during page transitions */
+  .page-transition {
+    transition: opacity 0.15s ease-in-out;
+    will-change: opacity;
+  }
+  
+  /* Loading skeleton styles */
+  .skeleton {
+    @apply animate-pulse bg-gray-200 rounded;
   }
 }

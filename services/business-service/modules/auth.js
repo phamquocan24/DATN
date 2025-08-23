@@ -7,6 +7,7 @@ const User = require('../models/User');
 const winston = require('winston');
 const userModel = new User();
 const emailService = require('../services/EmailService');
+const { auditLogger } = require('../middleware/auditLogger');
 
 // Import standardized error handling
 const { sendError, sendSuccess, ERROR_CODES, asyncHandler } = require('../utils/errorHandler');
@@ -518,6 +519,13 @@ router.post('/login', authLimiter, async (req, res) => {
       role: result.user.role
     });
 
+    // Log successful login to audit trail
+    await auditLogger.logAuth(result.user.user_id, 'login', true, req, {
+      email: result.user.email,
+      role: result.user.role,
+      login_method: 'password'
+    });
+
     res.json({
       success: true,
       message: 'Login successful',
@@ -526,6 +534,13 @@ router.post('/login', authLimiter, async (req, res) => {
 
   } catch (error) {
     logger.error('Login failed:', error);
+    
+    // Log failed login attempt
+    await auditLogger.logAuth(null, 'login', false, req, {
+      email,
+      error: error.message,
+      login_method: 'password'
+    });
     
     res.status(401).json({
       success: false,

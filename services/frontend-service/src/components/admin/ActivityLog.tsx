@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import AdminLayout from './AdminLayout';
-import { FiSearch, FiFilter, FiChevronDown, FiMoreHorizontal } from 'react-icons/fi';
+import { FiSearch, FiChevronDown } from 'react-icons/fi';
 
 import BellIcon from '../../assets/bell-outlined.png';
 import NotificationPanel from './NotificationPanelAdmin';
@@ -10,22 +10,90 @@ import adminApi from '../../services/adminApi';
 import AdminHeaderDropdown from './AdminHeaderDropdown';
 
 interface Log {
-  id: number;
-  time: string;
-  fullName: string;
-  user: 'HR' | 'Candidate' | 'Admin';
-  details: string;
-  actions: string;
-  ip: string;
-  location: string;
-  level?: string;
-  message?: string;
-  metadata?: any;
+  log_id: string;
+  user_id: string;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  old_values: any;
+  new_values: any;
+  ip_address: string;
+  user_agent: string;
+  session_id: string;
+  success: boolean;
+  error_message?: string;
+  created_at: string;
+  user: {
+    full_name: string;
+    email: string;
+    role: string;
+  };
+  
+  // Computed fields for display
+  id?: number;
+  time?: string;
+  fullName?: string;
+  userRole?: 'HR' | 'Candidate' | 'Admin' | 'System';
+  details?: string;
+  actions?: string;
+  ip?: string;
+  location?: string;
 }
 
 interface ActivityLogProps {
   currentUser?: any;
 }
+
+// Helper functions
+const mapUserRole = (role: string): 'HR' | 'Candidate' | 'Admin' | 'System' => {
+    if (!role) return 'System';
+    const normalizedRole = role.toLowerCase();
+    if (normalizedRole === 'admin') return 'Admin';
+    if (normalizedRole === 'hr' || normalizedRole === 'recruiter') return 'HR';
+    if (normalizedRole === 'candidate') return 'Candidate';
+    return 'System';
+};
+
+const formatLogDetails = (log: any): string => {
+    if (!log.action) return 'System activity';
+    
+    const action = log.action.toLowerCase();
+    const entityType = log.entity_type || 'item';
+    
+    switch (action) {
+        case 'create':
+            return `Created new ${entityType}`;
+        case 'update':
+            return `Updated ${entityType}`;
+        case 'delete':
+            return `Deleted ${entityType}`;
+        case 'login':
+            return 'User logged in';
+        case 'logout':
+            return 'User logged out';
+        case 'register':
+            return 'User registered';
+        case 'deactivate':
+            return `Deactivated ${entityType}`;
+        case 'activate':
+            return `Activated ${entityType}`;
+        default:
+            return `${action.charAt(0).toUpperCase() + action.slice(1)} ${entityType}`;
+    }
+};
+
+const getLogLevel = (log: any): string => {
+    if (log.level) return log.level;
+    
+    // Map level based on success status and action type
+    if (log.success === false || log.error_message) return 'error';
+    
+    const action = log.action?.toLowerCase() || '';
+    if (action.includes('delete') || action.includes('deactivate') || action.includes('remove')) return 'warn';
+    if (action.includes('logout') || action.includes('view') || action.includes('read')) return 'debug';
+    if (action.includes('login') || action.includes('create') || action.includes('register') || action.includes('activate')) return 'info';
+    return 'info';
+};
 
 const ActivityLog: React.FC<ActivityLogProps> = ({ currentUser }) => {
     const [currentPage, setCurrentPage] = useState(1);
@@ -35,7 +103,9 @@ const ActivityLog: React.FC<ActivityLogProps> = ({ currentUser }) => {
     const [selectedDate, setSelectedDate] = useState('2023-07-19');
 
     const [isPageSelectOpen, setIsPageSelectOpen] = useState(false);
+    const [isLevelFilterOpen, setIsLevelFilterOpen] = useState(false);
     const pageSelectRef = useRef<HTMLDivElement>(null);
+    const levelFilterRef = useRef<HTMLDivElement>(null);
     const [selectedLog, setSelectedLog] = useState<Log | null>(null);
     
     // API data states
@@ -151,26 +221,45 @@ const ActivityLog: React.FC<ActivityLogProps> = ({ currentUser }) => {
                 }
                 
                 // Transform API data to match component interface
-                const transformedLogs = logsData.map((log: any, index: number) => ({
-                    id: log.id || index + 1,
-                    time: log.timestamp ? new Date(log.timestamp).toLocaleString('en-GB', { 
-                        day: '2-digit', 
-                        month: '2-digit', 
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: true
-                    }) : '15:50PM 2025-06-08',
-                    fullName: log.user_name || log.userName || log.metadata?.user_name || 'System User',
-                    user: determineUserType(log),
-                    details: log.message || log.action || log.details || 'System activity',
-                    actions: extractAction(log.message || log.action || ''),
-                    ip: log.ip_address || log.ip || log.metadata?.ip || '192.168.1.1',
-                    location: log.location || log.metadata?.location || 'Unknown',
-                    level: log.level || 'info',
-                    message: log.message,
-                    metadata: log.metadata
-                }));
+                const transformedLogs = logsData.map((log: any, index: number) => {
+                    // Create a log object with both original and computed fields
+                    const transformedLog: Log = {
+                        // Original database fields
+                        log_id: log.log_id,
+                        user_id: log.user_id,
+                        action: log.action,
+                        entity_type: log.entity_type,
+                        entity_id: log.entity_id,
+                        old_values: log.old_values,
+                        new_values: log.new_values,
+                        ip_address: log.ip_address,
+                        user_agent: log.user_agent,
+                        session_id: log.session_id,
+                        success: log.success,
+                        error_message: log.error_message,
+                        created_at: log.created_at,
+                        user: log.user || { full_name: 'System', email: '', role: 'SYSTEM' },
+                        
+                        // Computed fields for display
+                        id: parseInt(log.log_id?.substr(-6), 16) || index + 1,
+                        time: log.created_at ? new Date(log.created_at).toLocaleString('en-GB', { 
+                            day: '2-digit', 
+                            month: '2-digit', 
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true
+                        }) : '15:50PM 2025-06-08',
+                        fullName: log.user?.full_name || 'System',
+                        userRole: mapUserRole(log.user?.role),
+                        details: formatLogDetails(log),
+                        actions: log.action || 'Unknown',
+                        ip: log.ip_address || '192.168.1.1',
+                        location: 'Unknown' // audit_logs doesn't store location
+                    };
+                    
+                    return transformedLog;
+                });
                 
                 console.log('Transformed logs:', transformedLogs); // Debug log
                 setLogs(transformedLogs);
@@ -189,35 +278,23 @@ const ActivityLog: React.FC<ActivityLogProps> = ({ currentUser }) => {
 
         fetchLogs();
     }, [currentPage, itemsPerPage, levelFilter, selectedDate, endDate, debouncedSearchQuery]);
+
+    // Handle click outside to close dropdowns
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (pageSelectRef.current && !pageSelectRef.current.contains(event.target as Node)) {
+                setIsPageSelectOpen(false);
+            }
+            if (levelFilterRef.current && !levelFilterRef.current.contains(event.target as Node)) {
+                setIsLevelFilterOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
     
     // Helper functions
-    const determineUserType = (log: any): 'HR' | 'Candidate' | 'Admin' => {
-        if (log.user_role || log.userRole || log.metadata?.user_role) {
-            const role = (log.user_role || log.userRole || log.metadata?.user_role).toLowerCase();
-            if (role === 'admin') return 'Admin';
-            if (role === 'recruiter' || role === 'hr') return 'HR';
-            return 'Candidate';
-        }
-        
-        // Fallback based on message content
-        const message = (log.message || '').toLowerCase();
-        if (message.includes('admin') || message.includes('system')) return 'Admin';
-        if (message.includes('job') || message.includes('recruit')) return 'HR';
-        return 'Candidate';
-    };
-    
-    const extractAction = (message: string): string => {
-        const lowerMessage = message.toLowerCase();
-        if (lowerMessage.includes('login')) return 'Login';
-        if (lowerMessage.includes('logout')) return 'Logout';
-        if (lowerMessage.includes('create')) return 'Create';
-        if (lowerMessage.includes('update') || lowerMessage.includes('edit')) return 'Edit';
-        if (lowerMessage.includes('delete')) return 'Delete';
-        if (lowerMessage.includes('apply')) return 'Apply';
-        if (lowerMessage.includes('test')) return 'Test';
-        if (lowerMessage.includes('export')) return 'Export';
-        return 'Activity';
-    };
     
     const pageOptions = [10, 20, 50, 100];
 
@@ -354,20 +431,54 @@ const ActivityLog: React.FC<ActivityLogProps> = ({ currentUser }) => {
                                                 className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300" 
                                             />
                                         </div>
-                                        <select 
-                                            value={levelFilter} 
-                                            onChange={(e) => handleLevelFilterChange(e.target.value)}
-                                            className="px-4 py-2 w-32 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300"
-                                        >
-                                            <option value="all">All Levels</option>
-                                            <option value="error">Error</option>
-                                            <option value="warn">Warning</option>
-                                            <option value="info">Info</option>
-                                            <option value="debug">Debug</option>
-                                        </select>
-                                        <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg">
-                                            <FiFilter /><span>Filter</span>
-                                        </button>
+                                        <div ref={levelFilterRef} className="relative inline-block">
+                                            <button 
+                                                onClick={() => setIsLevelFilterOpen(!isLevelFilterOpen)} 
+                                                className="flex items-center justify-between w-32 border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-[#007BFF]"
+                                            >
+                                                <span className="text-left">
+                                                    {levelFilter === 'all' ? 'All Levels' : 
+                                                     levelFilter === 'error' ? 'Error' :
+                                                     levelFilter === 'warn' ? 'Warning' :
+                                                     levelFilter === 'info' ? 'Info' : 'Debug'}
+                                                </span>
+                                                <FiChevronDown className="text-gray-500" />
+                                            </button>
+                                            {isLevelFilterOpen && (
+                                                <div className="absolute top-full mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                                                    <div 
+                                                        onClick={() => { handleLevelFilterChange('all'); setIsLevelFilterOpen(false); }} 
+                                                        className="px-3 py-2 text-left cursor-pointer hover:bg-[#007BFF] hover:text-white rounded-t-lg"
+                                                    >
+                                                        All Levels
+                                                    </div>
+                                                    <div 
+                                                        onClick={() => { handleLevelFilterChange('error'); setIsLevelFilterOpen(false); }} 
+                                                        className="px-3 py-2 text-left cursor-pointer hover:bg-[#007BFF] hover:text-white"
+                                                    >
+                                                        Error
+                                                    </div>
+                                                    <div 
+                                                        onClick={() => { handleLevelFilterChange('warn'); setIsLevelFilterOpen(false); }} 
+                                                        className="px-3 py-2 text-left cursor-pointer hover:bg-[#007BFF] hover:text-white"
+                                                    >
+                                                        Warning
+                                                    </div>
+                                                    <div 
+                                                        onClick={() => { handleLevelFilterChange('info'); setIsLevelFilterOpen(false); }} 
+                                                        className="px-3 py-2 text-left cursor-pointer hover:bg-[#007BFF] hover:text-white"
+                                                    >
+                                                        Info
+                                                    </div>
+                                                    <div 
+                                                        onClick={() => { handleLevelFilterChange('debug'); setIsLevelFilterOpen(false); }} 
+                                                        className="px-3 py-2 text-left cursor-pointer hover:bg-[#007BFF] hover:text-white rounded-b-lg"
+                                                    >
+                                                        Debug
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -377,27 +488,25 @@ const ActivityLog: React.FC<ActivityLogProps> = ({ currentUser }) => {
                                             {['Time', 'Full name', 'User', 'Level', 'Details', 'Actions', 'IP', 'Location'].map(header => (
                                                 <th key={header} className="pb-4 font-medium">{header} <FiChevronDown className="inline-block" /></th>
                                             ))}
-                                            <th className="pb-4 font-medium"></th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {loading ? (
-                                            <tr><td colSpan={9} className="text-center py-8">Loading activity logs...</td></tr>
+                                            <tr><td colSpan={8} className="text-center py-8">Loading activity logs...</td></tr>
                                         ) : error ? (
-                                            <tr><td colSpan={9} className="text-center py-8 text-red-500">{error}</td></tr>
+                                            <tr><td colSpan={8} className="text-center py-8 text-red-500">{error}</td></tr>
                                         ) : logs.length === 0 ? (
-                                            <tr><td colSpan={9} className="text-center py-8 text-gray-500">No logs found</td></tr>
+                                            <tr><td colSpan={8} className="text-center py-8 text-gray-500">No logs found</td></tr>
                                         ) : logs.map((log) => (
-                                            <tr key={log.id} className="border-t border-gray-100 hover:bg-blue-50 cursor-pointer" onClick={() => setSelectedLog(log)}>
+                                            <tr key={log.log_id || log.id} className="border-t border-gray-100 hover:bg-blue-50 cursor-pointer" onClick={() => setSelectedLog(log)}>
                                                 <td className="py-4 text-gray-500">{log.time}</td>
-                                                <td className="py-4 font-medium">{log.fullName}</td>
-                                                <td className="py-4"><span className={`px-3 py-1 rounded-full text-sm border ${getUserTypeColor(log.user)}`}>{log.user}</span></td>
-                                                <td className="py-4"><span className={`px-2 py-1 rounded text-xs font-medium ${getLevelColor(log.level || 'info')}`}>{(log.level || 'info').toUpperCase()}</span></td>
-                                                <td className="py-4">{log.details}</td>
-                                                <td className="py-4"><span className={`px-3 py-1 rounded-full text-sm border ${getActionColor(log.actions)}`}>{log.actions}</span></td>
-                                                <td className="py-4">{log.ip}</td>
-                                                <td className="py-4">{log.location}</td>
-                                                <td className="py-4 text-right"><button className="text-gray-400 hover:text-gray-600"><FiMoreHorizontal /></button></td>
+                                                <td className="py-4 font-medium">{log.fullName || log.user?.full_name}</td>
+                                                <td className="py-4"><span className={`px-3 py-1 rounded-full text-sm border ${getUserTypeColor(log.userRole || mapUserRole(log.user?.role))}`}>{log.userRole || mapUserRole(log.user?.role)}</span></td>
+                                                <td className="py-4"><span className={`px-2 py-1 rounded text-xs font-medium ${getLevelColor(getLogLevel(log))}`}>{getLogLevel(log).toUpperCase()}</span></td>
+                                                <td className="py-4">{log.details || formatLogDetails(log)}</td>
+                                                <td className="py-4"><span className={`px-3 py-1 rounded-full text-sm border ${getActionColor(log.actions || log.action)}`}>{log.actions || log.action}</span></td>
+                                                <td className="py-4">{log.ip || log.ip_address}</td>
+                                                <td className="py-4">{log.location || 'Unknown'}</td>
                                             </tr>
                                         ))}
                                     </tbody>

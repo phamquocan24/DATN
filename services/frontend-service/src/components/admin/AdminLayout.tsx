@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import DashboardSidebar from './DashboardSidebar';
 import Logo from '../../assets/Logo.png';
-import LogoTab from '../../assets/Logo_tab.png';
 
 
 interface AdminLayoutProps {
@@ -60,8 +59,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="flex min-h-screen bg-white">
-      <div className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white shadow-lg min-h-screen border-l border-r border-gray-200 sticky top-0 z-10 flex flex-col overflow-y-auto overflow-x-hidden transition-all duration-300`}>
+    <div className="flex min-h-screen bg-white layout-stable">
+      <div className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white shadow-lg min-h-screen border-l border-r border-gray-200 sticky top-0 z-10 flex flex-col overflow-y-auto overflow-x-hidden sidebar-transition`}>
         {/* Logo */}
         <div className={`${isCollapsed ? 'p-2' : 'p-4'} border-b border-gray-200 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} transition-all duration-300`}>
           {!isCollapsed && (
@@ -107,8 +106,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           onFeedbackClick={handleFeedbackClick}
         />
       </div>
-      <div className="flex-1 overflow-visible bg-white">
-        {children}
+      <div className="flex-1 overflow-visible bg-white content-stable">
+        <div className="page-transition">
+          {children}
+        </div>
       </div>
     </div>
   );

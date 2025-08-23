@@ -4,14 +4,34 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface Log {
-  id: number;
-  time: string;
-  fullName: string;
-  user: 'HR' | 'Candidate' | 'Admin';
-  details: string;
-  actions: string;
-  ip: string;
-  location: string;
+  log_id: string;
+  user_id: string;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  old_values: any;
+  new_values: any;
+  ip_address: string;
+  user_agent: string;
+  session_id: string;
+  success: boolean;
+  error_message?: string;
+  created_at: string;
+  user: {
+    full_name: string;
+    email: string;
+    role: string;
+  };
+  
+  // Computed fields for backwards compatibility
+  id?: number;
+  time?: string;
+  fullName?: string;
+  userRole?: 'HR' | 'Candidate' | 'Admin' | 'System';
+  details?: string;
+  actions?: string;
+  ip?: string;
+  location?: string;
 }
 
 interface ActivityLogDetailsProps {
@@ -30,33 +50,89 @@ const getUserTypeColor = (userType: string) => {
 
 const EventContext: React.FC<{ log: Log }> = ({ log }) => {
     let contextContent;
+    const action = (log.action || log.actions || '').toLowerCase();
 
-    switch (log.actions.toLowerCase()) {
+    switch (action) {
+        case 'update':
         case 'edit':
             contextContent = (
                 <div className="space-y-2 text-sm">
-                    <p className="font-semibold text-gray-800">Profile Fields Updated:</p>
-                    <ul className="list-disc list-inside text-gray-600">
-                        <li>Contact Number: ******_7890</li>
-                        <li>Address: 123 Main St, Anytown</li>
-                    </ul>
+                    <p className="font-semibold text-gray-800">Changes Made:</p>
+                    {log.old_values && log.new_values ? (
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <p className="font-medium text-gray-600 mb-1">Previous Values:</p>
+                                <pre className="bg-gray-100 p-2 rounded text-xs overflow-auto">
+                                    {JSON.stringify(log.old_values, null, 2)}
+                                </pre>
+                            </div>
+                            <div>
+                                <p className="font-medium text-gray-600 mb-1">New Values:</p>
+                                <pre className="bg-gray-100 p-2 rounded text-xs overflow-auto">
+                                    {JSON.stringify(log.new_values, null, 2)}
+                                </pre>
+                            </div>
+                        </div>
+                    ) : (
+                        <p className="text-gray-600">Updated {log.entity_type} (ID: {log.entity_id})</p>
+                    )}
                 </div>
             );
             break;
-        case 'apply':
+        case 'create':
             contextContent = (
                 <div className="space-y-2 text-sm">
-                    <p className="font-semibold text-gray-800">Application Details:</p>
-                    <p className="text-gray-600">Job Title: Senior Designer</p>
-                    <p className="text-gray-600">Company:Innovate Inc.</p>
+                    <p className="font-semibold text-gray-800">Created New {log.entity_type}:</p>
+                    <p className="text-gray-600">Entity ID: {log.entity_id}</p>
+                    {log.new_values && (
+                        <div>
+                            <p className="font-medium text-gray-600 mb-1">Initial Values:</p>
+                            <pre className="bg-gray-100 p-2 rounded text-xs overflow-auto">
+                                {JSON.stringify(log.new_values, null, 2)}
+                            </pre>
+                        </div>
+                    )}
+                </div>
+            );
+            break;
+        case 'delete':
+            contextContent = (
+                <div className="space-y-2 text-sm">
+                    <p className="font-semibold text-gray-800">Deleted {log.entity_type}:</p>
+                    <p className="text-gray-600">Entity ID: {log.entity_id}</p>
+                    {log.old_values && (
+                        <div>
+                            <p className="font-medium text-gray-600 mb-1">Deleted Data:</p>
+                            <pre className="bg-gray-100 p-2 rounded text-xs overflow-auto">
+                                {JSON.stringify(log.old_values, null, 2)}
+                            </pre>
+                        </div>
+                    )}
                 </div>
             );
             break;
         case 'login':
-             contextContent = <p className="text-gray-600 text-sm">User successfully authenticated.</p>;
-             break;
+            contextContent = (
+                <div className="space-y-2 text-sm">
+                    <p className="font-semibold text-gray-800">Authentication Details:</p>
+                    <p className="text-gray-600">User successfully authenticated</p>
+                    <p className="text-gray-600">Session ID: {log.session_id || 'N/A'}</p>
+                </div>
+            );
+            break;
+        case 'logout':
+            contextContent = <p className="text-gray-600 text-sm">User session terminated successfully.</p>;
+            break;
         default:
-            contextContent = <p className="text-gray-500 italic text-sm">No additional context for this event.</p>;
+            contextContent = (
+                <div className="space-y-2 text-sm">
+                    <p className="font-semibold text-gray-800">Action: {log.action}</p>
+                    <p className="text-gray-600">Entity: {log.entity_type} (ID: {log.entity_id})</p>
+                    {(log.old_values || log.new_values) && (
+                        <p className="text-gray-500 italic">See metadata section for detailed changes</p>
+                    )}
+                </div>
+            );
     }
 
     return <div className="mt-4 rounded-lg bg-gray-50 p-4">{contextContent}</div>
@@ -71,7 +147,7 @@ const ActivityLogDetails: React.FC<ActivityLogDetailsProps> = ({ log, onBack }) 
                 </button>
                 <div>
                     <h1 className="text-2xl font-semibold text-gray-800">Activity Log Details</h1>
-                    <p className="text-gray-600">Log ID: {log.id}</p>
+                    <p className="text-gray-600">Log ID: {log.log_id || log.id}</p>
                 </div>
             </div>
             
@@ -79,10 +155,10 @@ const ActivityLogDetails: React.FC<ActivityLogDetailsProps> = ({ log, onBack }) 
                 <div className="p-6 border rounded-lg bg-white">
                     <div className="flex justify-between items-start">
                         <div>
-                             <h2 className="text-lg font-semibold text-gray-900">{log.details}</h2>
-                             <p className="text-sm text-gray-500">Performed by {log.fullName} ({log.user})</p>
+                             <h2 className="text-lg font-semibold text-gray-900">{log.details || `${log.action} ${log.entity_type}`}</h2>
+                             <p className="text-sm text-gray-500">Performed by {log.fullName || log.user?.full_name || 'System'} ({log.userRole || log.user?.role || 'System'})</p>
                         </div>
-                         <p className="text-sm text-gray-500 whitespace-nowrap">{log.time}</p>
+                         <p className="text-sm text-gray-500 whitespace-nowrap">{log.time || new Date(log.created_at).toLocaleString()}</p>
                     </div>
                      <EventContext log={log} />
                 </div>
@@ -94,16 +170,16 @@ const ActivityLogDetails: React.FC<ActivityLogDetailsProps> = ({ log, onBack }) 
                             <h3 className="text-lg font-semibold">User & System Details</h3>
                         </div>
                         <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-sm">
-                             <InfoRow label="Full Name">{log.fullName}</InfoRow>
+                             <InfoRow label="Full Name">{log.fullName || log.user?.full_name || 'System'}</InfoRow>
                              <InfoRow label="User Role">
-                                <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getUserTypeColor(log.user)}`}>
-                                    {log.user}
+                                <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getUserTypeColor(log.userRole || log.user?.role || 'system')}`}>
+                                    {log.userRole || log.user?.role || 'System'}
                                 </span>
                              </InfoRow>
-                             <InfoRow label="IP Address">{log.ip}</InfoRow>
-                             <InfoRow label="Location">{log.location}</InfoRow>
-                             <InfoRow label="Device" isFullWidth={true}>Desktop</InfoRow>
-                             <InfoRow label="User Agent" isFullWidth={true}>Chrome on Windows</InfoRow>
+                             <InfoRow label="IP Address">{log.ip || log.ip_address || 'N/A'}</InfoRow>
+                             <InfoRow label="Location">{log.location || 'Unknown'}</InfoRow>
+                             <InfoRow label="Session ID" isFullWidth={true}>{log.session_id || 'N/A'}</InfoRow>
+                             <InfoRow label="User Agent" isFullWidth={true}>{log.user_agent || 'N/A'}</InfoRow>
                         </div>
                     </div>
 
@@ -113,7 +189,20 @@ const ActivityLogDetails: React.FC<ActivityLogDetailsProps> = ({ log, onBack }) 
                             <h3 className="text-lg font-semibold">Event Metadata</h3>
                         </div>
                         <SyntaxHighlighter language="json" style={atomDark} customStyle={{ borderRadius: '0.375rem', margin: 0 }}>
-                            {JSON.stringify(log, null, 2)}
+                            {JSON.stringify({
+                                log_id: log.log_id,
+                                action: log.action,
+                                entity_type: log.entity_type,
+                                entity_id: log.entity_id,
+                                old_values: log.old_values,
+                                new_values: log.new_values,
+                                user_id: log.user_id,
+                                ip_address: log.ip_address,
+                                user_agent: log.user_agent,
+                                session_id: log.session_id,
+                                created_at: log.created_at,
+                                user: log.user
+                            }, null, 2)}
                         </SyntaxHighlighter>
                     </div>
                 </div>

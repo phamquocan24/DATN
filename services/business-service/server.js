@@ -49,6 +49,9 @@ const applicationRoutes = require('./controllers/ApplicationController');
 const testRoutes = require('./controllers/TestController');
 const notificationRoutes = require('./controllers/NotificationController');
 
+// Import audit logger middleware
+const { auditLogger } = require('./middleware/auditLogger');
+
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -158,6 +161,9 @@ app.use(morgan('combined', {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(generalLimiter);
+
+// Add audit logging middleware (after parsing middleware)
+app.use(auditLogger.middleware());
 
 // Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, swaggerOptions));
