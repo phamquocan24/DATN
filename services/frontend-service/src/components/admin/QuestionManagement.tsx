@@ -191,7 +191,7 @@ const QuestionManagement: React.FC<QuestionManagementProps> = ({ currentUser }) 
 
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="text-gray-500 text-sm">
+                    <tr className="text-black text-sm">
                       {['Test Name', 'Job Title', 'Company', 'T.Limit', 'P.Score', 'Status', 'Created', 'Actions'].map(header => (
                         <th key={header} className="pb-4 font-semibold">
                           {header} <FiChevronDown className="inline-block" />

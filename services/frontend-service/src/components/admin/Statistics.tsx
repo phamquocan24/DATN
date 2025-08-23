@@ -726,7 +726,7 @@ const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {
                             {statsCards.map(card => (
                                 <div key={card.title} className="bg-white p-6 rounded-lg border border-gray-200 flex justify-between items-start transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-blue-200 cursor-pointer">
                                     <div>
-                                        <p className="text-gray-500 mb-2">{card.title}</p>
+                                        <p className="text-black mb-2">{card.title}</p>
                                         <div className="flex items-baseline gap-2">
                                             <p className="text-3xl font-bold">{card.value}</p>
                                             <div className={`flex items-center text-sm font-medium ${card.changeType === 'increase' ? 'text-green-500' : 'text-red-500'}`}>
