@@ -435,11 +435,11 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
           <table className="w-full text-left">
             <thead>
               <tr className="text-gray-500 text-sm">
-                <th className="pb-4 font-medium">Full Name <FiChevronDown className="inline-block" /></th>
-                <th className="pb-4 font-medium">Email <FiChevronDown className="inline-block" /></th>
-                <th className="pb-4 font-medium">Status <FiChevronDown className="inline-block" /></th>
-                <th className="pb-4 font-medium">Type <FiChevronDown className="inline-block" /></th>
-                <th className="pb-4 font-medium text-left w-48">Action</th>
+                <th className="pb-4 font-semibold">Full Name <FiChevronDown className="inline-block" /></th>
+                <th className="pb-4 font-semibold">Email <FiChevronDown className="inline-block" /></th>
+                <th className="pb-4 font-semibold">Status <FiChevronDown className="inline-block" /></th>
+                <th className="pb-4 font-semibold">Type <FiChevronDown className="inline-block" /></th>
+                <th className="pb-4 font-semibold text-left w-48">Action</th>
               </tr>
             </thead>
             <tbody>

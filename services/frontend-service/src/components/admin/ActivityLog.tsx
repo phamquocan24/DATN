@@ -486,7 +486,7 @@ const ActivityLog: React.FC<ActivityLogProps> = ({ currentUser }) => {
                                     <thead>
                                         <tr className="text-gray-500 text-sm">
                                             {['Time', 'Full name', 'User', 'Level', 'Details', 'Actions', 'IP', 'Location'].map(header => (
-                                                <th key={header} className="pb-4 font-medium">{header} <FiChevronDown className="inline-block" /></th>
+                                                <th key={header} className="pb-4 font-semibold">{header} <FiChevronDown className="inline-block" /></th>
                                             ))}
                                         </tr>
                                     </thead>
