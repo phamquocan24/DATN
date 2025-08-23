@@ -117,7 +117,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
               alt="settings" 
               className={`${isCollapsed ? 'w-6 h-6' : 'w-4 h-4'} transition-all duration-300 ${activeTab==='settings' ? 'filter brightness-0 invert' : ''}`} 
             />
-            {!isCollapsed && <span>Settings</span>}
+            {!isCollapsed && <span className="font-medium">Settings</span>}
           </button>
           {isCollapsed && (
             <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-2 py-1 bg-gray-800 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
@@ -139,7 +139,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
               alt="feedback" 
               className={`${isCollapsed ? 'w-6 h-6' : 'w-4 h-4'} transition-all duration-300 ${activeTab==='feedback' ? 'filter brightness-0 invert' : ''}`} 
             />
-            {!isCollapsed && <span>Feedback</span>}
+            {!isCollapsed && <span className="font-medium">Feedback</span>}
           </button>
           {isCollapsed && (
             <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-2 py-1 bg-gray-800 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
