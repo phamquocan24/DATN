@@ -1607,12 +1607,12 @@ class ApplicationController {
         });
       }
 
-      const application = await this.applicationModel.updateApplicationStatus(
+      const application = await this.applicationModel.updateStatus(
         id,
-        'INTERVIEWING',
+        'INTERVIEWED',
         req.user.user_id,
         reason || 'Interview scheduled',
-        scheduled_date
+        { scheduled_at: scheduled_date }
       );
 
       logger.info('Interview scheduled successfully', {
@@ -1631,6 +1631,131 @@ class ApplicationController {
       res.status(500).json({
         success: false,
         message: 'Failed to schedule interview',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/v1/applications/scheduled-interviews:
+   *   get:
+   *     summary: Get scheduled interviews
+   *     description: Get scheduled interviews for HR/Recruiter with calendar view support
+   *     tags: [Applications]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: startDate
+   *         schema:
+   *           type: string
+   *           format: date-time
+   *         description: Start date filter
+   *       - in: query
+   *         name: endDate
+   *         schema:
+   *           type: string
+   *           format: date-time
+   *         description: End date filter
+   *       - in: query
+   *         name: status
+   *         schema:
+   *           type: string
+   *           enum: [INTERVIEWED, COMPLETED, RESCHEDULED]
+   *         description: Interview status filter
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           default: 50
+   *         description: Number of results to return
+   *       - in: query
+   *         name: offset
+   *         schema:
+   *           type: integer
+   *           default: 0
+   *         description: Number of results to skip
+   *     responses:
+   *       200:
+   *         description: Scheduled interviews retrieved successfully
+   */
+  /**
+   * GET /api/v1/applications/scheduled-interviews - Get scheduled interviews
+   * Requires: HR/RECRUITER role
+   */
+  async getScheduledInterviews(req, res) {
+    try {
+      const { startDate, endDate, status, limit, offset } = req.query;
+      
+      const filters = {
+        startDate,
+        endDate,
+        status,
+        limit: parseInt(limit) || 50,
+        offset: parseInt(offset) || 0
+      };
+
+      const interviews = await this.applicationModel.getScheduledInterviews(
+        req.user.user_id,
+        filters
+      );
+
+      logger.info('Scheduled interviews retrieved successfully', {
+        user_id: req.user.user_id,
+        count: interviews.length,
+        filters
+      });
+
+      res.json({
+        success: true,
+        data: interviews,
+        pagination: {
+          limit: filters.limit,
+          offset: filters.offset,
+          total: interviews.length
+        }
+      });
+    } catch (error) {
+      logger.error('Failed to get scheduled interviews:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get scheduled interviews',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * PUT /api/v1/applications/interviews/:historyId/update - Update interview
+   * Requires: HR/RECRUITER role
+   */
+  async updateInterview(req, res) {
+    try {
+      const { historyId } = req.params;
+      const updateData = req.body;
+
+      const updatedInterview = await this.applicationModel.updateInterviewStatus(
+        historyId,
+        updateData
+      );
+
+      logger.info('Interview updated successfully', {
+        history_id: historyId,
+        updated_by: req.user.user_id,
+        updateData
+      });
+
+      res.json({
+        success: true,
+        message: 'Interview updated successfully',
+        data: updatedInterview
+      });
+    } catch (error) {
+      logger.error('Failed to update interview:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update interview',
         error: error.message
       });
     }
@@ -1784,6 +1909,7 @@ router.get('/', authenticateToken, applicationController.getApplications.bind(ap
 router.get('/my-applications', authenticateToken, requireRole(['CANDIDATE']), applicationController.getMyApplications.bind(applicationController));
 router.get('/stats', authenticateToken, requireRole(['HR', 'RECRUITER', 'ADMIN']), applicationController.getApplicationStats.bind(applicationController));
 router.get('/statistics', authenticateToken, requireRole(['HR', 'RECRUITER', 'ADMIN']), applicationController.getApplicationStats.bind(applicationController));
+router.get('/scheduled-interviews', authenticateToken, requireRole(['HR', 'RECRUITER', 'ADMIN']), applicationController.getScheduledInterviews.bind(applicationController));
 router.get('/match-score/:jobId', authenticateToken, requireRole(['CANDIDATE']), applicationController.getMatchScore.bind(applicationController));
 router.get('/job/:jobId', authenticateToken, requireRole(['HR', 'RECRUITER', 'ADMIN']), applicationController.getJobApplications.bind(applicationController));
 
@@ -1798,5 +1924,6 @@ router.post('/:id/withdraw', authenticateToken, requireRole(['CANDIDATE']), appl
 router.post('/:id/shortlist', authenticateToken, requireRole(['HR', 'RECRUITER', 'ADMIN']), applicationController.shortlistCandidate.bind(applicationController));
 router.post('/:id/reject', authenticateToken, requireRole(['HR', 'RECRUITER', 'ADMIN']), applicationController.rejectCandidate.bind(applicationController));
 router.post('/:id/schedule-interview', authenticateToken, requireRole(['HR', 'RECRUITER', 'ADMIN']), applicationController.scheduleInterview.bind(applicationController));
+router.put('/interviews/:historyId/update', authenticateToken, requireRole(['HR', 'RECRUITER', 'ADMIN']), applicationController.updateInterview.bind(applicationController));
 
 module.exports = router; 

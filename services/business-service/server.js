@@ -517,6 +517,8 @@ app.get('/api/docs', (req, res) => {
         'POST /api/v1/applications/:id/shortlist': 'Shortlist candidate (HR)',
         'POST /api/v1/applications/:id/reject': 'Reject candidate (HR)',
         'POST /api/v1/applications/:id/schedule-interview': 'Schedule interview (HR)',
+        'GET /api/v1/applications/scheduled-interviews': 'Get scheduled interviews (HR)',
+        'PUT /api/v1/applications/interviews/:historyId/update': 'Update interview (HR)',
         'GET /api/v1/applications/match-score/:jobId': 'Get match score (Candidate)'
       },
       tests: {

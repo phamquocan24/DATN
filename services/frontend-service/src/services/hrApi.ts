@@ -156,6 +156,30 @@ export const hrApi = {
     return response.data;
   },
 
+  // Get scheduled interviews for My Schedule
+  getScheduledInterviews: async (filters?: {
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const response = await apiClient.get('/api/v1/applications/scheduled-interviews', {
+      params: filters
+    });
+    return response.data;
+  },
+
+  // Update interview (reschedule, mark completed, etc.)
+  updateInterview: async (historyId: string, updateData: {
+    scheduled_at?: string;
+    change_reason?: string;
+    status?: string;
+  }) => {
+    const response = await apiClient.put(`/api/v1/applications/interviews/${historyId}/update`, updateData);
+    return response.data;
+  },
+
   bulkUpdateApplications: async (applicationIds: string[], status: string, reason?: string) => {
     const response = await apiClient.post('/api/v1/applications/bulk-update', {
       application_ids: applicationIds,
