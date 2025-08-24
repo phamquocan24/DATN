@@ -5,7 +5,7 @@ import AdminLayout from './AdminLayout';
 
 import BellIcon from '../../assets/bell-outlined.png';
 import NotificationPanel from './NotificationPanelAdmin';
-import SchemeIcon from '../../assets/scheme.png';
+
 import JobDetails from './JobDetails'; // Import the new component
 import adminApi from '../../services/adminApi';
 import AdminHeaderDropdown from './AdminHeaderDropdown';
@@ -47,16 +47,7 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
 
-  // Date picker state from Dashboard
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const dateInputRef = useRef<HTMLInputElement | null>(null);
 
-  const openDatePicker = () => {
-    // For browsers that support showPicker()
-    dateInputRef.current?.showPicker?.();
-    // Fallback for other browsers
-    dateInputRef.current?.click();
-  };
 
   // Fetch jobs data
   useEffect(() => {
@@ -266,24 +257,9 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
             <div className="flex justify-between items-center mb-6">
                 <div className="text-left">
                     <h1 className="text-2xl font-semibold text-gray-800">Job Listings</h1>
-                    <p className="text-gray-600">Here is your jobs listing status from July 19 - July 25.</p>
+                    <p className="text-gray-600">Manage and monitor all job postings in the system.</p>
                 </div>
-                <div className="relative">
-                    <input
-                        ref={dateInputRef}
-                        type="date"
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                    />
-                    <div 
-                        className="flex items-center pl-4 pr-10 py-2 w-48 text-left text-gray-700 border rounded-md bg-white select-none cursor-pointer" 
-                        onClick={openDatePicker}
-                    >
-                        <span>{new Date(selectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(new Date(selectedDate).getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { day: 'numeric' })}</span>
-                        <img src={SchemeIcon} alt="calendar" onClick={openDatePicker} className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 cursor-pointer" />
-                    </div>
-                </div>
+
             </div>
 
             {/* Tabs, Table, and Pagination for List View */}
