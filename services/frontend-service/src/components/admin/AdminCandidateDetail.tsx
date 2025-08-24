@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
-import { FiArrowLeft, FiStar, FiEdit, FiMessageSquare, FiDownload, FiCheckCircle, FiClock, FiCalendar, FiMoreHorizontal, FiPlus, FiChevronDown } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit, FiMessageSquare, FiMoreHorizontal, FiPlus, FiChevronDown } from 'react-icons/fi';
 import { FaInstagram } from 'react-icons/fa';
 import { BiWorld } from 'react-icons/bi';
-import { IoLocationSharp } from "react-icons/io5";
+import adminApi from '../../services/adminApi';
 
 interface CandidateDetails {
   id: number;
@@ -43,58 +43,94 @@ const AdminCandidateDetail: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'profile' | 'resume' | 'progress' | 'schedule'>('profile');
+  const [candidateDetails, setCandidateDetails] = useState<CandidateDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data - replace with actual API call
-  const candidateDetails: CandidateDetails = {
-    id: Number(id),
-    fullName: 'Jerome Bell',
-    email: 'jeromeBell45@email.com',
-    phone: '+44 1245 572 135',
-    address: '4517 Washington Ave. Manchester, Kentucky 39495',
-    status: 'Active',
-    avatar: `https://i.pravatar.cc/150?u=${id}`,
-    education: 'Bachelors in Engineering',
-    gender: 'Male',
-    dateOfBirth: 'March 23, 1995',
-    languages: ['English', 'French', 'Bahasa'],
-    experience: [
-      'Software Engineer at ABC Corp (2020-2023)',
-      'Junior Developer at DEF Tech (2018-2020)',
-    ],
-    skills: ['Project Management', 'Copywriting', 'English'],
-    resumeUrl: '#',
-    aboutMe: "I'm a product designer + filmmaker currently working remotely at Twitter from beautiful Manchester, United Kingdom. I'm passionate about designing digital products that have a positive impact on the world.",
-    currentJob: {
-      title: 'Product Designer',
-      years: '4 Years'
-    },
-    professionalInfo: {
-      aboutMe: "I'm a product designer + filmmaker currently working remotely at Twitter from beautiful Manchester, United Kingdom. I'm passionate about designing digital products that have a positive impact on the world.",
-      experience: "For 10 years, I've specialised in interface, experience & interaction design as well as working in user research and product strategy for product agencies, big tech companies & start-ups.",
-      currentJob: {
-        title: 'Product Designer',
-        years: '4 Years'
-      },
-      education: 'Bachelors in Engineering',
-      skills: ['Project Management', 'Copywriting', 'English']
-    },
-    matchPercentage: 90,
-  };
+  useEffect(() => {
+    const fetchCandidateDetails = async () => {
+      if (!id) {
+        setError('No candidate ID provided');
+        setLoading(false);
+        return;
+      }
 
-  // Mock hiring timeline data
-  const hiringTimeline = [
-    { id: 1, label: 'Application Submitted', date: 'Jan 10, 2024', status: 'completed' },
-    { id: 2, label: 'HR Screening', date: 'Jan 12, 2024', status: 'completed' },
-    { id: 3, label: 'Interview', date: 'Jan 15, 2024', status: 'current' },
-    { id: 4, label: 'Offer', date: '--', status: 'upcoming' },
-    { id: 5, label: 'Hired', date: '--', status: 'upcoming' },
-  ];
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await adminApi.getUserById(id);
+        console.log('Candidate API response:', response);
+        
+        // Handle different response structures
+        const userData = response.data || response;
+        
+        // Transform API data to match interface
+        const transformedData: CandidateDetails = {
+          id: userData.user_id || Number(id),
+          fullName: userData.full_name || userData.name || 'N/A',
+          email: userData.email || 'N/A',
+          phone: userData.phone || userData.phone_number || 'N/A',
+          address: userData.address || userData.location || 'N/A',
+          status: userData.is_active ? 'Active' : 'Locked',
+          avatar: userData.avatar_url || userData.profile_picture || '/default-avatar.png',
+          education: userData.education || 'N/A',
+          experience: userData.experience || [],
+          skills: userData.skills || [],
+          resumeUrl: userData.resume_url || '',
+          gender: userData.gender || 'N/A',
+          dateOfBirth: userData.date_of_birth || userData.birth_date || 'N/A',
+          languages: userData.languages || [],
+          aboutMe: userData.about_me || userData.bio || 'No information provided',
+          currentJob: {
+            title: userData.current_job_title || 'N/A',
+            years: userData.experience_years || 'N/A'
+          },
+          professionalInfo: {
+            aboutMe: userData.about_me || userData.bio || 'No information provided',
+            experience: userData.work_experience || 'N/A',
+            currentJob: {
+              title: userData.current_job_title || 'N/A',
+              years: userData.experience_years || 'N/A'
+            },
+            education: userData.education || 'N/A',
+            skills: userData.skills || []
+          },
+          matchPercentage: userData.match_percentage || 85
+        };
+        
+        setCandidateDetails(transformedData);
+      } catch (err: any) {
+        console.error('Error fetching candidate details:', err);
+        setError('Failed to load candidate details');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Mock interview schedule data
-  const interviewSchedule = [
-    { id: 1, date: 'Jan 15, 2024', time: '10:00 AM - 11:00 AM', interviewer: 'John Doe', mode: 'Video Call' },
-    { id: 2, date: 'Jan 20, 2024', time: '2:00 PM - 3:00 PM', interviewer: 'Jane Smith', mode: 'Onsite' },
-  ];
+    fetchCandidateDetails();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex justify-center items-center h-64">
+          <div className="text-lg">Loading candidate details...</div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (error || !candidateDetails) {
+    return (
+      <AdminLayout>
+        <div className="flex justify-center items-center h-64">
+          <div className="text-lg text-red-600">{error || 'Candidate not found'}</div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  // Note: Mock data removed - now using real API data from candidateDetails state
 
   return (
     <AdminLayout>
@@ -321,8 +357,8 @@ const AdminCandidateDetail: React.FC = () => {
                 <div className="grid grid-cols-3 gap-8">
                   {/* Left Column */}
                   <div className="col-span-2">
-                    <h2 className="text-4xl font-bold">Jerome Bell</h2>
-                    <p className="text-xl text-gray-600 mb-6">Product Designer</p>
+                    <h2 className="text-4xl font-bold">{candidateDetails.fullName}</h2>
+                    <p className="text-xl text-gray-600 mb-6">{candidateDetails.currentJob.title}</p>
 
                     <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Experience</h3>
                     <div className="space-y-6">
@@ -369,10 +405,10 @@ const AdminCandidateDetail: React.FC = () => {
 
                   {/* Right Column */}
                   <div>
-                    <img src="https://i.pravatar.cc/150?u=a042581f4e29026704d" alt="Jerome Bell" className="w-24 h-24 rounded-full mb-4" />
+                    <img src={candidateDetails.avatar} alt={candidateDetails.fullName} className="w-24 h-24 rounded-full mb-4" />
                     <div>
-                      <p>jeromebell@gmail.com</p>
-                      <p>+44 1245 572 135</p>
+                      <p>{candidateDetails.email}</p>
+                      <p>{candidateDetails.phone}</p>
                       <p>Vernouillet</p>
                   </div>
                     <div className="mt-6">

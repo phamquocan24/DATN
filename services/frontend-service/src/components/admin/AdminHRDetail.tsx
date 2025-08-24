@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
 import { FiArrowLeft, FiEdit, FiExternalLink, FiPlus, FiArrowRight } from 'react-icons/fi';
@@ -13,6 +13,7 @@ import work1 from '../../assets/work1.png';
 import work2 from '../../assets/work2.png';
 import work3 from '../../assets/work3.png';
 import work4 from '../../assets/work4.png';
+import adminApi from '../../services/adminApi';
 
 interface HRDetails {
   id: number;
@@ -38,27 +39,81 @@ const AdminHRDetail: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [showMoreJobs, setShowMoreJobs] = useState(false);
+  const [hrDetails, setHrDetails] = useState<HRDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data - replace with actual API call
-  const hrDetails: HRDetails = {
-    id: Number(id),
-    fullName: 'John Smith',
-    email: 'john.smith@company.com',
-    phone: '+84 987 654 321',
-    companyName: 'Nomad',
-    position: 'Senior HR Manager',
-    status: 'Active',
-    avatar: `https://i.pravatar.cc/150?u=${id}`,
-    companyLogo: companyLogo,
-    companyInfo: {
-      address: 'District 1, Ho Chi Minh City, Vietnam',
-      industry: 'Social & Non-Profit',
-      size: '4000+',
-      website: 'https://nomad.com',
-    },
-    activeJobs: 15,
-    totalCandidates: 245,
-  };
+  useEffect(() => {
+    const fetchHRDetails = async () => {
+      if (!id) {
+        setError('No HR ID provided');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await adminApi.getUserById(id);
+        console.log('HR API response:', response);
+        
+        // Handle different response structures
+        const userData = response.data || response;
+        
+        // Transform API data to match interface
+        const transformedData: HRDetails = {
+          id: userData.user_id || Number(id),
+          fullName: userData.full_name || userData.name || 'N/A',
+          email: userData.email || 'N/A',
+          phone: userData.phone || userData.phone_number || 'N/A',
+          companyName: userData.company_name || 'N/A',
+          position: userData.position || userData.job_title || 'HR Manager',
+          status: userData.is_active ? 'Active' : 'Locked',
+          avatar: userData.avatar_url || userData.profile_picture || '/default-avatar.png',
+          companyLogo: userData.company_logo || companyLogo,
+          companyInfo: {
+            address: userData.company_address || userData.address || 'N/A',
+            industry: userData.company_industry || userData.industry || 'N/A',
+            size: userData.company_size || 'N/A',
+            website: userData.company_website || userData.website || 'N/A'
+          },
+          activeJobs: userData.active_jobs_count || 0,
+          totalCandidates: userData.total_candidates || 0
+        };
+        
+        setHrDetails(transformedData);
+      } catch (err: any) {
+        console.error('Error fetching HR details:', err);
+        setError('Failed to load HR details');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHRDetails();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex justify-center items-center h-64">
+          <div className="text-lg">Loading HR details...</div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (error || !hrDetails) {
+    return (
+      <AdminLayout>
+        <div className="flex justify-center items-center h-64">
+          <div className="text-lg text-red-600">{error || 'HR user not found'}</div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  // Note: Mock data removed - now using real API data from hrDetails state
 
   const getTagStyle = (tag: string) => {
     switch (tag) {

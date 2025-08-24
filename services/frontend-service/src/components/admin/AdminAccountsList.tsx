@@ -516,7 +516,7 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
                         </button>
                       )}
                       <button 
-                        className="px-3 py-1 rounded-full text-sm border border-[#007BFF] text-[#007BFF] bg-blue-50 hover:bg-blue-100 transition-colors" 
+                        className="px-3 py-1 rounded-lg text-sm bg-[#007bff] text-white hover:bg-[#0056b3] transition-colors" 
                         onClick={(e) => {
                           e.stopPropagation(); 
                           const path = account.type === 'Candidate' ? `/admin/candidates/${account.id}` : 
