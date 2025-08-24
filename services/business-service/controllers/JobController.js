@@ -249,6 +249,52 @@ class JobController {
   }
 
   /**
+   * GET /api/v1/jobs/admin - Get all jobs for admin with all statuses
+   */
+  async getJobsAdmin(req, res) {
+    try {
+      // Normalize parameters before validation
+      const normalizedParams = this.normalizeSearchParams(req.query);
+      
+      // Validate normalized parameters with allowUnknown for flexibility
+      const { error, value } = searchJobsSchema.validate(normalizedParams, { allowUnknown: true });
+      
+      if (error) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: error.details.map(err => ({
+            field: err.path[0],
+            message: err.message
+          }))
+        });
+      }
+
+      // Admin can see all jobs regardless of status
+      const options = {
+        ...value,
+        status: null  // Explicitly set to null to avoid default 'ACTIVE' filter
+      };
+
+      const result = await this.jobModel.getJobs(options);
+
+      res.json({
+        success: true,
+        message: 'Jobs retrieved successfully',
+        data: result.data,
+        pagination: result.pagination
+      });
+    } catch (error) {
+      logger.error('Failed to get admin jobs:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get admin jobs',
+        error: error.message
+      });
+    }
+  }
+
+  /**
    * @swagger
    * /api/v1/jobs/{id}:
    *   get:
@@ -2322,6 +2368,7 @@ router.get('/latest', jobController.getLatestJobs.bind(jobController));
 router.get('/stats', authenticateToken, requireRole(['RECRUITER', 'HR', 'ADMIN']), jobController.getJobStats.bind(jobController));
 router.get('/my-jobs', authenticateToken, requireRole(['RECRUITER', 'HR', 'ADMIN']), jobController.getMyJobs.bind(jobController));
 router.get('/pending', authenticateToken, requireRole(['ADMIN']), jobController.getPendingJobs.bind(jobController));
+router.get('/admin', authenticateToken, requireRole(['ADMIN']), jobController.getJobsAdmin.bind(jobController));
 router.get('/recommendations', authenticateToken, requireRole(['CANDIDATE']), jobController.getRecommendedJobs.bind(jobController));
 router.get('/bookmarked', authenticateToken, requireRole(['CANDIDATE']), jobController.getBookmarkedJobs.bind(jobController));
 

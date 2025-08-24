@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNotifications } from '../../hooks/useNotifications';
-import { FiSearch, FiFilter, FiMoreHorizontal, FiChevronDown } from 'react-icons/fi';
+import { FiSearch, FiChevronDown, FiMoreVertical, FiTrash2 } from 'react-icons/fi';
 import AdminLayout from './AdminLayout';
 
 import BellIcon from '../../assets/bell-outlined.png';
@@ -27,6 +27,7 @@ interface JobListingsProps {
 const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
   const [selectedTab, setSelectedTab] = useState('jobs');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [jobViewType, setJobViewType] = useState<'all' | 'pending' | 'active' | 'rejected'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -35,6 +36,10 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [totalJobs, setTotalJobs] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  
+  // Dropdown states
+  const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
 
   // Date picker state from Dashboard
@@ -52,40 +57,66 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
   useEffect(() => {
     const fetchJobs = async () => {
       try {
-
-        const apiResult = await adminApi.getAllJobs({ page: currentPage, limit: itemsPerPage });
+        let apiResult;
+        
+        // Determine which API to call based on jobViewType
+        switch (jobViewType) {
+          case 'pending':
+            apiResult = await adminApi.getPendingJobs({ page: currentPage, limit: itemsPerPage });
+            break;
+          case 'all':
+          default:
+            apiResult = await adminApi.getAllJobs({ page: currentPage, limit: itemsPerPage });
+            break;
+        }
+        
+        console.log('JobListings API response:', apiResult);
+        
         const jobsData = apiResult?.data || [];
         const paginationInfo = apiResult?.pagination;
         setTotalPages(paginationInfo?.totalPages || 1);
         setTotalJobs(paginationInfo?.total || jobsData.length);
         
-        // Transform API data to match component interface
+        // Transform API data to match component interface (no fallbacks)
         const formattedJobs = jobsData.map((job: any) => ({
-          id: job.id || job._id,
-          role: job.title || job.role,
-          status: job.status || 'Pending',
-          datePosted: new Date(job.createdAt || job.datePosted).toLocaleDateString('en-GB', { 
+          id: job.job_id,
+          role: job.title,
+          status: job.status,
+          datePosted: new Date(job.created_at).toLocaleDateString('en-GB', { 
             day: 'numeric', 
             month: 'short', 
             year: 'numeric' 
           }),
-          jobType: job.type || job.jobType || 'Fulltime',
-          applicants: job.applicationsCount || job.applicants || 0,
+          jobType: job.employment_type,
+          applicants: job.application_count,
           needs: { 
-            current: job.filledPositions || 0, 
-            total: job.openPositions || job.positions || 1 
-          }
+            current: job.application_count, 
+            total: job.max_applications
+          },
+          company: job.company_name
         }));
         
         setJobs(formattedJobs);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching jobs:', err);
+        console.error('Error response:', err.response?.data);
+        console.error('Error status:', err.response?.status);
         console.error('Failed to load jobs data', err);
+        
+        // Set empty state if there's an error
+        setJobs([]);
+        setTotalJobs(0);
+        setTotalPages(1);
+        
+        // Show user-friendly error with more details
+        const errorMessage = err.response?.data?.message || err.message || 'Unknown error';
+        const errorStatus = err.response?.status || 'No status';
+        alert(`Failed to load jobs (${errorStatus}): ${errorMessage}`);
       }
     };
 
     fetchJobs();
-  }, [currentPage, itemsPerPage]);
+  }, [currentPage, itemsPerPage, jobViewType]);
 
   const handleJobClick = (job: Job) => {
     setSelectedJob(job);
@@ -97,53 +128,73 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
     setSelectedTab('jobs');
   };
 
-  const handleApproveJob = async (jobId: number) => {
-    try {
-      await adminApi.approveJob(jobId.toString());
-      // Update local state
-      setJobs(prevJobs => 
-        prevJobs.map(job => 
-          job.id === jobId ? { ...job, status: 'Approve' } : job
-        )
-      );
-    } catch (err) {
-      console.error('Error approving job:', err);
-      alert('Failed to approve job');
+  // Callback to refresh job list when job is updated in details
+  const handleJobUpdate = () => {
+    // Reset to first page and refetch
+    setCurrentPage(1);
+    // The useEffect will automatically refetch due to dependency array
+  };
+
+  const handleDeleteJob = async (jobId: number) => {
+    if (window.confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
+      try {
+        await adminApi.deleteJob(jobId.toString());
+        
+        // Update local state
+        setJobs(prevJobs => prevJobs.filter(job => job.id !== jobId));
+        setTotalJobs(prev => prev - 1);
+        
+        alert('Job deleted successfully!');
+        setOpenDropdownId(null);
+      } catch (err: any) {
+        console.error('Error deleting job:', err);
+        alert('Failed to delete job: ' + (err.response?.data?.message || err.message || 'Unknown error'));
+      }
     }
   };
 
-  const handleRejectJob = async (jobId: number) => {
-    try {
-      await adminApi.rejectJob(jobId.toString());
-      // Update local state
-      setJobs(prevJobs => 
-        prevJobs.map(job => 
-          job.id === jobId ? { ...job, status: 'Spam' } : job
-        )
-      );
-    } catch (err) {
-      console.error('Error rejecting job:', err);
-      alert('Failed to reject job');
-    }
-  };
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpenDropdownId(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+      
 
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'approve': return 'border-green-500 text-green-500 bg-green-50';
-      case 'flag': return 'border-blue-500 text-blue-500 bg-blue-50';
-      case 'spam': return 'border-red-500 text-red-500 bg-red-50';
-      case 'pending': return 'border-yellow-500 text-yellow-500 bg-yellow-50';
+    switch (status.toUpperCase()) {
+      case 'ACTIVE': 
+      case 'PUBLISHED': return 'border-green-500 text-green-500 bg-green-50';
+      case 'PENDING': return 'border-yellow-500 text-yellow-500 bg-yellow-50';
+      case 'REJECTED': return 'border-red-500 text-red-500 bg-red-50';
+      case 'DRAFT': return 'border-gray-500 text-gray-500 bg-gray-50';
+      case 'PAUSED': return 'border-orange-500 text-orange-500 bg-orange-50';
+      case 'CLOSED': return 'border-purple-500 text-purple-500 bg-purple-50';
+      // Legacy status support
+      case 'APPROVE': return 'border-green-500 text-green-500 bg-green-50';
+      case 'FLAG': return 'border-blue-500 text-blue-500 bg-blue-50';
+      case 'SPAM': return 'border-red-500 text-red-500 bg-red-50';
       default: return 'border-gray-500 text-gray-500 bg-gray-50';
     }
   };
 
   const getJobTypeColor = (type: string) => {
-    switch (type.toLowerCase()) {
-      case 'fulltime': return 'border-blue-500 text-blue-500 bg-blue-50';
-      case 'contract': return 'border-orange-500 text-orange-500 bg-orange-50';
-      case 'remote': return 'border-yellow-500 text-yellow-500 bg-yellow-50';
-      case 'parttime': return 'border-green-500 text-green-500 bg-green-50';
-      case 'internship': return 'border-purple-500 text-purple-500 bg-purple-50';
+    if (!type) return 'border-gray-500 text-gray-500 bg-gray-50';
+    
+    switch (type.toUpperCase()) {
+      case 'FULL_TIME': return 'border-blue-500 text-blue-500 bg-blue-50';
+      case 'PART_TIME': return 'border-green-500 text-green-500 bg-green-50';
+      case 'CONTRACT': return 'border-orange-500 text-orange-500 bg-orange-50';
+      case 'INTERNSHIP': return 'border-purple-500 text-purple-500 bg-purple-50';
+      case 'FREELANCE': return 'border-pink-500 text-pink-500 bg-pink-50';
       default: return 'border-gray-500 text-gray-500 bg-gray-50';
     }
   };
@@ -191,9 +242,9 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
         {/* Divider */}
         <div className="border-t border-gray-200 mb-6"></div>
 
-        {selectedTab === 'details' && selectedJob ? (
-          <JobDetails onBack={handleBackToList} />
-        ) : (
+                  {selectedTab === 'details' && selectedJob ? (
+            <JobDetails onBack={handleBackToList} jobId={selectedJob.id.toString()} onJobUpdate={handleJobUpdate} />
+          ) : (
           <>
             {/* Sub-header for List View */}
             <div className="flex justify-between items-center mb-6">
@@ -222,7 +273,18 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
             {/* Tabs, Table, and Pagination for List View */}
             <div className="border-b border-gray-200 mb-6">
               <nav className="flex space-x-8">
-                <button className={`py-4 px-1 border-b-2 font-medium text-sm ${selectedTab === 'jobs' ? 'border-[#007BFF] text-[#007BFF]' : 'border-transparent text-gray-500 hover:text-gray-700'}`} onClick={() => setSelectedTab('jobs')}>Jobs</button>
+                <button 
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${jobViewType === 'all' ? 'border-[#007BFF] text-[#007BFF]' : 'border-transparent text-gray-500 hover:text-gray-700'}`} 
+                  onClick={() => {setJobViewType('all'); setCurrentPage(1);}}
+                >
+                  All Jobs
+                </button>
+                <button 
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${jobViewType === 'pending' ? 'border-[#007BFF] text-[#007BFF]' : 'border-transparent text-gray-500 hover:text-gray-700'}`} 
+                  onClick={() => {setJobViewType('pending'); setCurrentPage(1);}}
+                >
+                  Pending Approval
+                </button>
               </nav>
             </div>
             <div className="bg-white rounded-lg border border-gray-200">
@@ -230,15 +292,11 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
                   <div className="text-lg font-semibold text-gray-800 text-left">Total Jobs: {totalJobs}</div>
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center">
                     <div className="relative">
                       <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                       <input type="text" placeholder="Search roles, job type" className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300" />
                     </div>
-                    <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg">
-                      <FiFilter />
-                      <span>Filter</span>
-                    </button>
                   </div>
                 </div>
 
@@ -250,16 +308,32 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
                           {header} <FiChevronDown className="inline-block" />
                         </th>
                       ))}
-                      <th className="pb-4 font-medium"></th>
+                      <th className="pb-4 font-medium text-right">Action</th>
+
                     </tr>
                   </thead>
                   <tbody>
-                    {jobs.map((job) => (
-                      <tr 
-                        key={job.id} 
-                        className="border-t border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors"
-                        onClick={() => handleJobClick(job)}
-                      >
+                    {jobs.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-8 text-center text-gray-500">
+                          <div className="flex flex-col items-center justify-center">
+                            <p className="text-lg font-medium mb-2">No jobs found</p>
+                            <p className="text-sm">
+                              {jobViewType === 'pending' 
+                                ? 'No jobs are currently pending approval.' 
+                                : 'No jobs have been posted yet.'
+                              }
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      jobs.map((job) => (
+                        <tr 
+                          key={job.id} 
+                          className="border-t border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors"
+                          onClick={() => handleJobClick(job)}
+                        >
                         <td className="py-4 font-medium">{job.role}</td>
                         <td className="py-4"><span className={`px-3 py-1 rounded-full text-sm border ${getStatusColor(job.status)}`}>{job.status}</span></td>
                         <td className="py-4 text-gray-500">{job.datePosted}</td>
@@ -267,33 +341,37 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
                         <td className="py-4">{job.applicants.toLocaleString()}</td>
                         <td className="py-4"><span className="text-gray-500">{job.needs.current} / {job.needs.total}</span></td>
                         <td className="py-4 text-right">
-                          {job.status.toLowerCase() === 'pending' ? (
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleApproveJob(job.id);
-                                }}
-                                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
-                              >
-                                Approve
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRejectJob(job.id);
-                                }}
-                                className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          ) : (
-                            <button className="text-gray-400 hover:text-gray-600"><FiMoreHorizontal /></button>
-                          )}
+                          <div className="relative" ref={openDropdownId === job.id ? dropdownRef : null}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdownId(openDropdownId === job.id ? null : job.id);
+                              }}
+                              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                            >
+                              <FiMoreVertical className="w-4 h-4 text-gray-500" />
+                            </button>
+                            
+                            {/* Dropdown Menu */}
+                            {openDropdownId === job.id && (
+                              <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteJob(job.id);
+                                  }}
+                                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 rounded-lg"
+                                >
+                                  <FiTrash2 className="w-4 h-4" />
+                                  Delete Job
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </td>
+
                       </tr>
-                    ))}
+                    )))}
                   </tbody>
                 </table>
               </div>

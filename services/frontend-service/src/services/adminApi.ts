@@ -81,56 +81,6 @@ export const adminApi = {
     return response.data;
   },
 
-  // Job Management  
-  getAllJobs: async (params?: { page?: number; limit?: number; search?: string; status?: string }) => {
-    const response = await apiClient.get('/api/v1/jobs', { params });
-    return response.data;
-  },
-
-  getPendingJobs: async (params?: { page?: number; limit?: number }) => {
-    const response = await apiClient.get('/api/v1/jobs/pendings', { params });
-    return response.data;
-  },
-
-  // Added missing job search endpoint for admin
-  searchJobs: async (searchParams: any) => {
-    const cleanParams = Object.fromEntries(
-      Object.entries(searchParams).filter(([, value]) => 
-        value !== '' && value !== null && value !== undefined
-      )
-    );
-    const response = await apiClient.get('/api/v1/jobs/search', { params: cleanParams });
-    return response.data;
-  },
-
-  // Added missing job stats endpoint for admin
-  getJobStats: async () => {
-    const response = await apiClient.get('/api/v1/jobs/stats');
-    return response.data;
-  },
-
-  // Added missing latest jobs endpoint for admin
-  getLatestJobs: async (params?: { limit?: number }) => {
-    const response = await apiClient.get('/api/v1/jobs/latest', { params });
-    return response.data;
-  },
-
-  approveJob: async (jobId: string, reason?: string) => {
-    const response = await apiClient.post(`/api/v1/jobs/${jobId}/approve`, { reason });
-    return response.data;
-  },
-
-  rejectJob: async (jobId: string, reason?: string) => {
-    const response = await apiClient.post(`/api/v1/jobs/${jobId}/reject`, { reason });
-    return response.data;
-  },
-
-  getJobById: async (jobId: string, includeStats?: boolean) => {
-    const params = includeStats ? { include_stats: includeStats } : {};
-    const response = await apiClient.get(`/api/v1/jobs/${jobId}`, { params });
-    return response.data;
-  },
-
   // Applications Management
   getAllApplications: async () => {
     const response = await apiClient.get('/applications');
@@ -258,6 +208,38 @@ export const adminApi = {
 
   getUnreadCount: async () => {
     const response = await apiClient.get('/api/v1/notifications/unread/count');
+    return response.data;
+  },
+
+  // Job Management
+  getAllJobs: async (params?: { page?: number; limit?: number; search?: string; status?: string }) => {
+    const response = await apiClient.get('/api/v1/jobs/admin', { params });
+    return response.data;
+  },
+
+  getJobById: async (jobId: string, includeStats: boolean = false) => {
+    const params = includeStats ? { include_stats: 'true' } : {};
+    const response = await apiClient.get(`/api/v1/jobs/${jobId}`, { params });
+    return response.data;
+  },
+
+  deleteJob: async (jobId: string) => {
+    const response = await apiClient.delete(`/api/v1/jobs/${jobId}`);
+    return response.data;
+  },
+
+  getPendingJobs: async (params?: { page?: number; limit?: number }) => {
+    const response = await apiClient.get('/api/v1/jobs/pending', { params });
+    return response.data;
+  },
+
+  approveJob: async (jobId: string, reason?: string) => {
+    const response = await apiClient.post(`/api/v1/jobs/${jobId}/approve`, { reason });
+    return response.data;
+  },
+
+  rejectJob: async (jobId: string, reason: string) => {
+    const response = await apiClient.post(`/api/v1/jobs/${jobId}/reject`, { reason });
     return response.data;
   },
 
