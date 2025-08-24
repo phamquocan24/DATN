@@ -294,9 +294,9 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
 
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="text-gray-500 text-sm">
-                      {['Roles', 'Status', 'Date Posted', 'Job type', 'Applicants', 'Needs'].map(header => (
-                        <th key={header} className="pb-4 font-medium">
+                                         <tr className="text-black text-sm">
+                        {['Roles', 'Status', 'Date Posted', 'Job type', 'Applicants', 'Needs'].map(header => (
+                         <th key={header} className="pb-4 font-semibold">
                           {header} <FiChevronDown className="inline-block" />
                         </th>
                       ))}
