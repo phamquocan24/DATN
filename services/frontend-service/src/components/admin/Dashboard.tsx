@@ -67,6 +67,19 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
     { label: 'New Feedback', value: 0, color: 'bg-green-500', path: '/admin/feedback' },
   ]);
 
+  // Real API data states (removed unused jobStats and applicationStats)
+  const [jobOpenCount, setJobOpenCount] = useState(0);
+  const [applicantsSummary, setApplicantsSummary] = useState({
+    total: 0,
+    byType: {
+      fullTime: 0,
+      partTime: 0,
+      contract: 0,
+      internship: 0,
+      remote: 0
+    }
+  });
+
   const [jobStatsData, setJobStatsData] = useState([
     { day: 'Mon', approved: 0, pending: 0, spam: 0 },
     { day: 'Tue', approved: 0, pending: 0, spam: 0 },
@@ -87,6 +100,104 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Fetch dashboard data from APIs
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Fetch job statistics
+        const jobStatsResponse = await adminApi.getJobStatistics();
+        console.log('Job stats response:', jobStatsResponse);
+        console.log('Job stats data:', jobStatsResponse?.data);
+
+        // Fetch application statistics  
+        const appStatsResponse = await adminApi.getApplicationStatistics();
+        console.log('Application stats response:', appStatsResponse);
+
+        // Process job statistics data
+        if (jobStatsResponse?.data || jobStatsResponse) {
+          const jobData = jobStatsResponse.data || jobStatsResponse;
+          
+          // Update job open count (active/published jobs)
+          const activeJobs = jobData.active_jobs || jobData.published_jobs || jobData.total_active || 0;
+          setJobOpenCount(activeJobs);
+
+          // Update job views and applied data
+          setJobViewsData({
+            total: jobData.total_views || jobData.job_views || 0,
+            weeklyChange: jobData.views_weekly_change || jobData.weekly_views_change || 6.4
+          });
+
+          setJobAppliedData({
+            total: jobData.total_applications || jobData.applications_count || 0,
+            weeklyChange: jobData.applications_weekly_change || jobData.weekly_applications_change || 0.5
+          });
+
+          // Update job statistics chart data
+          if (jobData.weekly_stats || jobData.daily_stats) {
+            const weeklyData = jobData.weekly_stats || jobData.daily_stats || [];
+            console.log('Raw weekly data from API:', weeklyData);
+            
+            const transformedData = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
+              const dayData = weeklyData.find((d: any) => d.day === day || d.day_name === day);
+              const result = {
+                day,
+                approved: dayData?.approved || dayData?.approved_count || 0,
+                pending: dayData?.pending || dayData?.pending_count || 0,
+                spam: dayData?.spam || dayData?.spam_count || 0
+              };
+              console.log(`Day ${day}:`, { dayData, result });
+              return result;
+            });
+            
+            console.log('Final transformed chart data:', transformedData);
+            setJobStatsData(transformedData);
+          } else {
+            console.log('No weekly_stats or daily_stats found in API response');
+          }
+
+          // Update stats cards
+          const pendingJobs = jobData.pending_jobs || jobData.pending_count || 0;
+          setStats(prev => prev.map(stat => 
+            stat.label === 'New Jobs to Review' 
+              ? { ...stat, value: pendingJobs }
+              : stat
+          ));
+        }
+
+        // Process application statistics data
+        if (appStatsResponse?.data || appStatsResponse) {
+          const appData = appStatsResponse.data || appStatsResponse;
+          
+          // Update applicants summary
+          const totalApplicants = appData.total_applications || appData.total_applicants || 0;
+          const byType = appData.by_job_type || appData.applications_by_type || {};
+          
+          setApplicantsSummary({
+            total: totalApplicants,
+            byType: {
+              fullTime: byType.FULL_TIME || byType.full_time || 0,
+              partTime: byType.PART_TIME || byType.part_time || 0, 
+              contract: byType.CONTRACT || byType.contract || 0,
+              internship: byType.INTERNSHIP || byType.internship || 0,
+              remote: byType.REMOTE || byType.remote || 0
+            }
+          });
+        }
+
+      } catch (err: any) {
+        console.error('Error fetching dashboard data:', err);
+        setError('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
   // Date picker state
   const [selectedDate, setSelectedDate] = useState('2023-07-19');
   const dateInputRef = useRef<HTMLInputElement | null>(null);
@@ -96,9 +207,12 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
     dateInputRef.current?.click();
   };
 
-  // Animated counters for Job Views & Applied
-  const jobViewsCount = useCountUp(2342);
-  const jobAppliedCount = useCountUp(654);
+  // Animated counters for Job Views & Applied (using real data)
+  const [jobViewsData, setJobViewsData] = useState({ total: 0, weeklyChange: 0 });
+  const [jobAppliedData, setJobAppliedData] = useState({ total: 0, weeklyChange: 0 });
+  
+  const jobViewsCount = useCountUp(jobViewsData.total);
+  const jobAppliedCount = useCountUp(jobAppliedData.total);
 
   // Tab state for chart filtering
   const [selectedTab, setSelectedTab] = useState<'overview' | 'approved' | 'pending' | 'spam'>('overview');
@@ -241,7 +355,7 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
   const statusLabels: Record<string, string> = {
     approved: 'Approved',
     pending: 'Pending',
-    spam: 'Spam',
+    spam: 'Rejected',
   };
 
   return (
@@ -366,7 +480,7 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
                   { key: 'overview', label: 'Overview' },
                   { key: 'approved', label: 'Approved' },
                   { key: 'pending', label: 'Pending' },
-                  { key: 'spam', label: 'Spam' },
+                  { key: 'spam', label: 'Rejected' },
                 ].map((tab) => (
                   <button
                     key={tab.key}
@@ -450,9 +564,9 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
                 <div className="bg-white border border-gray-200 rounded-lg p-4 text-left">
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Job Views</h3>
                   <p className="text-3xl font-semibold text-gray-800">{jobViewsCount}</p>
-                  <p className="text-sm text-green-600 flex items-center">
+                  <p className={`text-sm flex items-center ${jobViewsData.weeklyChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     This Week
-                    <span className="ml-1">6.4%</span>
+                    <span className="ml-1">{jobViewsData.weeklyChange.toFixed(1)}%</span>
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       className="h-4 w-4 ml-0.5"
@@ -470,9 +584,9 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
                 <div className="bg-white border border-gray-200 rounded-lg p-4 text-left">
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Job Applied</h3>
                   <p className="text-3xl font-semibold text-gray-800">{jobAppliedCount}</p>
-                  <p className="text-sm text-red-600 flex items-center">
+                  <p className={`text-sm flex items-center ${jobAppliedData.weeklyChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     This Week
-                    <span className="ml-1">0.5%</span>
+                    <span className="ml-1">{jobAppliedData.weeklyChange.toFixed(1)}%</span>
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       className="h-4 w-4 ml-0.5"
@@ -494,36 +608,36 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
             <div className="bg-white p-6 rounded-lg border border-gray-200">
               <h2 className="text-left text-xl font-normal text-gray-800 mb-4" style={{fontFamily: 'ABeeZee, sans-serif'}}>Job Open</h2>
               <div className="flex items-baseline">
-                <AnimatedNumber value={12} className="text-7xl font-semibold text-gray-800" />
+                <AnimatedNumber value={jobOpenCount} className="text-7xl font-semibold text-gray-800" />
                 <p className="text-xl text-gray-500 ml-4">Jobs Opened</p>
               </div>
             </div>
             <div className="bg-white p-6 rounded-lg border border-gray-200">
               <h2 className="text-left text-xl font-normal text-gray-800 mb-4" style={{fontFamily: 'ABeeZee, sans-serif'}}>Applicants Summary</h2>
               <div className="flex items-baseline">
-                <AnimatedNumber value={67} className="text-7xl font-semibold text-gray-800" />
+                <AnimatedNumber value={applicantsSummary.total} className="text-7xl font-semibold text-gray-800" />
                 <p className="text-xl text-gray-500 ml-4">Applicants</p>
               </div>
               {/* Animated progress bar */}
               <div className="flex w-full h-4 rounded-full overflow-hidden my-4">
                   {[
-                    { value: 45, color: '#7b61ff' },
-                    { value: 22, color: '#56cdad' },
-                    { value: 28, color: '#26a4ff' },
-                    { value: 30, color: '#ffb836' },
-                    { value: 10, color: '#ff6550' },
+                    { value: applicantsSummary.byType.fullTime, color: '#7b61ff' },
+                    { value: applicantsSummary.byType.partTime, color: '#56cdad' },
+                    { value: applicantsSummary.byType.remote, color: '#26a4ff' },
+                    { value: applicantsSummary.byType.internship, color: '#ffb836' },
+                    { value: applicantsSummary.byType.contract, color: '#ff6550' },
                   ].map((seg, idx) => {
-                    const percent = (seg.value / 135) * 100; // total = 135
+                    const percent = applicantsSummary.total > 0 ? (seg.value / applicantsSummary.total) * 100 : 0;
                     return <div key={idx} style={{ width: animateProgress ? `${percent}%` : 0, backgroundColor: seg.color, transition: 'width 0.8s ease' }} />;
                   })}
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-gray-600">
                   {[
-                    { label: 'Full Time', value: 45, color: '#7b61ff' },
-                    { label: 'Internship', value: 30, color: '#ffb836' },
-                    { label: 'Part-Time', value: 22, color: '#56cdad' },
-                    { label: 'Contract', value: 10, color: '#ff6550' },
-                    { label: 'Remote', value: 28, color: '#26a4ff' },
+                    { label: 'Full Time', value: applicantsSummary.byType.fullTime, color: '#7b61ff' },
+                    { label: 'Internship', value: applicantsSummary.byType.internship, color: '#ffb836' },
+                    { label: 'Part-Time', value: applicantsSummary.byType.partTime, color: '#56cdad' },
+                    { label: 'Contract', value: applicantsSummary.byType.contract, color: '#ff6550' },
+                    { label: 'Remote', value: applicantsSummary.byType.remote, color: '#26a4ff' },
                   ].map((item, idx) => (
                     <div key={idx} className="flex items-center">
                       <div className="w-3 h-3 rounded-sm mr-2" style={{ backgroundColor: item.color }}></div>

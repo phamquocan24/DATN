@@ -1215,29 +1215,76 @@ class ApplicationController {
         filters.company_id = req.user.company_id;
       }
 
-      // Build basic statistics directly through SQL because model helper is missing
+      // Simplified application statistics query
       let whereSql = '';
       const params = [];
+      
       if (filters.company_id) {
         params.push(filters.company_id);
-        whereSql += ` WHERE company_id = $${params.length}`;
+        whereSql = `WHERE j.company_id = $${params.length}`;
       }
-      const statsQuery = `
+
+      // Main application statistics query
+      const mainStatsQuery = `
         SELECT 
-          COUNT(*)::int                     AS total_applications,
-          COUNT(*) FILTER (WHERE current_status = 'PENDING')   AS pending,
-          COUNT(*) FILTER (WHERE current_status = 'APPROVED')  AS approved,
-          COUNT(*) FILTER (WHERE current_status = 'REJECTED')  AS rejected,
-          COUNT(*) FILTER (WHERE current_status = 'SHORTLISTED') AS shortlisted
-        FROM applications
+          COUNT(*)::int AS total_applications,
+          COUNT(*) FILTER (WHERE current_status = 'PENDING')::int AS pending,
+          COUNT(*) FILTER (WHERE current_status = 'APPROVED')::int AS approved,
+          COUNT(*) FILTER (WHERE current_status = 'REJECTED')::int AS rejected,
+          COUNT(*) FILTER (WHERE current_status = 'SHORTLISTED')::int AS shortlisted
+        FROM applications a
+        LEFT JOIN jobs j ON a.job_id = j.job_id
         ${whereSql}
       `;
-      const result = await this.applicationModel.db.query(statsQuery, params, 'get_application_stats');
+
+      console.log('Executing application stats query:', mainStatsQuery);
+      console.log('With values:', params);
+
+      const result = await this.applicationModel.db.query(mainStatsQuery, params, 'get_application_stats');
+      const mainStats = result.rows[0] || {};
+
+      // For now, return simple data structure
+      const responseData = {
+        ...mainStats,
+        total_applicants: mainStats.total_applications || 0,
+        by_job_type: {
+          FULL_TIME: 0,
+          full_time: 0,
+          PART_TIME: 0,
+          part_time: 0,
+          CONTRACT: 0,
+          contract: 0,
+          INTERNSHIP: 0,
+          internship: 0,
+          FREELANCE: 0,
+          remote: 0
+        },
+        applications_by_type: {
+          FULL_TIME: 0,
+          full_time: 0,
+          PART_TIME: 0,
+          part_time: 0,
+          CONTRACT: 0,
+          contract: 0,
+          INTERNSHIP: 0,
+          internship: 0,
+          FREELANCE: 0,
+          remote: 0
+        },
+        applications_by_status: {
+          PENDING: mainStats.pending || 0,
+          APPROVED: mainStats.approved || 0,
+          REJECTED: mainStats.rejected || 0,
+          SHORTLISTED: mainStats.shortlisted || 0,
+          INTERVIEWING: 0,
+          HIRED: 0
+        }
+      };
 
       res.json({
         success: true,
         message: 'Application statistics retrieved successfully',
-        data: result.rows[0]
+        data: responseData
       });
     } catch (error) {
       logger.error('Failed to get application stats:', error);
@@ -1736,6 +1783,7 @@ router.get('/', authenticateToken, applicationController.getApplications.bind(ap
 // Specific routes (must come before /:id)
 router.get('/my-applications', authenticateToken, requireRole(['CANDIDATE']), applicationController.getMyApplications.bind(applicationController));
 router.get('/stats', authenticateToken, requireRole(['HR', 'RECRUITER', 'ADMIN']), applicationController.getApplicationStats.bind(applicationController));
+router.get('/statistics', authenticateToken, requireRole(['HR', 'RECRUITER', 'ADMIN']), applicationController.getApplicationStats.bind(applicationController));
 router.get('/match-score/:jobId', authenticateToken, requireRole(['CANDIDATE']), applicationController.getMatchScore.bind(applicationController));
 router.get('/job/:jobId', authenticateToken, requireRole(['HR', 'RECRUITER', 'ADMIN']), applicationController.getJobApplications.bind(applicationController));
 

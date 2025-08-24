@@ -513,6 +513,7 @@ app.get('/api/docs', (req, res) => {
         'POST /api/v1/applications/bulk-update': 'Bulk update applications (HR)',
         'POST /api/v1/applications/:id/withdraw': 'Withdraw application (Candidate)',
         'GET /api/v1/applications/stats': 'Get application statistics',
+        'GET /api/v1/applications/statistics': 'Get application statistics (alias)',
         'POST /api/v1/applications/:id/shortlist': 'Shortlist candidate (HR)',
         'POST /api/v1/applications/:id/reject': 'Reject candidate (HR)',
         'POST /api/v1/applications/:id/schedule-interview': 'Schedule interview (HR)',

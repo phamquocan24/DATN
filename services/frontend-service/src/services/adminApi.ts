@@ -217,6 +217,18 @@ export const adminApi = {
     return response.data;
   },
 
+  // Job Statistics
+  getJobStatistics: async () => {
+    const response = await apiClient.get('/api/v1/jobs/stats');
+    return response.data;
+  },
+
+  // Application Statistics  
+  getApplicationStatistics: async () => {
+    const response = await apiClient.get('/api/v1/applications/statistics');
+    return response.data;
+  },
+
   getJobById: async (jobId: string, includeStats: boolean = false) => {
     const params = includeStats ? { include_stats: 'true' } : {};
     const response = await apiClient.get(`/api/v1/jobs/${jobId}`, { params });
