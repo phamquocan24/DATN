@@ -71,6 +71,17 @@ const JobDetails: React.FC<JobDetailsProps> = ({ onBack, jobId, onJobUpdate }) =
     }
   };
 
+  const getJobTypeColor = (type: string) => {
+    switch (type?.toUpperCase()) {
+      case 'FULL_TIME': return 'text-blue-600';
+      case 'PART_TIME': return 'text-green-600';
+      case 'CONTRACT': return 'text-purple-600';
+      case 'INTERNSHIP': return 'text-orange-600';
+      case 'FREELANCE': return 'text-pink-600';
+      default: return 'text-gray-600';
+    }
+  };
+
   const handleApproveJob = () => {
     setApprovalReason('Approved by admin');
     setShowApprovalModal(true);
@@ -216,16 +227,20 @@ const JobDetails: React.FC<JobDetailsProps> = ({ onBack, jobId, onJobUpdate }) =
                     </button>
                     <div>
                         <h2 className="text-xl font-semibold text-gray-900">{jobData.title}</h2>
-                        <p className="text-sm text-gray-500">
-                            {jobData.category} • {jobData.employment_type} • 
-                            {jobData.application_count} Applications
-                        </p>
+                        <div className="flex items-center gap-4 text-sm">
+                            <span className={`font-medium ${getJobTypeColor(jobData.employment_type)}`}>
+                                {formatEmploymentType(jobData.employment_type)}
+                            </span>
+                            <span className="text-gray-600">
+                                {jobData.application_count} Applications
+                            </span>
+                            <span className={`px-3 py-1 rounded-full border ${getStatusColor(jobData.status)}`}>
+                                {jobData.status}
+                            </span>
+                        </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className={`px-3 py-1 rounded-full text-sm border ${getStatusColor(jobData.status)}`}>
-                        {jobData.status}
-                    </span>
                     
                     {/* Show approve/reject buttons for pending jobs */}
                     {jobData.status?.toUpperCase() === 'PENDING' && (

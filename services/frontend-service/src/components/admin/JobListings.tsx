@@ -40,6 +40,11 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
   // Dropdown states
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Delete confirmation modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [jobToDelete, setJobToDelete] = useState<Job | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
 
   // Date picker state from Dashboard
@@ -135,21 +140,32 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
     // The useEffect will automatically refetch due to dependency array
   };
 
-  const handleDeleteJob = async (jobId: number) => {
-    if (window.confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
-      try {
-        await adminApi.deleteJob(jobId.toString());
-        
-        // Update local state
-        setJobs(prevJobs => prevJobs.filter(job => job.id !== jobId));
-        setTotalJobs(prev => prev - 1);
-        
-        alert('Job deleted successfully!');
-        setOpenDropdownId(null);
-      } catch (err: any) {
-        console.error('Error deleting job:', err);
-        alert('Failed to delete job: ' + (err.response?.data?.message || err.message || 'Unknown error'));
-      }
+  const handleDeleteJob = (job: Job) => {
+    setJobToDelete(job);
+    setShowDeleteModal(true);
+    setOpenDropdownId(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!jobToDelete) return;
+    
+    try {
+      setIsDeleting(true);
+      await adminApi.deleteJob(jobToDelete.id.toString());
+      
+      // Update local state
+      setJobs(prevJobs => prevJobs.filter(job => job.id !== jobToDelete.id));
+      setTotalJobs(prev => prev - 1);
+      
+      setShowDeleteModal(false);
+      setJobToDelete(null);
+    } catch (err: any) {
+      console.error('Error deleting job:', err);
+      // Show error in modal instead of alert
+      setShowDeleteModal(false);
+      setJobToDelete(null);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -308,7 +324,6 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
                           {header} <FiChevronDown className="inline-block" />
                         </th>
                       ))}
-                      <th className="pb-4 font-medium text-right">Action</th>
 
                     </tr>
                   </thead>
@@ -358,7 +373,7 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleDeleteJob(job.id);
+                                    handleDeleteJob(job);
                                   }}
                                   className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 rounded-lg"
                                 >
@@ -429,6 +444,49 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
           </>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && jobToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold mb-4 text-red-600">Confirm Delete</h3>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to delete the job "<strong>{jobToDelete.role}</strong>"? 
+              This action cannot be undone.
+            </p>
+            
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setJobToDelete(null);
+                }}
+                disabled={isDeleting}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 flex items-center gap-2"
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <FiTrash2 className="w-4 h-4" />
+                    Delete Job
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 };
