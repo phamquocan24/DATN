@@ -444,6 +444,42 @@ export const hrApi = {
   getJobTests: async (jobId: string) => {
     const response = await apiClient.get(`/api/v1/jobs/${jobId}/tests`);
     return response.data;
+  },
+
+  // Notification APIs
+  getNotifications: async (params?: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    direction?: string;
+  }) => {
+    const response = await apiClient.get('/api/v1/notifications', { params });
+    return response.data;
+  },
+
+  getNotificationById: async (notificationId: string) => {
+    const response = await apiClient.get(`/api/v1/notifications/${notificationId}`);
+    return response.data;
+  },
+
+  markNotificationAsRead: async (notificationId: string) => {
+    const response = await apiClient.put(`/api/v1/notifications/${notificationId}/read`);
+    return response.data;
+  },
+
+  markAllNotificationsAsRead: async () => {
+    const response = await apiClient.put('/api/v1/notifications/mark-all-read');
+    return response.data;
+  },
+
+  deleteNotification: async (notificationId: string) => {
+    const response = await apiClient.delete(`/api/v1/notifications/${notificationId}`);
+    return response.data;
+  },
+
+  getUnreadNotificationCount: async () => {
+    const response = await apiClient.get('/api/v1/notifications/unread-count');
+    return response.data;
   }
 };
 

@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Bell, AlertCircle, Briefcase, FileText, Users, X, Calendar, CheckCircle } from 'lucide-react';
 import hrApi from '../../services/hrApi';
 
-interface HrNotificationPanelProps {
+interface NotificationPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  position?: 'header' | 'dashboard';
   onMarkAllAsRead?: () => void;
 }
 
@@ -22,9 +23,10 @@ interface Notification {
   data?: any;
 }
 
-const HrNotificationPanel: React.FC<HrNotificationPanelProps> = ({ 
+const NotificationPanelHr: React.FC<NotificationPanelProps> = ({ 
   isOpen, 
   onClose, 
+  position = 'header', 
   onMarkAllAsRead 
 }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -160,13 +162,18 @@ const HrNotificationPanel: React.FC<HrNotificationPanelProps> = ({
 
   if (!isOpen) return null;
 
+  // Different positioning based on where it's used
+  const positionClasses = position === 'header' 
+    ? 'absolute top-full right-0 mt-2 translate-x-20'
+    : 'fixed top-16 right-4';
+
   return (
     <>
       {/* Backdrop */}
       <div className="fixed inset-0 z-40" onClick={onClose} />
       
       {/* Notification Panel */}
-      <div className="absolute top-full right-0 mt-2 translate-x-20 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-[480px] overflow-hidden overflow-x-hidden">
+      <div className={`${positionClasses} w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-[480px] overflow-hidden overflow-x-hidden`}>
         {/* Header */}
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">Notifications</h2>
@@ -323,4 +330,4 @@ const HrNotificationPanel: React.FC<HrNotificationPanelProps> = ({
   );
 };
 
-export default HrNotificationPanel;
+export default NotificationPanelHr;

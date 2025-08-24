@@ -7,13 +7,14 @@ import HrHeaderDropdown from './HrHeaderDropdown';
 interface HrHeaderProps {
   notifOpen: boolean;
   hasUnread: boolean;
+  unreadCount?: number;
   toggleNotif: () => void;
   onCloseNotif: () => void;
   onMarkAllAsRead: () => void;
   currentUser?: any;
 }
 
-const HrHeader: React.FC<HrHeaderProps> = ({ notifOpen, hasUnread, toggleNotif, onCloseNotif, onMarkAllAsRead, currentUser }) => {
+const HrHeader: React.FC<HrHeaderProps> = ({ notifOpen, hasUnread, unreadCount = 0, toggleNotif, onCloseNotif, onMarkAllAsRead, currentUser }) => {
   const navigate = useNavigate();
 
   return (
@@ -24,9 +25,13 @@ const HrHeader: React.FC<HrHeaderProps> = ({ notifOpen, hasUnread, toggleNotif, 
         </div>
         <div className="flex items-center space-x-4">
           <div className="relative">
-            <button onClick={toggleNotif} className="p-2 focus:outline-none">
+            <button onClick={toggleNotif} className="p-2 focus:outline-none relative">
               <img src={bellIcon} alt="Notifications" className="w-5 h-5" />
-              {hasUnread && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />}
+              {hasUnread && unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </button>
             <HrNotificationPanel isOpen={notifOpen} onClose={onCloseNotif} onMarkAllAsRead={onMarkAllAsRead} />
           </div>

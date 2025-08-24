@@ -2,10 +2,8 @@ import React, { useState, useEffect, ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import DashboardSidebar from './DashboardSidebar';
 import { HrDashboard, Messages, HrCompanyProfile, JobApplications, JobManagement, HrHeader, ApplicantDetail, MySchedule, Settings, TestManagement, HelpCenter } from '.';
-import authService from '../../services/authService';
-import api from '../../services/api';
 import Logo from '../../assets/Logo.png';
-import LogoTab from '../../assets/Logo_tab.png';
+import { useHrNotifications } from '../../hooks/useHrNotifications';
 
 interface HrLayoutProps {
   children?: ReactNode;
@@ -15,10 +13,12 @@ interface HrLayoutProps {
 
 const HrLayout: React.FC<HrLayoutProps> = ({ children, activeTab = 'dashboard', currentUser }) => {
   const [notifOpen, setNotifOpen] = useState(false);
-  const [hasUnread, setHasUnread] = useState(true);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // Use HR notifications hook
+  const { unreadCount, refreshUnreadCount, markAllAsRead } = useHrNotifications();
 
   // Initialize isCollapsed from localStorage, default to false
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -51,12 +51,24 @@ const HrLayout: React.FC<HrLayoutProps> = ({ children, activeTab = 'dashboard', 
 
 
 
+  const handleMarkAllAsRead = async () => {
+    await markAllAsRead();
+    await refreshUnreadCount();
+  };
+
   const renderContent = () => {
     if (children) {
       return children;
     }
 
-    const commonProps = { notifOpen, hasUnread, toggleNotif, setHasUnread, setNotifOpen };
+    const commonProps = { 
+      notifOpen, 
+      hasUnread: unreadCount > 0, 
+      toggleNotif, 
+      setNotifOpen, 
+      setHasUnread: () => {}, // Compatibility prop - using hooks now
+      refreshUnreadCount 
+    };
     
     if (location.pathname.includes('/hr/job-applications/')) {
         return <ApplicantDetail />;
@@ -130,10 +142,11 @@ const HrLayout: React.FC<HrLayoutProps> = ({ children, activeTab = 'dashboard', 
       <div className="flex-1 flex flex-col overflow-visible bg-white">
         <HrHeader 
           notifOpen={notifOpen} 
-          hasUnread={hasUnread} 
+          hasUnread={unreadCount > 0}
+          unreadCount={unreadCount} 
           toggleNotif={toggleNotif} 
           onCloseNotif={() => setNotifOpen(false)}
-          onMarkAllAsRead={() => setHasUnread(false)}
+          onMarkAllAsRead={handleMarkAllAsRead}
           currentUser={currentUser}
         />
         <div className="px-8 pt-6">

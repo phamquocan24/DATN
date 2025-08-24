@@ -927,7 +927,7 @@ const router = express.Router();
 const notificationController = new NotificationController();
 
 // Routes (order matters - more specific routes first)
-router.get('/unread/count', authenticateToken, notificationController.getUnreadCount.bind(notificationController));
+router.get('/unread-count', authenticateToken, notificationController.getUnreadCount.bind(notificationController));
 router.get('/types', authenticateToken, notificationController.getNotificationTypes.bind(notificationController));
 router.put('/mark-all-read', authenticateToken, notificationController.markAllAsRead.bind(notificationController));
 router.post('/bulk-create', authenticateToken, requireRole(['ADMIN']), notificationController.bulkCreateNotifications.bind(notificationController));
