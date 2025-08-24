@@ -112,6 +112,39 @@ const JobApplications = () => {
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
 
+  // Calculate total pages
+  const totalPages = Math.ceil(totalCount / applicantsPerPage);
+
+  // Generate page numbers for pagination
+  const generatePageNumbers = () => {
+    const pages = [];
+    const maxPagesToShow = 5;
+    
+    if (totalPages <= maxPagesToShow) {
+      // Show all pages if total pages is small
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Show pages around current page
+      let startPage = Math.max(1, currentPage - 2);
+      let endPage = Math.min(totalPages, currentPage + 2);
+      
+      // Adjust if we're near the beginning or end
+      if (currentPage <= 3) {
+        endPage = Math.min(totalPages, 5);
+      } else if (currentPage >= totalPages - 2) {
+        startPage = Math.max(1, totalPages - 4);
+      }
+      
+      for (let i = startPage; i <= endPage; i++) {
+        pages.push(i);
+      }
+    }
+    
+    return pages;
+  };
+
   const getStageStyle = (stage: string) => {
     switch (stage) {
       case 'SUBMITTED': return 'bg-gray-100 text-gray-600 border border-gray-200';
@@ -232,9 +265,15 @@ const JobApplications = () => {
         
         {/* Pagination */}
         <div className="px-4 py-3 flex items-center justify-between border-t border-gray-200 text-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-gray-600">View</span>
-            <div ref={pageSelectRef} className="relative inline-block">
+          <div className="flex items-center gap-4">
+            {totalCount > 0 && (
+              <span className="text-gray-600">
+                Showing {((currentPage - 1) * applicantsPerPage) + 1} to {Math.min(currentPage * applicantsPerPage, totalCount)} of {totalCount} applicants
+              </span>
+            )}
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600">View</span>
+              <div ref={pageSelectRef} className="relative inline-block">
               <button
                 onClick={() => setIsPageSelectOpen(!isPageSelectOpen)}
                 className="flex items-center justify-between w-16 border border-gray-300 rounded px-2 py-1 bg-white"
@@ -247,7 +286,11 @@ const JobApplications = () => {
                   {pageOptions.map((option) => (
                     <div
                       key={option}
-                      onClick={() => { setApplicantsPerPage(option); setIsPageSelectOpen(false); }}
+                      onClick={() => { 
+                        setApplicantsPerPage(option); 
+                        setCurrentPage(1); // Reset to first page
+                        setIsPageSelectOpen(false); 
+                      }}
                       className="px-2 py-1 text-center cursor-pointer hover:bg-[#007BFF] hover:text-white"
                     >
                       {option}
@@ -255,17 +298,55 @@ const JobApplications = () => {
                   ))}
                 </div>
               )}
+              </div>
+              <span className="text-gray-600 whitespace-nowrap">Applicants per page</span>
             </div>
-            <span className="text-gray-600 whitespace-nowrap">Applicants per page</span>
           </div>
           
-          <div className="flex items-center gap-2">
-            <button className="min-w-[32px] h-8 px-2 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50">&lt;</button>
-            <button className="min-w-[32px] h-8 px-2 flex items-center justify-center bg-[#007BFF] text-white rounded">1</button>
-            <button className="min-w-[32px] h-8 px-2 flex items-center justify-center border border-[#007BFF] text-[#007BFF] rounded hover:bg-blue-50">2</button>
-            <button className="min-w-[32px] h-8 px-2 flex items-center justify-center border border-[#007BFF] text-[#007BFF] rounded hover:bg-blue-50">3</button>
-            <button className="min-w-[32px] h-8 px-2 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-50">&gt;</button>
-          </div>
+          {totalCount > 0 && (
+            <div className="flex items-center gap-2">
+              {/* Previous button */}
+              <button 
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className={`min-w-[32px] h-8 px-2 flex items-center justify-center border rounded ${
+                  currentPage === 1 
+                    ? 'border-gray-200 text-gray-300 cursor-not-allowed' 
+                    : 'border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                &lt;
+              </button>
+              
+              {/* Page numbers */}
+              {generatePageNumbers().map((pageNum) => (
+                <button
+                  key={pageNum}
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={`min-w-[32px] h-8 px-2 flex items-center justify-center rounded ${
+                    pageNum === currentPage
+                      ? 'bg-[#007BFF] text-white'
+                      : 'border border-[#007BFF] text-[#007BFF] hover:bg-blue-50'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              ))}
+              
+              {/* Next button */}
+              <button 
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className={`min-w-[32px] h-8 px-2 flex items-center justify-center border rounded ${
+                  currentPage === totalPages 
+                    ? 'border-gray-200 text-gray-300 cursor-not-allowed' 
+                    : 'border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                &gt;
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
