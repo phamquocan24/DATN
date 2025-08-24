@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiStar, FiEdit, FiMessageSquare, FiDownload, FiCheckCircle, FiClock, FiCalendar, FiCheck, FiX, FiMoreHorizontal, FiPlus, FiChevronDown } from 'react-icons/fi';
-import { FaInstagram, FaThumbtack } from 'react-icons/fa';
+import { FiArrowLeft, FiEdit, FiMessageSquare, FiCheck, FiX, FiMoreHorizontal, FiPlus, FiChevronDown } from 'react-icons/fi';
+import { FaInstagram } from 'react-icons/fa';
 import { BiWorld } from 'react-icons/bi';
 import DashboardSidebar from './DashboardSidebar';
-import { IoLocationSharp } from "react-icons/io5";
 import authService from '../../services/authService';
 import api from '../../services/api';
+import hrApi from '../../services/hrApi';
 
 interface CandidateDetails {
-  id: number;
+  application_id: string;
   fullName: string;
   email: string;
   phone: string;
@@ -38,6 +38,16 @@ interface CandidateDetails {
     skills: string[];
   };
   matchPercentage: number;
+  // API fields
+  candidate_name: string;
+  candidate_email: string;
+  phone_number: string;
+  current_status: string;
+  match_score: number;
+  submitted_at: string;
+  job_title: string;
+  candidate_id: string;
+  job_id: string;
 }
 
 const ApplicantDetail: React.FC = () => {
@@ -46,6 +56,20 @@ const ApplicantDetail: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'profile' | 'resume' | 'progress' | 'schedule'>('profile');
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  
+  // API state management
+  const [candidateDetails, setCandidateDetails] = useState<CandidateDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Interview scheduling state (for future implementation)
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [scheduleData, setScheduleData] = useState({
+    scheduled_date: '',
+    interview_type: 'PHONE',
+    location: '',
+    notes: ''
+  });
 
   const handleLogoutClick = () => {
     // Clear auth data immediately
@@ -66,9 +90,82 @@ const ApplicantDetail: React.FC = () => {
     window.location.reload();
   };
 
-  // Mock data - replace with actual API call
-  const candidateDetails: CandidateDetails = {
-    id: Number(id),
+  // Fetch application details
+  const fetchApplicationDetails = async () => {
+    if (!id) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await hrApi.getApplicationById(id, true);
+      
+      if (response.success && response.data) {
+        const apiData = response.data;
+        
+        // Transform API data to match interface
+        const transformedData: CandidateDetails = {
+          application_id: apiData.application_id,
+          fullName: apiData.candidate_name || 'Unknown Candidate',
+          email: apiData.candidate_email || '',
+          phone: apiData.phone_number || '',
+          address: apiData.location || '',
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(apiData.candidate_name || 'User')}&background=random`,
+          education: apiData.education || 'No education information',
+          experience: apiData.experience ? [apiData.experience] : [],
+          skills: apiData.skills || [],
+          resumeUrl: apiData.resume_url || '',
+          gender: apiData.gender || '',
+          dateOfBirth: apiData.date_of_birth || '',
+          languages: apiData.languages || [],
+          aboutMe: apiData.about_me || 'No additional information provided.',
+          currentJob: {
+            title: apiData.current_job_title || 'Not specified',
+            years: apiData.years_experience || '0'
+          },
+          professionalInfo: {
+            aboutMe: apiData.about_me || 'No additional information provided.',
+            experience: apiData.experience || 'No experience information',
+            currentJob: {
+              title: apiData.current_job_title || 'Not specified',
+              years: apiData.years_experience || '0'
+            },
+            education: apiData.education || 'No education information',
+            skills: apiData.skills || []
+          },
+          matchPercentage: apiData.match_score ? Math.round(apiData.match_score) : 0,
+          // Direct API fields
+          candidate_name: apiData.candidate_name,
+          candidate_email: apiData.candidate_email,
+          phone_number: apiData.phone_number,
+          current_status: apiData.current_status,
+          match_score: apiData.match_score,
+          submitted_at: apiData.submitted_at,
+          job_title: apiData.job_title,
+          candidate_id: apiData.candidate_id,
+          job_id: apiData.job_id
+        };
+        
+        setCandidateDetails(transformedData);
+      } else {
+        setError('Failed to load application details');
+      }
+    } catch (err: any) {
+      console.error('Error fetching application details:', err);
+      setError('Failed to load application details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchApplicationDetails();
+  }, [id]);
+
+  // Mock data fallback (will be replaced by API data)
+  const mockCandidateDetails: CandidateDetails = {
+    application_id: id || '1',
     fullName: 'Jerome Bell',
     email: 'jeromeBell45@email.com',
     phone: '+44 1245 572 135',
@@ -100,6 +197,16 @@ const ApplicantDetail: React.FC = () => {
       skills: ['Project Management', 'Copywriting', 'English']
     },
     matchPercentage: 90,
+    // API fields
+    candidate_name: 'Jerome Bell',
+    candidate_email: 'jeromeBell45@email.com',
+    phone_number: '+44 1245 572 135',
+    current_status: 'REVIEWING',
+    match_score: 90,
+    submitted_at: new Date().toISOString(),
+    job_title: 'Product Designer',
+    candidate_id: '1',
+    job_id: '1'
   };
 
   // Mock hiring timeline data
@@ -117,17 +224,38 @@ const ApplicantDetail: React.FC = () => {
     { id: 2, date: 'Jan 20, 2024', time: '2:00 PM - 3:00 PM', interviewer: 'Jane Smith', mode: 'Onsite' },
   ];
 
-  const handleRejectConfirm = () => {
-    // In a real app, you would send the rejectionReason to an API
-    console.log("Rejection Reason:", rejectionReason);
-    setIsRejectModalOpen(false);
-    setRejectionReason(''); // Reset reason
+  const handleRejectConfirm = async () => {
+    if (!candidateDetails?.application_id || !rejectionReason.trim()) return;
+    
+    try {
+      await hrApi.rejectCandidate(candidateDetails.application_id, rejectionReason.trim());
+      setIsRejectModalOpen(false);
+      setRejectionReason('');
+      // Refresh data to show updated status
+      fetchApplicationDetails();
+    } catch (error) {
+      console.error('Error rejecting candidate:', error);
+      alert('Failed to reject candidate. Please try again.');
+    }
+  };
+
+  const handleAcceptCandidate = async () => {
+    if (!candidateDetails?.application_id) return;
+    
+    try {
+      await hrApi.shortlistCandidate(candidateDetails.application_id, 'Candidate approved for next stage');
+      // Refresh data to show updated status
+      fetchApplicationDetails();
+    } catch (error) {
+      console.error('Error accepting candidate:', error);
+      alert('Failed to accept candidate. Please try again.');
+    }
   };
 
   return (
     <div className="flex min-h-screen bg-white">
       <div className="w-64 bg-white shadow-lg min-h-screen border-l border-r-0 border-gray-200 sticky top-0 z-10 flex flex-col overflow-y-auto">
-        <DashboardSidebar activeTab="applicants" hasUnreadMessages={false} onNavigate={() => {}} onLogoutClick={handleLogoutClick} />
+        <DashboardSidebar activeTab="applicants" hasUnreadMessages={false} onNavigate={() => {}} isCollapsed={false} />
       </div>
       <div className="flex-1 flex flex-col overflow-visible bg-white">
         <main className="flex-1 p-8">
@@ -147,13 +275,32 @@ const ApplicantDetail: React.FC = () => {
                 >
                   <FiX /> Reject
                 </button>
-                <button className="bg-white border border-green-500 text-green-500 px-4 py-1 rounded-lg flex items-center gap-2 hover:bg-green-50">
+                <button 
+                  onClick={handleAcceptCandidate}
+                  className="bg-white border border-green-500 text-green-500 px-4 py-1 rounded-lg flex items-center gap-2 hover:bg-green-50"
+                >
                   <FiCheck /> Accept
                 </button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Loading State */}
+            {loading && (
+              <div className="flex justify-center items-center py-20">
+                <div className="text-gray-500">Loading application details...</div>
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && (
+              <div className="flex justify-center items-center py-20">
+                <div className="text-red-500">{error}</div>
+              </div>
+            )}
+
+            {/* Content - only show when data is loaded */}
+            {!loading && !error && candidateDetails && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Left Column */}
               <div className="lg:col-span-1 bg-white border border-gray-200 rounded-lg p-6">
                 {/* Avatar & Basic Info */}
@@ -638,6 +785,7 @@ const ApplicantDetail: React.FC = () => {
                 )}
               </div>
             </div>
+            )}
           </div>
         </main>
       </div>

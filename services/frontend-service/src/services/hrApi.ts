@@ -116,33 +116,52 @@ export const hrApi = {
     return response.data;
   },
 
-  getApplicationById: async (applicationId: string) => {
-    const response = await apiClient.get(`/applications/${applicationId}`);
+  getApplicationById: async (applicationId: string, includeDetails: boolean = true) => {
+    const response = await apiClient.get(`/api/v1/applications/${applicationId}`, {
+      params: { include_details: includeDetails }
+    });
     return response.data;
   },
 
-  updateApplicationStatus: async (applicationId: string, status: string) => {
-    const response = await apiClient.put(`/applications/${applicationId}/status`, { status });
+  updateApplicationStatus: async (applicationId: string, status: string, reason?: string, scheduledDate?: string) => {
+    const response = await apiClient.put(`/api/v1/applications/${applicationId}/status`, {
+      current_status: status,
+      reason,
+      scheduled_date: scheduledDate
+    });
     return response.data;
   },
 
-  shortlistCandidate: async (applicationId: string) => {
-    const response = await apiClient.post(`/applications/${applicationId}/shortlist`);
+  shortlistCandidate: async (applicationId: string, reason?: string) => {
+    const response = await apiClient.post(`/api/v1/applications/${applicationId}/shortlist`, {
+      reason
+    });
     return response.data;
   },
 
-  rejectCandidate: async (applicationId: string, reason?: string) => {
-    const response = await apiClient.post(`/applications/${applicationId}/reject`, { reason });
+  rejectCandidate: async (applicationId: string, reason: string) => {
+    const response = await apiClient.post(`/api/v1/applications/${applicationId}/reject`, {
+      reason
+    });
     return response.data;
   },
 
-  scheduleInterview: async (applicationId: string, interviewData: any) => {
-    const response = await apiClient.post(`/applications/${applicationId}/schedule-interview`, interviewData);
+  scheduleInterview: async (applicationId: string, interviewData: {
+    scheduled_date: string;
+    interview_type?: string;
+    location?: string;
+    notes?: string;
+  }) => {
+    const response = await apiClient.post(`/api/v1/applications/${applicationId}/schedule-interview`, interviewData);
     return response.data;
   },
 
-  bulkUpdateApplications: async (updates: any) => {
-    const response = await apiClient.post('/applications/bulk-update', updates);
+  bulkUpdateApplications: async (applicationIds: string[], status: string, reason?: string) => {
+    const response = await apiClient.post('/api/v1/applications/bulk-update', {
+      application_ids: applicationIds,
+      current_status: status,
+      reason
+    });
     return response.data;
   },
 
@@ -261,6 +280,8 @@ export const hrApi = {
     });
     return response.data;
   },
+
+
 
   getApplicationStats: async () => {
     try {
