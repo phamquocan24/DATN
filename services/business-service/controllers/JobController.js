@@ -1543,9 +1543,13 @@ class JobController {
     try {
       const filters = {};
 
-      // HR/RECRUITER can only see their own stats
+      // HR/RECRUITER can only see their company's stats
       if (req.user.role === 'HR' || req.user.role === 'RECRUITER') {
-        filters.created_by = req.user.user_id;
+        if (req.user.company_id) {
+          filters.company_id = req.user.company_id;
+        } else {
+          filters.created_by = req.user.user_id; // Fallback to user's jobs if no company_id
+        }
       }
 
       const stats = await this.jobModel.getJobStats(filters);

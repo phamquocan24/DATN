@@ -1,19 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCompanyId } from '../../services/tokenUtils';
-import bellIcon from '../../assets/bell-outlined.png';
-import nomadIcon from '../../assets/Nomad.png';
 import calendarIcon from '../../assets/scheme.png';
-import user1Icon from '../../assets/user1.png';
-import user2Icon from '../../assets/user2.png';
-import glassIcon from '../../assets/glass.png';
-import fbIcon from '../../assets/f&b.png';
-import { HrNotificationPanel } from '.';
-import Avatar17 from '../../assets/Avatar17.png';
 import nomadLogo from '../../assets/Nomad.png';
-import dropboxLogo from '../../assets/work2.png';
-import terraformLogo from '../../assets/work3.png';
-import classpassLogo from '../../assets/work4.png';
 import hrApi from '../../services/hrApi';
 
 
@@ -75,23 +64,35 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ notifOpen, hasUnread, toggleN
   // Use these variables in JSX conditionally  
   if (loading) console.log('Dashboard loading...');
   if (error) console.log('Dashboard error:', error);
+  
+  // New state for API data
+  const [jobOpenCount, setJobOpenCount] = useState(0);
+  const [applicantsSummary, setApplicantsSummary] = useState({
+    total: 0,
+    byType: {
+      fullTime: 0, partTime: 0, contract: 0, internship: 0, remote: 0
+    }
+  });
+  const [jobViewsData, setJobViewsData] = useState({ total: 0, weeklyChange: 0 });
+  const [jobAppliedData, setJobAppliedData] = useState({ total: 0, weeklyChange: 0 });
+  const [hrJobStatsData, setHrJobStatsData] = useState([
+    { day: 'Mon', view: 0, applied: 0 },
+    { day: 'Tue', view: 0, applied: 0 },
+    { day: 'Wed', view: 0, applied: 0 },
+    { day: 'Thu', view: 0, applied: 0 },
+    { day: 'Fri', view: 0, applied: 0 },
+    { day: 'Sat', view: 0, applied: 0 },
+    { day: 'Sun', view: 0, applied: 0 },
+  ]);
+  
   const [dashboardData, setDashboardData] = useState({
     stats: [
       { label: 'Review new candidates', value: 0, color: 'bg-blue-500', path: '#' },
       { label: 'Schedule for today', value: 0, color: 'bg-green-500', path: '#' },
       { label: 'Messages received', value: 0, color: 'bg-cyan-500', path: '#' },
     ],
-    applicants: [],
-    jobUpdates: [],
-    jobStatsData: [
-      { day: 'Mon', view: 0, applied: 0 },
-      { day: 'Tue', view: 0, applied: 0 },
-      { day: 'Wed', view: 0, applied: 0 },
-      { day: 'Thu', view: 0, applied: 0 },
-      { day: 'Fri', view: 0, applied: 0 },
-      { day: 'Sat', view: 0, applied: 0 },
-      { day: 'Sun', view: 0, applied: 0 },
-    ]
+    applicants: [] as any[],
+    jobUpdates: [] as any[]
   });
 
   useEffect(() => {
@@ -110,8 +111,7 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ notifOpen, hasUnread, toggleN
     }
   }, [selectedTab]);
 
-  const jobViewsCount = useCountUp(2342);
-  const jobAppliedCount = useCountUp(654);
+  // Remove hardcoded values - will use dynamic data
 
   // Fetch dashboard data
   useEffect(() => {
@@ -120,68 +120,147 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ notifOpen, hasUnread, toggleN
         setLoading(true);
         setError(null);
 
-        // Make API calls with individual error handling
-        let applicationStats = null;
-        let myJobs = null;
+        // Fetch job statistics
+        const jobStatsResponse = await hrApi.getJobStatistics();
+        console.log('HR Job stats response:', jobStatsResponse);
+        console.log('HR Job stats data:', jobStatsResponse?.data);
 
-        try {
-          applicationStats = await hrApi.getApplicationStats();
-          console.log('Application Stats Response:', applicationStats);
-        } catch (appErr) {
-          console.error('Error fetching application stats:', appErr);
-          applicationStats = { pendingReview: 0, scheduledToday: 0, messagesReceived: 0 };
-        }
+        // Fetch application statistics  
+        const appStatsResponse = await hrApi.getApplicationStatistics();
+        console.log('HR Application stats response:', appStatsResponse);
 
-        try {
-          // Get company ID and use getJobsByCompany instead
-          const companyId = getCompanyId();
-          if (!companyId) {
-            throw new Error('No company ID found for HR user');
+        // Process job statistics data
+        if (jobStatsResponse?.data || jobStatsResponse) {
+          const jobData = jobStatsResponse.data || jobStatsResponse;
+          
+          // Set Job Open count (Active + Published jobs)
+          setJobOpenCount(jobData.approved_jobs || (jobData.active_jobs || 0) + (jobData.published_jobs || 0) || 0);
+          
+          // Set Job Views and Applied data
+          setJobViewsData({
+            total: jobData.total_views || jobData.job_views || 0,
+            weeklyChange: jobData.views_weekly_change || jobData.weekly_views_change || 0
+          });
+          setJobAppliedData({
+            total: jobData.total_applications || jobData.applications_count || 0,
+            weeklyChange: jobData.applications_weekly_change || jobData.weekly_applications_change || 0
+          });
+
+          // Update job statistics chart data
+          if (jobData.weekly_stats || jobData.daily_stats) {
+            const weeklyData = jobData.weekly_stats || jobData.daily_stats || [];
+            console.log('HR Raw weekly data from API:', weeklyData);
+            
+            const transformedData = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
+              const dayData = weeklyData.find((d: any) => d.day === day || d.day_name === day);
+              const result = {
+                day,
+                view: dayData?.view || dayData?.view_count || 0,
+                applied: dayData?.applied || dayData?.applied_count || 0
+              };
+              console.log(`HR Day ${day}:`, { dayData, result });
+              return result;
+            });
+            
+            console.log('HR Final transformed chart data:', transformedData);
+            setHrJobStatsData(transformedData);
+          } else {
+            console.log('No weekly_stats or daily_stats found in HR API response');
           }
-          myJobs = await hrApi.getJobsByCompany(companyId);
-          console.log('Company Jobs Response:', myJobs);
-        } catch (jobsErr) {
-          console.error('Error fetching jobs:', jobsErr);
-          myJobs = { data: [] };
         }
 
-        // Extract jobs array from API response - handle multiple possible structures
-        const jobsArray = myJobs?.data || myJobs?.jobs || (Array.isArray(myJobs) ? myJobs : []);
-        console.log('Extracted jobs array:', jobsArray);
-        
-        setDashboardData(prevData => ({
-          ...prevData,
-          stats: [
-            { label: 'Review new candidates', value: applicationStats?.pendingReview || 0, color: 'bg-blue-500', path: '#' },
-            { label: 'Schedule for today', value: applicationStats?.scheduledToday || 0, color: 'bg-green-500', path: '#' },
-            { label: 'Messages received', value: applicationStats?.messagesReceived || 0, color: 'bg-cyan-500', path: '#' },
-          ],
-          jobUpdates: Array.isArray(jobsArray) ? jobsArray.slice(0, 4).map((job: any) => ({
-            logo: nomadLogo,
-            title: job.title || job.test_name || 'Job Title',
-            company: job.company?.name || job.company_name || 'Your Company',
-            location: job.city || job.location || 'Location',
-            tags: Array.isArray(job.skills) ? job.skills.slice(0, 2) : ['Business'],
-            applied: job.applications_count || job.applicationsCount || 0,
-            capacity: job.open_positions || job.openPositions || 1,
-            type: job.employment_type || job.type || 'Full-Time'
-          })) : []
-        }));
+        // Process application statistics data
+        if (appStatsResponse?.data || appStatsResponse) {
+          const appData = appStatsResponse.data || appStatsResponse;
+          const totalApplicants = appData.total_applications || appData.total_applicants || 0;
+          const byType = appData.by_job_type || appData.applications_by_type || {};
+          const byStatus = appData.applications_by_status || {};
+          
+          setApplicantsSummary({
+            total: totalApplicants,
+            byType: {
+              fullTime: byType.FULL_TIME || byType.full_time || 0,
+              partTime: byType.PART_TIME || byType.part_time || 0,
+              contract: byType.CONTRACT || byType.contract || 0,
+              internship: byType.INTERNSHIP || byType.internship || 0,
+              remote: byType.REMOTE || byType.remote || 0
+            }
+          });
+
+          // Update stats cards with applications_by_status data
+          const pendingCount = byStatus.PENDING || 0;
+          const reviewingCount = byStatus.REVIEWING || 0;
+          const shortlistedCount = byStatus.SHORTLISTED || 0;
+          
+          setDashboardData(prevData => ({
+            ...prevData,
+            stats: [
+              { label: 'Review new candidates', value: pendingCount + reviewingCount, color: 'bg-blue-500', path: '#' },
+              { label: 'Schedule for today', value: shortlistedCount, color: 'bg-green-500', path: '#' },
+              { label: 'Messages received', value: appData.messagesReceived || 0, color: 'bg-cyan-500', path: '#' },
+            ]
+          }));
+        }
+
+        // Fetch recent applications for applicants table
+        try {
+          const recentAppsResponse = await hrApi.getRecentApplications(5);
+          console.log('HR Recent applications response:', recentAppsResponse);
+          
+          if (recentAppsResponse?.data) {
+            const applicantsData = recentAppsResponse.data.map((app: any) => ({
+              avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(app.candidate_name || 'User')}&background=random`,
+              name: app.candidate_name || 'Unknown',
+              score: app.match_score ? `${Math.round(app.match_score)}%` : 'N/A',
+              status: app.current_status || 'SUBMITTED',
+              date: new Date(app.submitted_at).toLocaleDateString('en-US', { 
+                year: 'numeric', month: 'short', day: 'numeric' 
+              }),
+              role: app.job_title || 'Job Position',
+              applicationId: app.application_id,
+              jobId: app.job_id
+            }));
+            
+            setDashboardData(prevData => ({
+              ...prevData,
+              applicants: applicantsData
+            }));
+          }
+        } catch (appsErr) {
+          console.error('Error fetching recent applications:', appsErr);
+        }
+
+        // Fetch job updates from company jobs
+        try {
+          const companyId = getCompanyId();
+          if (companyId) {
+            const myJobs = await hrApi.getJobsByCompany(companyId);
+            console.log('HR Company Jobs Response:', myJobs);
+            
+            const jobsArray = myJobs?.data || myJobs?.jobs || (Array.isArray(myJobs) ? myJobs : []);
+            console.log('HR Extracted jobs array:', jobsArray);
+            
+            setDashboardData(prevData => ({
+              ...prevData,
+              jobUpdates: Array.isArray(jobsArray) ? jobsArray.slice(0, 4).map((job: any) => ({
+                logo: nomadLogo,
+                title: job.title || 'Job Title',
+                company: job.company?.name || job.company_name || 'Company',
+                location: job.city || job.location || 'Location',
+                tags: Array.isArray(job.skills) ? job.skills.slice(0, 2) : ['Business'],
+                applied: job.applications_count || job.applicationsCount || 0,
+                capacity: job.open_positions || job.openPositions || 1,
+                type: job.employment_type || job.type || 'Full-Time'
+              })) : []
+            }));
+          }
+        } catch (jobsErr) {
+          console.error('Error fetching job updates:', jobsErr);
+        }
 
       } catch (err) {
-        console.error('Error fetching dashboard data:', err);
+        console.error('Error fetching HR dashboard data:', err);
         setError('Failed to load dashboard data');
-        
-        // Set fallback data structure when API fails
-        setDashboardData(prevData => ({
-          ...prevData,
-          stats: [
-            { label: 'Review new candidates', value: 0, color: 'bg-blue-500', path: '#' },
-            { label: 'Schedule for today', value: 0, color: 'bg-green-500', path: '#' },
-            { label: 'Messages received', value: 0, color: 'bg-cyan-500', path: '#' },
-          ],
-          jobUpdates: []
-        }));
       } finally {
         setLoading(false);
       }
@@ -191,7 +270,6 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ notifOpen, hasUnread, toggleN
   }, []);
 
   const stats = dashboardData.stats;
-  const hrJobStatsData = dashboardData.jobStatsData;
 
   const getSegments = (data: typeof hrJobStatsData[number]) => {
     switch (selectedTab) {
@@ -207,20 +285,11 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ notifOpen, hasUnread, toggleN
     }
   };
 
-  const applicants = [
-    { avatar: Avatar17, name: 'Cyndy Lillibridge', score: '90%', status: 'Shortlisted', date: '12 July, 2021', role: 'Golang Dev' },
-    { avatar: Avatar17, name: 'Rodolfo Goode', score: '88%', status: 'Declined', date: '11 July, 2021', role: 'NET Dev' },
-    { avatar: Avatar17, name: 'Leif Floyd', score: '68%', status: 'Hired', date: '11 July, 2021', role: 'Graphic Design' },
-    { avatar: Avatar17, name: 'Eleanor Pena', score: '70%', status: 'Declined', date: '5 July, 2021', role: 'Designer' },
-    { avatar: Avatar17, name: 'Floyd Miles', score: '79%', status: 'Interviewed', date: '1 July, 2021', role: 'Designer' },
-  ];
+  // Use dynamic applicants data from API
+  const applicants = dashboardData.applicants;
 
-  const jobUpdates = [
-    { logo: nomadLogo, title: 'Social Media Assistant', company: 'Nomad', location: 'Paris, France', tags: ['Marketing', 'Design'], applied: 5, capacity: 10, type: 'Full-Time' },
-    { logo: nomadLogo, title: 'Brand Designer', company: 'Nomad', location: 'Paris, France', tags: ['Business', 'Design'], applied: 5, capacity: 10, type: 'Full-Time' },
-    { logo: nomadLogo, title: 'Interactive Developer', company: 'Nomad', location: 'Berlin, Germany', tags: ['Marketing', 'Design'], applied: 5, capacity: 10, type: 'Full-Time' },
-    { logo: nomadLogo, title: 'Product Designer', company: 'Nomad', location: 'Berlin, Germany', tags: ['Business', 'Design'], applied: 5, capacity: 10, type: 'Full-Time' },
-  ];
+  // Use dynamic job updates from API
+  const jobUpdates = dashboardData.jobUpdates;
 
   return (
     <div className="bg-white" style={{ fontFamily: 'ABeeZee, sans-serif' }}>
@@ -331,11 +400,15 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ notifOpen, hasUnread, toggleN
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                   </div>
                 </div>
-                <p className="text-3xl font-semibold text-gray-800">{jobViewsCount}</p>
-                <p className="text-sm text-green-600 flex items-center">
+                <p className="text-3xl font-semibold text-gray-800">
+                  <AnimatedNumber value={jobViewsData.total} />
+                </p>
+                <p className={`text-sm flex items-center ${jobViewsData.weeklyChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   This Week
-                  <span className="ml-1">6.4%</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
+                  <span className="ml-1">{jobViewsData.weeklyChange.toFixed(1)}%</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d={jobViewsData.weeklyChange >= 0 ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+                  </svg>
                 </p>
               </div>
               <div className="bg-white border border-gray-200 rounded-lg p-4 text-left">
@@ -345,11 +418,15 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ notifOpen, hasUnread, toggleN
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                   </div>
                 </div>
-                <p className="text-3xl font-semibold text-gray-800">{jobAppliedCount}</p>
-                <p className="text-sm text-red-600 flex items-center">
+                <p className="text-3xl font-semibold text-gray-800">
+                  <AnimatedNumber value={jobAppliedData.total} />
+                </p>
+                <p className={`text-sm flex items-center ${jobAppliedData.weeklyChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   This Week
-                  <span className="ml-1">0.5%</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                  <span className="ml-1">{jobAppliedData.weeklyChange.toFixed(1)}%</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d={jobAppliedData.weeklyChange >= 0 ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+                  </svg>
                 </p>
               </div>
         </div>
@@ -357,37 +434,37 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ notifOpen, hasUnread, toggleN
         </div>
 
         <div className="space-y-6 flex flex-col">
-          <div className="bg-white p-6 rounded-lg border border-gray-200 flex-1 flex flex-col justify-center">
+                      <div className="bg-white p-6 rounded-lg border border-gray-200 flex-1 flex flex-col justify-center">
             <h2 className="text-left text-xl font-normal text-gray-800 mb-4">Job Open</h2>
             <div className="flex items-baseline">
-              <AnimatedNumber value={12} className="text-7xl font-semibold text-gray-800" />
+              <AnimatedNumber value={jobOpenCount} className="text-7xl font-semibold text-gray-800" />
               <p className="text-xl text-gray-500 ml-4">Jobs Opened</p>
       </div>
           </div>
           <div className="bg-white p-6 rounded-lg border border-gray-200 flex-1 flex flex-col justify-center">
             <h2 className="text-left text-xl font-normal text-gray-800 mb-4">Applicants Summary</h2>
             <div className="flex items-baseline">
-              <AnimatedNumber value={67} className="text-7xl font-semibold text-gray-800" />
+              <AnimatedNumber value={applicantsSummary.total} className="text-7xl font-semibold text-gray-800" />
               <p className="text-xl text-gray-500 ml-4">Applicants</p>
             </div>
             <div className="flex w-full h-4 rounded-full overflow-hidden my-4">
               {[
-                { value: 45, color: '#7b61ff' },
-                { value: 22, color: '#56cdad' },
-                { value: 28, color: '#26a4ff' },
-                { value: 30, color: '#ffb836' },
+                { value: applicantsSummary.byType.fullTime, color: '#7b61ff' },
+                { value: applicantsSummary.byType.partTime, color: '#56cdad' },
+                { value: applicantsSummary.byType.remote, color: '#26a4ff' },
+                { value: applicantsSummary.byType.internship, color: '#ffb836' },
+                { value: applicantsSummary.byType.contract, color: '#ff6550' },
               ].map((seg, idx) => {
-                const total = 45 + 22 + 28 + 30;
-                const percent = (seg.value / total) * 100;
+                const percent = applicantsSummary.total > 0 ? (seg.value / applicantsSummary.total) * 100 : 0;
                 return <div key={idx} style={{ width: animateProgress ? `${percent}%` : 0, backgroundColor: seg.color, transition: 'width 0.8s ease' }} />;
               })}
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-gray-600">
                 {[
-                  { label: 'Full Time', value: 45, color: '#7b61ff' },
-                  { label: 'Internship', value: 30, color: '#ffb836' },
-                  { label: 'Part-Time', value: 22, color: '#56cdad' },
-                  { label: 'Remote', value: 28, color: '#26a4ff' },
+                  { label: 'Full Time', value: applicantsSummary.byType.fullTime, color: '#7b61ff' },
+                  { label: 'Internship', value: applicantsSummary.byType.internship, color: '#ffb836' },
+                  { label: 'Part-Time', value: applicantsSummary.byType.partTime, color: '#56cdad' },
+                  { label: 'Remote', value: applicantsSummary.byType.remote, color: '#26a4ff' },
                 ].map((item, idx) => (
                   <div key={idx} className="flex items-center">
                     <div className="w-3 h-3 rounded-sm mr-2" style={{ backgroundColor: item.color }}></div>
@@ -401,10 +478,9 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ notifOpen, hasUnread, toggleN
 
       <div className="mt-8 bg-white p-6 rounded-lg border border-gray-200">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-normal text-gray-800">Total Applicants : 19</h2>
-          <button className="font-semibold flex items-center text-[#007BFF]">
+          <h2 className="text-xl font-normal text-gray-800">Total Applicants : {applicantsSummary.total}</h2>
+          <button className="flex items-center text-[#007BFF]">
             View All
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
           </button>
         </div>
         <div className="border rounded-lg overflow-hidden">
@@ -417,26 +493,56 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ notifOpen, hasUnread, toggleN
               </tr>
             </thead>
             <tbody>
-              {applicants.map((applicant, index) => (
+              {applicants.length > 0 ? applicants.map((applicant: any, index: number) => (
                 <tr key={index} className="border-b last:border-b-0 hover:bg-gray-50 transition-colors cursor-pointer">
-                  <td className="py-3 px-4 flex items-center"><img src={applicant.avatar} alt="avatar" className="w-8 h-8 rounded-full mr-3" /> {applicant.name}</td>
+                  <td className="py-3 px-4 flex items-center">
+                    <img src={applicant.avatar} alt="avatar" className="w-8 h-8 rounded-full mr-3" /> 
+                    {applicant.name}
+                  </td>
                   <td className="py-3 px-4">{applicant.score}</td>
                   <td className="py-3 px-4">
                     <span className={`px-3 py-1 text-sm rounded-full font-medium ${
-                      applicant.status === 'Shortlisted' ? 'bg-blue-100 text-blue-600' :
-                      applicant.status === 'Hired' ? 'bg-green-100 text-green-600' :
-                      applicant.status === 'Declined' ? 'bg-red-100 text-red-600' :
-                      'bg-yellow-100 text-yellow-600'
-                    }`}>{applicant.status}</span>
+                      applicant.status === 'SHORTLISTED' ? 'bg-blue-100 text-blue-600' :
+                      applicant.status === 'HIRED' ? 'bg-green-100 text-green-600' :
+                      applicant.status === 'REJECTED' || applicant.status === 'WITHDRAWN' ? 'bg-red-100 text-red-600' :
+                      applicant.status === 'REVIEWING' ? 'bg-yellow-100 text-yellow-600' :
+                      applicant.status === 'INTERVIEWED' ? 'bg-purple-100 text-purple-600' :
+                      applicant.status === 'OFFERED' ? 'bg-indigo-100 text-indigo-600' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {applicant.status === 'SUBMITTED' ? 'Applied' : 
+                       applicant.status === 'REVIEWING' ? 'Under Review' :
+                       applicant.status === 'SHORTLISTED' ? 'Shortlisted' :
+                       applicant.status === 'INTERVIEWED' ? 'Interviewed' :
+                       applicant.status === 'OFFERED' ? 'Offered' :
+                       applicant.status === 'HIRED' ? 'Hired' :
+                       applicant.status === 'REJECTED' ? 'Rejected' :
+                       applicant.status === 'WITHDRAWN' ? 'Withdrawn' :
+                       applicant.status}
+                    </span>
                   </td>
                   <td className="py-3 px-4">{applicant.date}</td>
                   <td className="py-3 px-4">{applicant.role}</td>
                   <td className="py-3 px-4">
-                    <button className="text-[#007BFF] bg-[#007BFF]/10 px-3 py-1 rounded-md">See Application</button>
-                    <button className="ml-2 text-gray-500">...</button>
+                    <button 
+                      className="text-[#007BFF] bg-[#007BFF]/10 px-3 py-1 rounded-md hover:bg-[#007BFF]/20 transition-colors"
+                      onClick={() => {
+                        // Navigate to application details
+                        console.log('View application:', applicant.applicationId);
+                      }}
+                    >
+                      See Application
+                    </button>
+                    <button className="ml-2 text-gray-500 hover:text-gray-700">...</button>
                   </td>
                 </tr>
-              ))}
+              )) : (
+                <tr>
+                  <td colSpan={6} className="py-8 px-4 text-center text-gray-500">
+                    No recent applications found
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -445,9 +551,8 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ notifOpen, hasUnread, toggleN
       <div className="mt-8 bg-white p-6 rounded-lg border border-gray-200">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-normal text-gray-800">Job Updates</h2>
-          <button className="font-semibold flex items-center text-[#007BFF]">
+          <button className="flex items-center text-[#007BFF]">
             View All
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
           </button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -462,12 +567,13 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ notifOpen, hasUnread, toggleN
                 <span>{job.company}</span> • <span>{job.location}</span>
               </div>
               <div className="flex space-x-2 mb-4">
-                {job.tags.map(tag => {
-                  const tagStyle = {
+                {job.tags.map((tag: string) => {
+                  const tagStyleMap: Record<string, string> = {
                     Marketing: 'text-yellow-600 border border-yellow-400',
                     Design: 'text-blue-600 border border-blue-400',
                     Business: 'text-blue-600 border border-blue-400',
-                  }[tag] || 'text-gray-600 border border-gray-300';
+                  };
+                  const tagStyle = tagStyleMap[tag] || 'text-gray-600 border border-gray-300';
                   return <span key={tag} className={`text-xs font-medium px-2 py-1 rounded-full ${tagStyle}`}>{tag}</span>
                 })}
               </div>

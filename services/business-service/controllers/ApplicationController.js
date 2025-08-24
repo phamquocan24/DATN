@@ -30,29 +30,29 @@ const createApplicationSchema = Joi.object({
 });
 
 const updateApplicationStatusSchema = Joi.object({
-  current_status: Joi.string().valid('APPLIED', 'SCREENING', 'INTERVIEW', 'ASSESSMENT', 'OFFER', 'HIRED', 'REJECTED', 'WITHDRAWN').required(),
+  current_status: Joi.string().valid('SUBMITTED', 'REVIEWING', 'SHORTLISTED', 'INTERVIEWED', 'OFFERED', 'HIRED', 'REJECTED', 'WITHDRAWN').required(),
   reason: Joi.string().max(1000).optional(),
   scheduled_date: Joi.date().optional()
 });
 
 const bulkUpdateSchema = Joi.object({
   application_ids: Joi.array().items(Joi.string().uuid()).min(1).max(100).required(),
-  current_status: Joi.string().valid('APPLIED', 'SCREENING', 'INTERVIEW', 'ASSESSMENT', 'OFFER', 'HIRED', 'REJECTED', 'WITHDRAWN').required(),
+  current_status: Joi.string().valid('SUBMITTED', 'REVIEWING', 'SHORTLISTED', 'INTERVIEWED', 'OFFERED', 'HIRED', 'REJECTED', 'WITHDRAWN').required(),
   reason: Joi.string().max(1000).optional()
 });
 
 const searchApplicationsSchema = Joi.object({
   job_id: Joi.string().uuid().optional(),
   current_status: Joi.alternatives().try(
-    Joi.string().valid('APPLIED', 'SCREENING', 'INTERVIEW', 'ASSESSMENT', 'OFFER', 'HIRED', 'REJECTED', 'WITHDRAWN'),
-    Joi.array().items(Joi.string().valid('APPLIED', 'SCREENING', 'INTERVIEW', 'ASSESSMENT', 'OFFER', 'HIRED', 'REJECTED', 'WITHDRAWN'))
+    Joi.string().valid('SUBMITTED', 'REVIEWING', 'SHORTLISTED', 'INTERVIEWED', 'OFFERED', 'HIRED', 'REJECTED', 'WITHDRAWN'),
+    Joi.array().items(Joi.string().valid('SUBMITTED', 'REVIEWING', 'SHORTLISTED', 'INTERVIEWED', 'OFFERED', 'HIRED', 'REJECTED', 'WITHDRAWN'))
   ).optional(),
   search: Joi.string().optional(),
   date_from: Joi.date().optional(),
   date_to: Joi.date().optional(),
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(20),
-  orderBy: Joi.string().valid('created_at', 'updated_at', 'match_score').default('created_at'),
+  orderBy: Joi.string().valid('submitted_at', 'updated_at', 'match_score', 'created_at').default('submitted_at'),
   direction: Joi.string().valid('ASC', 'DESC').default('DESC')
 });
 

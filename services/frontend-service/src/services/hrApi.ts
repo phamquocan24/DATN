@@ -183,7 +183,13 @@ export const hrApi = {
     return response.data;
   },
 
-  // Dashboard Stats - Calculate from company jobs
+  // Job Statistics - Use business service endpoint for HR
+  getJobStatistics: async () => {
+    const response = await apiClient.get('/api/v1/jobs/stats');
+    return response.data;
+  },
+
+  // Dashboard Stats - Calculate from company jobs (fallback method)
   getJobStats: async () => {
     try {
       // Get jobs from company jobs endpoint
@@ -220,6 +226,40 @@ export const hrApi = {
         avgApplicationsPerJob: 0
       };
     }
+  },
+
+  // Application Statistics - Use business service endpoint for HR
+  getApplicationStatistics: async () => {
+    const response = await apiClient.get('/api/v1/applications/statistics');
+    return response.data;
+  },
+
+  // Get applications with filtering and pagination
+  getApplications: async (params?: {
+    job_id?: string;
+    current_status?: string | string[];
+    search?: string;
+    date_from?: string;
+    date_to?: string;
+    page?: number;
+    limit?: number;
+    orderBy?: string;
+    direction?: string;
+  }) => {
+    const response = await apiClient.get('/api/v1/applications', { params });
+    return response.data;
+  },
+
+  // Get recent applications (for dashboard)
+  getRecentApplications: async (limit: number = 5) => {
+    const response = await apiClient.get('/api/v1/applications', { 
+      params: { 
+        limit, 
+        orderBy: 'submitted_at', 
+        direction: 'DESC' 
+      } 
+    });
+    return response.data;
   },
 
   getApplicationStats: async () => {
