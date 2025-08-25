@@ -30,16 +30,6 @@ export const hrApi = {
     return response.data;
   },
 
-  updateJob: async (jobId: string, jobData: any) => {
-    const response = await apiClient.put(`/api/v1/jobs/${jobId}`, jobData);
-    return response.data;
-  },
-
-  deleteJob: async (jobId: string) => {
-    const response = await apiClient.delete(`/api/v1/jobs/${jobId}`);
-    return response.data;
-  },
-
   // Added missing getAllJobs endpoint for HR with filtering support
   getAllJobs: async (params?: {
     search?: string;
@@ -56,17 +46,6 @@ export const hrApi = {
   },
 
   // Removed getMyJobs - use getJobsByCompany instead
-
-  getJobById: async (jobId: string, includeStats: boolean = false) => {
-    const params = includeStats ? { include_stats: includeStats } : {};
-    const response = await apiClient.get(`/api/v1/jobs/${jobId}`, { params });
-    return response.data;
-  },
-
-  updateJobStatus: async (jobId: string, status: string) => {
-    const response = await apiClient.patch(`/api/v1/jobs/${jobId}/status`, { status });
-    return response.data;
-  },
 
   // Added missing job search endpoint for HR
   searchJobs: async (searchParams: any) => {
@@ -479,6 +458,39 @@ export const hrApi = {
 
   getUnreadNotificationCount: async () => {
     const response = await apiClient.get('/api/v1/notifications/unread-count');
+    return response.data;
+  },
+
+  // Job Detail and Application APIs
+  getApplicationsByJobId: async (jobId: string, params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+  }) => {
+    const response = await apiClient.get(`/api/v1/applications/job/${jobId}`, { params });
+    return response.data;
+  },
+
+  getJobById: async (jobId: string) => {
+    const response = await apiClient.get(`/api/v1/jobs/${jobId}`);
+    return response.data;
+  },
+
+  updateJob: async (jobId: string, jobData: any) => {
+    const response = await apiClient.put(`/api/v1/jobs/${jobId}`, jobData);
+    return response.data;
+  },
+
+  deleteJob: async (jobId: string) => {
+    const response = await apiClient.delete(`/api/v1/jobs/${jobId}`);
+    return response.data;
+  },
+
+  updateJobStatus: async (jobId: string, status: string, reason?: string) => {
+    const response = await apiClient.patch(`/api/v1/jobs/${jobId}/status`, {
+      status,
+      reason
+    });
     return response.data;
   }
 };

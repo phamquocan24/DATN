@@ -237,22 +237,22 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ notifOpen, hasUnread, toggleN
             const myJobs = await hrApi.getJobsByCompany(companyId);
             console.log('HR Company Jobs Response:', myJobs);
             
-            const jobsArray = myJobs?.data || myJobs?.jobs || (Array.isArray(myJobs) ? myJobs : []);
+        const jobsArray = myJobs?.data || myJobs?.jobs || (Array.isArray(myJobs) ? myJobs : []);
             console.log('HR Extracted jobs array:', jobsArray);
-            
-            setDashboardData(prevData => ({
-              ...prevData,
-              jobUpdates: Array.isArray(jobsArray) ? jobsArray.slice(0, 4).map((job: any) => ({
-                logo: nomadLogo,
+        
+        setDashboardData(prevData => ({
+          ...prevData,
+          jobUpdates: Array.isArray(jobsArray) ? jobsArray.slice(0, 4).map((job: any) => ({
+            logo: nomadLogo,
                 title: job.title || 'Job Title',
                 company: job.company?.name || job.company_name || 'Company',
-                location: job.city || job.location || 'Location',
-                tags: Array.isArray(job.skills) ? job.skills.slice(0, 2) : ['Business'],
-                applied: job.applications_count || job.applicationsCount || 0,
-                capacity: job.open_positions || job.openPositions || 1,
-                type: job.employment_type || job.type || 'Full-Time'
-              })) : []
-            }));
+            location: job.city || job.location || 'Location',
+            tags: Array.isArray(job.skills) ? job.skills.slice(0, 2) : ['Business'],
+            applied: job.applications_count || job.applicationsCount || 0,
+            capacity: job.open_positions || job.openPositions || 1,
+            type: job.employment_type || job.type || 'Full-Time'
+          })) : []
+        }));
           }
         } catch (jobsErr) {
           console.error('Error fetching job updates:', jobsErr);
@@ -434,7 +434,7 @@ const HrDashboard: React.FC<HrDashboardProps> = ({ notifOpen, hasUnread, toggleN
         </div>
 
         <div className="space-y-6 flex flex-col">
-                      <div className="bg-white p-6 rounded-lg border border-gray-200 flex-1 flex flex-col justify-center">
+          <div className="bg-white p-6 rounded-lg border border-gray-200 flex-1 flex flex-col justify-center">
             <h2 className="text-left text-xl font-normal text-gray-800 mb-4">Job Open</h2>
             <div className="flex items-baseline">
               <AnimatedNumber value={jobOpenCount} className="text-7xl font-semibold text-gray-800" />

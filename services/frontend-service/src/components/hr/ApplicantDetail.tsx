@@ -55,6 +55,8 @@ const ApplicantDetail: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'profile' | 'resume' | 'progress' | 'schedule'>('profile');
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [relatedApplications, setRelatedApplications] = useState<any[]>([]);
+  const [loadingRelated, setLoadingRelated] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   
   // API state management
@@ -147,6 +149,11 @@ const ApplicantDetail: React.FC = () => {
         };
         
         setCandidateDetails(transformedData);
+        
+        // Fetch related applications for the same job
+        if (apiData.job_id) {
+          fetchRelatedApplications(apiData.job_id);
+        }
       } else {
         setError('Failed to load application details');
       }
@@ -155,6 +162,26 @@ const ApplicantDetail: React.FC = () => {
       setError('Failed to load application details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch related applications for the same job
+  const fetchRelatedApplications = async (jobId: string) => {
+    try {
+      setLoadingRelated(true);
+      const response = await hrApi.getApplicationsByJobId(jobId, {
+        limit: 10,
+        page: 1
+      });
+      
+      const applicationsData = response.data || response || [];
+      // Filter out current application
+      const filtered = applicationsData.filter((app: any) => app.application_id !== id);
+      setRelatedApplications(filtered);
+    } catch (err: any) {
+      console.error('Error fetching related applications:', err);
+    } finally {
+      setLoadingRelated(false);
     }
   };
 
@@ -785,6 +812,63 @@ const ApplicantDetail: React.FC = () => {
                 )}
               </div>
             </div>
+            )}
+
+            {/* Related Applications Section */}
+            {candidateDetails?.job_id && (
+              <div className="bg-white rounded-lg border border-gray-200 p-6 mt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Other Applications for "{candidateDetails.job_title}"
+                </h3>
+                
+                {loadingRelated ? (
+                  <div className="text-center py-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#007BFF] mx-auto"></div>
+                    <p className="text-sm text-gray-500 mt-2">Loading related applications...</p>
+                  </div>
+                ) : relatedApplications.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">No other applications for this job.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {relatedApplications.map((app: any) => (
+                      <div 
+                        key={app.application_id}
+                        className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/hr/job-applications/${app.application_id}`)}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                            <span className="text-sm font-medium text-gray-600">
+                              {app.candidate_name ? app.candidate_name.charAt(0).toUpperCase() : 'C'}
+                            </span>
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-900">{app.candidate_name || 'Unknown Candidate'}</h4>
+                            <p className="text-sm text-gray-500">{app.candidate_email || 'No email'}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                              app.current_status === 'PENDING' ? 'bg-yellow-100 text-yellow-600' :
+                              app.current_status === 'INTERVIEWED' ? 'bg-blue-100 text-blue-600' :
+                              app.current_status === 'SHORTLISTED' ? 'bg-green-100 text-green-600' :
+                              app.current_status === 'REJECTED' ? 'bg-red-100 text-red-600' :
+                              'bg-gray-100 text-gray-600'
+                            }`}>
+                              {app.current_status}
+                            </span>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Match: {app.match_score || 0}%
+                            </p>
+                          </div>
+                          <FiMoreHorizontal className="text-gray-400" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </main>

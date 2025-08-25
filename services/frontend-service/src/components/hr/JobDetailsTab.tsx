@@ -1,47 +1,216 @@
-import React from 'react';
-import { FiEdit, FiCheckCircle, FiHeart, FiUmbrella, FiTrendingUp, FiUsers, FiHome, FiTruck, FiGift, FiBriefcase, FiArrowLeft } from 'react-icons/fi';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { FiEdit, FiSave, FiX } from 'react-icons/fi';
+import hrApi from '../../services/hrApi';
+
+interface JobDetails {
+  job_id: string;
+  title: string;
+  description: string;
+  requirements: string;
+  responsibilities: string;
+  benefits: string;
+  employment_type: string;
+  experience_level: string;
+  education_level: string;
+  salary_min: number;
+  salary_max: number;
+  location: string;
+  address: string;
+  status: string;
+  application_deadline: string;
+  remote_work_option: string;
+  application_count: number;
+  max_applications?: number;
+  company_name: string;
+  created_at: string;
+}
 
 const JobDetailsTab: React.FC = () => {
+    const { id } = useParams<{ id: string }>();
     
-    const perks = [
-        { icon: <FiHeart />, title: "Full Healthcare" },
-        { icon: <FiUmbrella />, title: "Unlimited Vacation" },
-        { icon: <FiTrendingUp />, title: "Skill Development" },
-        { icon: <FiUsers />, title: "Team Summits" },
-        { icon: <FiHome />, title: "Remote Working" },
-        { icon: <FiTruck />, title: "Commuter Benefits" },
-        { icon: <FiGift />, title: "We give back" },
-    ];
+    const [jobDetails, setJobDetails] = useState<JobDetails | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editedJob, setEditedJob] = useState<Partial<JobDetails>>({});
+    const [saving, setSaving] = useState(false);
+    
+
+
+    // Fetch job details
+    const fetchJobDetails = async () => {
+        if (!id) return;
+        
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await hrApi.getJobById(id);
+            const jobData = response.data || response;
+            
+            console.log('Job Details API Response:', jobData);
+            console.log('Application count:', jobData.application_count);
+            console.log('Max applications:', jobData.max_applications);
+            console.log('Remote work option:', jobData.remote_work_option);
+            console.log('Address:', jobData.address);
+            console.log('Location (old field):', jobData.location);
+            
+            setJobDetails(jobData);
+            setEditedJob(jobData);
+        } catch (err: any) {
+            console.error('Error fetching job details:', err);
+            setError('Failed to load job details');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Update job details
+    const handleUpdateJob = async () => {
+        if (!id || !editedJob) return;
+        
+        try {
+            setSaving(true);
+            await hrApi.updateJob(id, editedJob);
+            
+            // Refresh job details
+            await fetchJobDetails();
+            setIsEditing(false);
+        } catch (err: any) {
+            console.error('Error updating job:', err);
+            setError('Failed to update job details');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // Handle edit field change
+    const handleFieldChange = (field: keyof JobDetails, value: string | number) => {
+        setEditedJob(prev => ({
+            ...prev,
+            [field]: value
+        }));
+    };
+
+    // Handle cancel edit
+    const handleCancelEdit = () => {
+        setIsEditing(false);
+        setEditedJob(jobDetails || {});
+    };
+
+    // Fetch data on mount
+    useEffect(() => {
+        fetchJobDetails();
+    }, [id]);
+
+    if (loading) {
+        return (
+            <div className="bg-white text-gray-800 text-left p-6">
+                <div className="flex justify-center items-center h-64">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#007BFF]"></div>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="bg-white text-gray-800 text-left p-6">
+                <div className="text-center text-red-600">
+                    <p className="text-lg font-semibold">Error</p>
+                    <p>{error}</p>
+                    <button 
+                        onClick={fetchJobDetails}
+                        className="mt-4 px-4 py-2 bg-[#007BFF] text-white rounded-lg hover:bg-[#0056b3]"
+                    >
+                        Retry
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (!jobDetails) {
+        return (
+            <div className="bg-white text-gray-800 text-left p-6">
+                <div className="text-center text-gray-600">
+                    <p>Job not found</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-white text-gray-800 text-left">
-            {/* Header */}
-            <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-4">
-                    <button className="p-2 hover:bg-gray-100 rounded-full">
-                        <FiArrowLeft className="w-6 h-6" />
-                    </button>
-                    <div>
-                        <h2 className="text-xl font-semibold text-gray-900">Social Media Assistant</h2>
-                        <p className="text-sm text-gray-500">Design • Full-Time • 4 / 11 Hired</p>
-                    </div>
-                </div>
-                <button className="flex items-center gap-2 px-4 py-2 border border-[#007BFF] text-[#007BFF] rounded-lg text-sm font-medium hover:bg-blue-50">
-                    <span className="text-lg">+</span> More Action
-                </button>
-            </div>
+
 
             {/* Job Header Card (Full Width) */}
             <div className="flex items-center justify-between gap-4 p-4 border rounded-lg mb-8">
                 <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-purple-500 text-white flex items-center justify-center rounded-lg text-2xl font-bold">
-                        S
+                        {jobDetails.title.charAt(0).toUpperCase()}
                     </div>
-                    <h3 className="text-2xl font-semibold text-gray-900">Social Media Assistant</h3>
+                    <div>
+                        {isEditing ? (
+                            <input
+                                type="text"
+                                value={editedJob.title || ''}
+                                onChange={(e) => handleFieldChange('title', e.target.value)}
+                                className="text-2xl font-semibold text-gray-900 border border-gray-300 rounded-lg px-3 py-2 min-w-[300px]"
+                                placeholder="Job Title"
+                            />
+                        ) : (
+                            <h3 className="text-2xl font-semibold text-gray-900">{jobDetails.title}</h3>
+                        )}
+                        <p className="text-sm mt-1">
+                            <span className={`font-medium ${
+                                jobDetails.employment_type === 'FULL_TIME' ? 'text-blue-600' :
+                                jobDetails.employment_type === 'PART_TIME' ? 'text-green-600' :
+                                jobDetails.employment_type === 'CONTRACT' ? 'text-purple-600' :
+                                jobDetails.employment_type === 'INTERNSHIP' ? 'text-orange-600' :
+                                'text-gray-600'
+                            }`}>
+                                {jobDetails.employment_type}
+                            </span>
+                            <span className="text-gray-500"> • {jobDetails.application_count || 0} Applied</span>
+                        </p>
+                    </div>
                 </div>
-                <button className="flex items-center gap-2 px-4 py-2 border border-[#007BFF] text-[#007BFF] rounded-lg text-sm font-medium hover:bg-blue-50">
-                    <FiEdit /> Edit Job Details
-                </button>
+                <div className="flex items-center gap-4">
+                    <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
+                        jobDetails.status === 'ACTIVE' ? 'bg-green-100 text-green-600' :
+                        jobDetails.status === 'DRAFT' ? 'bg-yellow-100 text-yellow-600' :
+                        jobDetails.status === 'PAUSED' ? 'bg-orange-100 text-orange-600' :
+                        'bg-red-100 text-red-600'
+                    }`}>
+                        {jobDetails.status}
+                    </span>
+                    
+                    {isEditing ? (
+                        <div className="flex items-center gap-2">
+                            <button 
+                                onClick={handleCancelEdit}
+                                className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50"
+                            >
+                                <FiX /> Cancel
+                            </button>
+                            <button 
+                                onClick={handleUpdateJob}
+                                disabled={saving}
+                                className="flex items-center gap-2 px-4 py-2 bg-[#007BFF] text-white rounded-lg text-sm font-medium hover:bg-[#0056b3] disabled:opacity-50"
+                            >
+                                <FiSave /> {saving ? 'Saving...' : 'Save Changes'}
+                            </button>
+                        </div>
+                    ) : (
+                        <button 
+                            onClick={() => setIsEditing(true)}
+                            className="flex items-center gap-2 px-4 py-2 border border-[#007BFF] text-[#007BFF] rounded-lg text-sm font-medium hover:bg-blue-50"
+                        >
+                            <FiEdit /> Edit Job Details
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Main Content Grid (Top part) */}
@@ -49,35 +218,55 @@ const JobDetailsTab: React.FC = () => {
                 {/* Left/Main Column */}
                 <div className="lg:col-span-2 space-y-8">
                     <Section title="Description">
-                        <p className="text-gray-600">Stripe is looking for Social Media Marketing expert to help manage our online networks. You will be responsible for monitoring our social media channels, creating content, finding effective ways to engage the community and incentivize others to engage on our channels.</p>
+                        {isEditing ? (
+                            <textarea
+                                value={editedJob.description || ''}
+                                onChange={(e) => handleFieldChange('description', e.target.value)}
+                                className="w-full h-32 border border-gray-300 rounded-lg px-3 py-2 text-gray-600"
+                                placeholder="Job description..."
+                            />
+                        ) : (
+                            <p className="text-gray-600 whitespace-pre-line">{jobDetails.description}</p>
+                        )}
                     </Section>
 
                     <Section title="Responsibilities">
-                        <ul className="space-y-2 list-inside">
-                            <ListItem>Community engagement to ensure that is supported and actively represented online</ListItem>
-                            <ListItem>Focus on social media content development and publication</ListItem>
-                            <ListItem>Marketing and strategy support</ListItem>
-                            <ListItem>Stay on top of trends on social media platforms, and suggest content ideas to the team</ListItem>
-                            <ListItem>Engage with online communities</ListItem>
-                        </ul>
+                        {isEditing ? (
+                            <textarea
+                                value={editedJob.responsibilities || ''}
+                                onChange={(e) => handleFieldChange('responsibilities', e.target.value)}
+                                className="w-full h-32 border border-gray-300 rounded-lg px-3 py-2 text-gray-600"
+                                placeholder="Job responsibilities (one per line)..."
+                            />
+                        ) : (
+                            <div className="text-gray-600 whitespace-pre-line">{jobDetails.responsibilities}</div>
+                        )}
                     </Section>
 
-                    <Section title="Who You Are">
-                        <ul className="space-y-2 list-inside">
-                            <ListItem>You get energy from people and building the ideal work environment</ListItem>
-                            <ListItem>You have a sense for beautiful spaces and office experiences</ListItem>
-                            <ListItem>You are a confident office manager, ready for added responsibilities</ListItem>
-                            <ListItem>You're detail-oriented and creative</ListItem>
-                            <ListItem>You're a growth marketer and know how to run campaigns</ListItem>
-                        </ul>
+                    <Section title="Requirements">
+                        {isEditing ? (
+                            <textarea
+                                value={editedJob.requirements || ''}
+                                onChange={(e) => handleFieldChange('requirements', e.target.value)}
+                                className="w-full h-32 border border-gray-300 rounded-lg px-3 py-2 text-gray-600"
+                                placeholder="Job requirements (one per line)..."
+                            />
+                        ) : (
+                            <div className="text-gray-600 whitespace-pre-line">{jobDetails.requirements}</div>
+                        )}
                     </Section>
                     
-                    <Section title="Nice-To-Haves">
-                         <ul className="space-y-2 list-inside">
-                            <ListItem>Fluent in English</ListItem>
-                            <ListItem>Project management skills</ListItem>
-                            <ListItem>Copy editing skills</ListItem>
-                        </ul>
+                    <Section title="Benefits">
+                        {isEditing ? (
+                            <textarea
+                                value={editedJob.benefits || ''}
+                                onChange={(e) => handleFieldChange('benefits', e.target.value)}
+                                className="w-full h-32 border border-gray-300 rounded-lg px-3 py-2 text-gray-600"
+                                placeholder="Job benefits (one per line)..."
+                            />
+                        ) : (
+                            <div className="text-gray-600 whitespace-pre-line">{jobDetails.benefits}</div>
+                        )}
                     </Section>
                 </div>
 
@@ -85,51 +274,180 @@ const JobDetailsTab: React.FC = () => {
                 <div className="lg:col-span-1 space-y-6">
                     <InfoCard title="About this role">
                         <div className="text-sm">
-                            <p>5 applied <span className="text-gray-500">of 10 capacity</span></p>
+                            <p>{jobDetails.application_count || 0} applied <span className="text-gray-500">of {jobDetails.max_applications || 1} capacity</span></p>
                             <div className="w-full h-2 bg-gray-200 rounded-full my-2">
-                                <div className="w-1/2 h-full bg-green-500 rounded-full"></div>
+                                <div 
+                                    className="h-full bg-green-500 rounded-full"
+                                    style={{ 
+                                        width: `${Math.min(100, ((jobDetails.application_count || 0) / (jobDetails.max_applications || 1)) * 100)}%` 
+                                    }}
+                                ></div>
                             </div>
                         </div>
-                        <InfoRow label="Apply Before" value="July 31, 2021" />
-                        <InfoRow label="Job Posted On" value="July 1, 2021" />
-                        <InfoRow label="Job Type" value="Full-Time" />
-                        <InfoRow label="Salary" value="$75k-$85k USD" />
+                        <InfoRow 
+                            label="Apply Before" 
+                            value={new Date(jobDetails.application_deadline).toLocaleDateString()} 
+                        />
+                        <InfoRow 
+                            label="Job Posted On" 
+                            value={new Date(jobDetails.created_at).toLocaleDateString()} 
+                        />
+                        <InfoRow 
+                            label="Job Type" 
+                            value={jobDetails.employment_type} 
+                        />
+                        <InfoRow 
+                            label="Salary" 
+                            value={
+                                isEditing ? (
+                                    <div className="flex gap-2 items-center">
+                                        <input
+                                            type="number"
+                                            placeholder="Min"
+                                            value={editedJob.salary_min || ''}
+                                            onChange={(e) => handleFieldChange('salary_min', Number(e.target.value))}
+                                            className="w-20 border border-gray-300 rounded px-2 py-1 text-sm"
+                                        />
+                                        <span>-</span>
+                                        <input
+                                            type="number"
+                                            placeholder="Max"
+                                            value={editedJob.salary_max || ''}
+                                            onChange={(e) => handleFieldChange('salary_max', Number(e.target.value))}
+                                            className="w-20 border border-gray-300 rounded px-2 py-1 text-sm"
+                                        />
+                                    </div>
+                                ) : (
+                                    `$${jobDetails.salary_min?.toLocaleString() || 'N/A'} - $${jobDetails.salary_max?.toLocaleString() || 'N/A'}`
+                                )
+                            } 
+                        />
+                        <InfoRow 
+                            label="Experience" 
+                            value={
+                                isEditing ? (
+                                    <select
+                                        value={editedJob.experience_level || ''}
+                                        onChange={(e) => handleFieldChange('experience_level', e.target.value)}
+                                        className="border border-gray-300 rounded px-2 py-1 text-sm"
+                                    >
+                                        <option value="">Select Level</option>
+                                        <option value="ENTRY_LEVEL">Entry Level</option>
+                                        <option value="MID_LEVEL">Mid Level</option>
+                                        <option value="SENIOR_LEVEL">Senior Level</option>
+                                        <option value="EXECUTIVE">Executive</option>
+                                    </select>
+                                ) : (
+                                    jobDetails.experience_level
+                                )
+                            } 
+                        />
+                        <InfoRow 
+                            label="Education" 
+                            value={
+                                isEditing ? (
+                                    <select
+                                        value={editedJob.education_level || ''}
+                                        onChange={(e) => handleFieldChange('education_level', e.target.value)}
+                                        className="border border-gray-300 rounded px-2 py-1 text-sm"
+                                    >
+                                        <option value="">Select Level</option>
+                                        <option value="HIGH_SCHOOL">High School</option>
+                                        <option value="BACHELOR">Bachelor's Degree</option>
+                                        <option value="MASTER">Master's Degree</option>
+                                        <option value="PHD">PhD</option>
+                                    </select>
+                                ) : (
+                                    jobDetails.education_level
+                                )
+                            } 
+                        />
+                        <InfoRow 
+                            label="Location" 
+                            value={
+                                isEditing ? (
+                                    <input
+                                        type="text"
+                                        value={editedJob.address || ''}
+                                        onChange={(e) => handleFieldChange('address', e.target.value)}
+                                        className="border border-gray-300 rounded px-2 py-1 text-sm w-full"
+                                        placeholder="Job address"
+                                    />
+                                ) : (
+                                    jobDetails.address || 'Not specified'
+                                )
+                            } 
+                        />
                     </InfoCard>
                     
-                    <InfoCard title="Categories">
-                        <div className="flex flex-wrap gap-2">
-                            <Pill text="Marketing" color="yellow" />
-                            <Pill text="Design" color="green" />
-                        </div>
-                    </InfoCard>
-
-                    <InfoCard title="Required Skills">
-                        <div className="flex flex-wrap gap-2">
-                            {['Project Management', 'Copywriting', 'English', 'Social Media Marketing', 'Copy Editing'].map(skill => (
-                                <span key={skill} className="px-3 py-1 bg-gray-100 text-[#007BFF] rounded-md text-sm font-medium">{skill}</span>
-                            ))}
-                        </div>
+                    <InfoCard title="Job Information">
+                        <InfoRow 
+                            label="Employment Type" 
+                            value={
+                                isEditing ? (
+                                    <select
+                                        value={editedJob.employment_type || ''}
+                                        onChange={(e) => handleFieldChange('employment_type', e.target.value)}
+                                        className="border border-gray-300 rounded px-2 py-1 text-sm"
+                                    >
+                                        <option value="">Select Type</option>
+                                        <option value="FULL_TIME">Full Time</option>
+                                        <option value="PART_TIME">Part Time</option>
+                                        <option value="CONTRACT">Contract</option>
+                                        <option value="INTERNSHIP">Internship</option>
+                                        <option value="FREELANCE">Freelance</option>
+                                    </select>
+                                ) : (
+                                    jobDetails.employment_type
+                                )
+                            } 
+                        />
+                        <InfoRow 
+                            label="Open Positions" 
+                            value={
+                                isEditing ? (
+                                    <select
+                                        value={editedJob.remote_work_option || ''}
+                                        onChange={(e) => handleFieldChange('remote_work_option', e.target.value)}
+                                        className="border border-gray-300 rounded px-2 py-1 text-sm"
+                                    >
+                                        <option value="">Select work arrangement</option>
+                                        <option value="ONSITE">Onsite</option>
+                                        <option value="REMOTE">Remote</option>
+                                        <option value="HYBRID">Hybrid</option>
+                                    </select>
+                                ) : (
+                                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                        jobDetails.remote_work_option === 'ONSITE' ? 'bg-red-100 text-red-700' :
+                                        jobDetails.remote_work_option === 'REMOTE' ? 'bg-green-100 text-green-700' :
+                                        jobDetails.remote_work_option === 'HYBRID' ? 'bg-blue-100 text-blue-700' :
+                                        'bg-gray-100 text-gray-700'
+                                    }`}>
+                                        {jobDetails.remote_work_option || 'Not specified'}
+                                    </span>
+                                )
+                            } 
+                        />
+                        <InfoRow 
+                            label="Application Deadline" 
+                            value={
+                                isEditing ? (
+                                    <input
+                                        type="date"
+                                        value={editedJob.application_deadline?.split('T')[0] || ''}
+                                        onChange={(e) => handleFieldChange('application_deadline', e.target.value)}
+                                        className="border border-gray-300 rounded px-2 py-1 text-sm"
+                                    />
+                                ) : (
+                                    new Date(jobDetails.application_deadline).toLocaleDateString()
+                                )
+                            } 
+                        />
                     </InfoCard>
                 </div>
             </div>
 
-            {/* Divider and Perks section (Full Width) */}
-            <div className="border-t border-gray-200 mt-8 pt-8">
-                <Section title="Perks & Benefits">
-                    <p className="text-gray-600 mb-6">This job comes with several perks and benefits</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {perks.map(perk => (
-                            <div key={perk.title} className="flex items-start text-left gap-4">
-                                <div className="text-blue-500 text-3xl">{perk.icon}</div>
-                                <div>
-                                    <h4 className="font-semibold mb-1">{perk.title}</h4>
-                                    <p className="text-sm text-gray-600">We believe in thriving communities and that starts with our team being happy and healthy.</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </Section>
-            </div>
+
         </div>
     );
 };
@@ -142,13 +460,6 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
     </div>
 );
 
-const ListItem: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <li className="flex items-start gap-2">
-        <FiCheckCircle className="text-green-500 mt-1 flex-shrink-0" />
-        <span>{children}</span>
-    </li>
-);
-
 const InfoCard: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
     <div className="p-4 border rounded-lg space-y-4">
         <h4 className="font-semibold">{title}</h4>
@@ -156,19 +467,11 @@ const InfoCard: React.FC<{ title: string; children: React.ReactNode }> = ({ titl
     </div>
 );
 
-const InfoRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+const InfoRow: React.FC<{ label: string; value: string | number | React.ReactNode }> = ({ label, value }) => (
     <div className="flex justify-between text-sm">
         <span className="text-gray-500">{label}</span>
         <span className="font-medium">{value}</span>
     </div>
 );
-
-const Pill: React.FC<{ text: string; color: 'yellow' | 'green' }> = ({ text, color }) => {
-    const colors = {
-        yellow: 'bg-yellow-100 text-yellow-700',
-        green: 'bg-green-100 text-green-700'
-    };
-    return <span className={`px-2 py-1 rounded-md text-xs font-medium ${colors[color]}`}>{text}</span>;
-}
 
 export default JobDetailsTab; 

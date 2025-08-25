@@ -525,9 +525,9 @@ const MySchedule: React.FC = () => {
             )}
             
             {viewMode === 'Week' && (
-                <div className="grid grid-cols-8">
-                    <div className="col-span-1"></div>
-                    <div className="col-span-7 grid grid-cols-7 text-center text-sm font-semibold text-gray-600">
+            <div className="grid grid-cols-8">
+                <div className="col-span-1"></div>
+                <div className="col-span-7 grid grid-cols-7 text-center text-sm font-semibold text-gray-600">
                         {calendarStructure.headers.map((header, index) => {
                             const dayInfo = weekDays[index];
                             return (
@@ -584,18 +584,18 @@ const MySchedule: React.FC = () => {
                     {/* Week View */}
                     {viewMode === 'Week' && (
                       <>
-                        <div className="grid grid-cols-8">
-                            <div className="col-span-1 text-xs text-gray-500 text-right pr-2">
-                                {timeSlots.map(time => <div key={time} className="h-16 border-t pt-1">{time}</div>)}
-                            </div>
-                            <div className="col-span-7 grid grid-cols-7">
+                <div className="grid grid-cols-8">
+                    <div className="col-span-1 text-xs text-gray-500 text-right pr-2">
+                        {timeSlots.map(time => <div key={time} className="h-16 border-t pt-1">{time}</div>)}
+                    </div>
+                    <div className="col-span-7 grid grid-cols-7">
                                 {[...Array(7)].map((_, i) => 
                                     <div key={i} className="border-l">
                                         {timeSlots.map(time => <div key={time} className="h-16 border-t"></div>)}
                                     </div>
                                 )}
-                            </div>
-                        </div>
+                    </div>
+                </div>
                       </>
                     )}
                         
@@ -686,8 +686,8 @@ const MySchedule: React.FC = () => {
                                         hour12: true 
                                       })}
                                     </div>
-                                  </div>
-                                ))}
+                    </div>
+                ))}
                                 
                                 {/* Show count if more than 3 events */}
                                 {dayInterviews.length > 3 && (

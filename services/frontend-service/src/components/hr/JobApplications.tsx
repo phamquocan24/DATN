@@ -266,11 +266,6 @@ const JobApplications = () => {
         {/* Pagination */}
         <div className="px-4 py-3 flex items-center justify-between border-t border-gray-200 text-sm">
           <div className="flex items-center gap-4">
-            {totalCount > 0 && (
-              <span className="text-gray-600">
-                Showing {((currentPage - 1) * applicantsPerPage) + 1} to {Math.min(currentPage * applicantsPerPage, totalCount)} of {totalCount} applicants
-              </span>
-            )}
             <div className="flex items-center gap-2">
               <span className="text-gray-600">View</span>
               <div ref={pageSelectRef} className="relative inline-block">
