@@ -53,7 +53,7 @@ const JobDetailsTab: React.FC = () => {
             console.log('Max applications:', jobData.max_applications);
             console.log('Remote work option:', jobData.remote_work_option);
             console.log('Address:', jobData.address);
-            console.log('Location (old field):', jobData.location);
+            console.log('Employment type:', jobData.employment_type);
             
             setJobDetails(jobData);
             setEditedJob(jobData);
@@ -71,7 +71,26 @@ const JobDetailsTab: React.FC = () => {
         
         try {
             setSaving(true);
-            await hrApi.updateJob(id, editedJob);
+            
+            // Clean up the data before sending - map to backend field names and filter out undefined values
+            const updateData: any = {};
+            
+            // Map frontend fields to backend validation schema field names
+            if (editedJob.title) updateData.job_title = editedJob.title;
+            if (editedJob.description) updateData.job_description = editedJob.description;
+            if (editedJob.requirements) updateData.job_requirements = editedJob.requirements;
+            if (editedJob.responsibilities) updateData.job_responsibilities = editedJob.responsibilities;
+            if (editedJob.benefits) updateData.job_benefits = editedJob.benefits;
+            if (editedJob.employment_type) updateData.employment_type = editedJob.employment_type;
+            if (editedJob.salary_min !== undefined) updateData.salary_min = editedJob.salary_min;
+            if (editedJob.salary_max !== undefined) updateData.salary_max = editedJob.salary_max;
+            if (editedJob.address) updateData.work_location = editedJob.address;
+            if (editedJob.application_deadline) updateData.deadline = editedJob.application_deadline;
+            if (editedJob.remote_work_option) updateData.work_type = editedJob.remote_work_option;
+            
+            console.log('Sending update data:', updateData);
+            
+            await hrApi.updateJob(id, updateData);
             
             // Refresh job details
             await fetchJobDetails();
@@ -114,7 +133,7 @@ const JobDetailsTab: React.FC = () => {
     }
 
     if (error) {
-        return (
+    return (
             <div className="bg-white text-gray-800 text-left p-6">
                 <div className="text-center text-red-600">
                     <p className="text-lg font-semibold">Error</p>
@@ -126,7 +145,7 @@ const JobDetailsTab: React.FC = () => {
                         Retry
                     </button>
                 </div>
-            </div>
+                    </div>
         );
     }
 
@@ -172,7 +191,9 @@ const JobDetailsTab: React.FC = () => {
                             }`}>
                                 {jobDetails.employment_type}
                             </span>
-                            <span className="text-gray-500"> • {jobDetails.application_count || 0} Applied</span>
+                            <span className="text-gray-500 ml-4">
+                                {(jobDetails.application_count || 0) > 0 ? `• ${jobDetails.application_count} Applied` : ''}
+                            </span>
                         </p>
                     </div>
                 </div>
@@ -207,8 +228,8 @@ const JobDetailsTab: React.FC = () => {
                             onClick={() => setIsEditing(true)}
                             className="flex items-center gap-2 px-4 py-2 border border-[#007BFF] text-[#007BFF] rounded-lg text-sm font-medium hover:bg-blue-50"
                         >
-                            <FiEdit /> Edit Job Details
-                        </button>
+                    <FiEdit /> Edit Job Details
+                </button>
                     )}
                 </div>
             </div>
@@ -332,10 +353,13 @@ const JobDetailsTab: React.FC = () => {
                                         className="border border-gray-300 rounded px-2 py-1 text-sm"
                                     >
                                         <option value="">Select Level</option>
-                                        <option value="ENTRY_LEVEL">Entry Level</option>
-                                        <option value="MID_LEVEL">Mid Level</option>
-                                        <option value="SENIOR_LEVEL">Senior Level</option>
-                                        <option value="EXECUTIVE">Executive</option>
+                                        <option value="ENTRY">Entry Level</option>
+                                        <option value="JUNIOR">Junior Level</option>
+                                        <option value="MIDDLE">Middle Level</option>
+                                        <option value="SENIOR">Senior Level</option>
+                                        <option value="LEAD">Lead Level</option>
+                                        <option value="MANAGER">Manager Level</option>
+                                        <option value="DIRECTOR">Director Level</option>
                                     </select>
                                 ) : (
                                     jobDetails.experience_level
@@ -353,6 +377,7 @@ const JobDetailsTab: React.FC = () => {
                                     >
                                         <option value="">Select Level</option>
                                         <option value="HIGH_SCHOOL">High School</option>
+                                        <option value="COLLEGE">College</option>
                                         <option value="BACHELOR">Bachelor's Degree</option>
                                         <option value="MASTER">Master's Degree</option>
                                         <option value="PHD">PhD</option>
@@ -403,7 +428,7 @@ const JobDetailsTab: React.FC = () => {
                             } 
                         />
                         <InfoRow 
-                            label="Open Positions" 
+                            label="Work Arrangement" 
                             value={
                                 isEditing ? (
                                     <select
