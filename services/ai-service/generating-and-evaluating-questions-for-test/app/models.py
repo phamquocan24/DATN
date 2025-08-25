@@ -4,10 +4,8 @@ import uuid
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
-from db import Base
+from .db import Base
 from sqlalchemy.sql import func
-
-Base = declarative_base()
 
 class Job(Base):
     __tablename__ = "jobs"
