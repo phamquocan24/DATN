@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiChevronDown, FiSearch, FiPlus } from 'react-icons/fi';
+import { FiChevronDown, FiSearch, FiPlus, FiMoreVertical, FiEdit, FiTrash2, FiUserPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import calendarIcon from '../../assets/scheme.png';
 import testApi from '../../services/testApi';
@@ -42,6 +42,11 @@ const TestManagement: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalTests, setTotalTests] = useState(0);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [showDropdown, setShowDropdown] = useState<string | null>(null);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [testToDelete, setTestToDelete] = useState<Test | null>(null);
+    const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+    const [testToAssign, setTestToAssign] = useState<Test | null>(null);
 
     // Load tests when component mounts or page/search changes
     useEffect(() => {
@@ -54,6 +59,15 @@ const TestManagement: React.FC = () => {
             loadStats();
         }
     }, [tests]);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = () => setShowDropdown(null);
+        if (showDropdown) {
+            document.addEventListener('click', handleClickOutside);
+            return () => document.removeEventListener('click', handleClickOutside);
+        }
+    }, [showDropdown]);
 
     const loadTests = async () => {
         try {
@@ -140,6 +154,39 @@ const TestManagement: React.FC = () => {
             month: 'long',
             year: 'numeric'
         });
+    };
+
+    const handleDeleteTest = async (test: Test) => {
+        setTestToDelete(test);
+        setIsDeleteModalOpen(true);
+        setShowDropdown(null);
+    };
+
+    const confirmDeleteTest = async () => {
+        if (!testToDelete) return;
+        
+        try {
+            const testId = testToDelete.id || testToDelete.test_id;
+            await testApi.deleteTest(testId!);
+            setIsDeleteModalOpen(false);
+            setTestToDelete(null);
+            loadTests(); // Reload tests after deletion
+        } catch (error) {
+            console.error('Error deleting test:', error);
+            setError('Failed to delete test');
+        }
+    };
+
+    const handleAssignTest = (test: Test) => {
+        setTestToAssign(test);
+        setIsAssignModalOpen(true);
+        setShowDropdown(null);
+    };
+
+    const handleEditTest = (test: Test) => {
+        const testId = test.id || test.test_id;
+        navigate(`/hr/test-management/${testId}/edit`);
+        setShowDropdown(null);
     };
 
     if (loading && tests.length === 0) {
@@ -262,13 +309,61 @@ const TestManagement: React.FC = () => {
                                         </td>
                                         <td className="px-4 py-4">{formatDate(test.created_at)}</td>
                                         <td className="px-4 py-4">{formatDate(test.updated_at)}</td>
-                                        <td className="px-4 py-4">
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); navigate(`/hr/test-management/${testId}`)}} 
-                                                className="text-[#007BFF] border border-[#007BFF] rounded-md px-3 py-1 hover:bg-blue-50"
-                                            >
-                                                See Details
-                                            </button>
+                                        <td className="px-4 py-4 relative">
+                                            <div className="flex items-center gap-2">
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); navigate(`/hr/test-management/${testId}`)}} 
+                                                    className="text-[#007BFF] border border-[#007BFF] rounded-md px-3 py-1 hover:bg-blue-50"
+                                                >
+                                                    See Details
+                                                </button>
+                                                <div className="relative">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setShowDropdown(showDropdown === testId ? null : testId);
+                                                        }}
+                                                        className="p-2 hover:bg-gray-100 rounded-full"
+                                                    >
+                                                        <FiMoreVertical className="text-gray-600" />
+                                                    </button>
+                                                    
+                                                    {showDropdown === testId && (
+                                                        <div className="absolute right-0 top-full mt-1 w-48 bg-white border rounded-lg shadow-lg z-10">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleEditTest(test);
+                                                                }}
+                                                                className="flex items-center gap-2 w-full px-4 py-2 text-left hover:bg-gray-50 text-gray-700"
+                                                            >
+                                                                <FiEdit className="text-gray-500" />
+                                                                Edit Test
+                                                            </button>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleAssignTest(test);
+                                                                }}
+                                                                className="flex items-center gap-2 w-full px-4 py-2 text-left hover:bg-gray-50 text-gray-700"
+                                                            >
+                                                                <FiUserPlus className="text-gray-500" />
+                                                                Assign to Candidate
+                                                            </button>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleDeleteTest(test);
+                                                                }}
+                                                                className="flex items-center gap-2 w-full px-4 py-2 text-left hover:bg-gray-50 text-red-600"
+                                                            >
+                                                                <FiTrash2 className="text-red-500" />
+                                                                Delete Test
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </td>
                                     </tr>
                                 );
@@ -287,6 +382,52 @@ const TestManagement: React.FC = () => {
                     loadTests(); // Reload tests after creating a new one
                 }}
             />
+
+            {/* Delete Test Modal */}
+            {isDeleteModalOpen && testToDelete && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-96">
+                        <h3 className="text-lg font-semibold mb-4">Delete Test</h3>
+                        <p className="text-gray-600 mb-6">
+                            Are you sure you want to delete "{testToDelete.test_name}"? This action cannot be undone.
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setIsDeleteModalOpen(false)}
+                                className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmDeleteTest}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Assign Test Modal - Placeholder for now */}
+            {isAssignModalOpen && testToAssign && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-96">
+                        <h3 className="text-lg font-semibold mb-4">Assign Test</h3>
+                        <p className="text-gray-600 mb-6">
+                            Assign "{testToAssign.test_name}" to a candidate. This feature will be implemented soon.
+                        </p>
+                        <div className="flex justify-end">
+                            <button
+                                onClick={() => setIsAssignModalOpen(false)}
+                                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { FiX, FiPlus, FiTrash2, FiZap } from 'react-icons/fi';
 import testApi from '../../services/testApi';
 import hrApi from '../../services/hrApi';
-import { generateInterviewQuestions } from '../../services/questionGenerationApi';
+// import { generateInterviewQuestions } from '../../services/questionGenerationApi'; // Using testApi instead
 import { getCompanyId } from '../../services/tokenUtils';
+import { handleApiError } from '../../utils/errorHandler';
 
 interface Question {
   question_text: string;
@@ -130,28 +131,39 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
 
     try {
       setGeneratingQuestions(true);
-      const result = await generateInterviewQuestions(formData.job_id);
+      
+      // Validate job selection first
+      if (!formData.job_id || formData.job_id.trim() === '') {
+        throw new Error('Please select a job first to generate AI questions');
+      }
 
-      if (result.success && result.data) {
+      const result = await testApi.generateInterviewQuestions({
+        job_id: formData.job_id
+      });
+
+      if (result && result.questions_saved && Array.isArray(result.questions_saved)) {
         // Convert AI-generated questions to our format
-        const aiQuestions: Question[] = result.data.questions_saved.map((q) => ({
-          question_text: q.question_text,
+        const aiQuestions: Question[] = result.questions_saved.map((q: any) => ({
+          question_text: q.question_text || 'Generated question',
           question_type: 'ESSAY' as const, // AI generates essay questions
           options: [],
-          correct_answer: '', // AI questions don't have predefined answers
+          correct_answer: '', // AI questions are essay type, no predefined answer
           points: 5
         }));
 
-        // Add to existing questions
-        setQuestions(prev => [...prev, ...aiQuestions]);
-
-        alert(`Generated ${aiQuestions.length} AI questions successfully!`);
+        if (aiQuestions.length > 0) {
+          // Add to existing questions
+          setQuestions(prev => [...prev, ...aiQuestions]);
+          alert(`Generated ${aiQuestions.length} AI questions successfully!`);
+        } else {
+          throw new Error('No valid questions received from AI service');
+        }
       } else {
-        throw new Error(result.error || 'Failed to generate questions');
+        console.warn('Unexpected AI response format:', result);
+        throw new Error('Invalid response format from AI service');
       }
     } catch (error: any) {
-      console.error('Error generating AI questions:', error);
-      alert(`Failed to generate AI questions: ${error.message || 'Unknown error'}`);
+      handleApiError('AI Question Generation', error, true);
     } finally {
       setGeneratingQuestions(false);
     }
@@ -217,10 +229,15 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
       }
 
       const testData = {
-        ...formData,
+        job_id: formData.job_id,
+        test_name: formData.test_name,
+        test_description: formData.test_description,
+        // Map frontend test_type to backend compatible value
+        test_type: 'TECHNICAL' as const, // Default to TECHNICAL for now
         time_limit: Number(formData.time_limit),
         passing_score: Number(formData.passing_score),
-        created_by: currentUser.user_id, // Required by backend
+        is_active: formData.is_active,
+        // Note: created_by is automatically added by backend from req.user.user_id
         questions: questions.map(q => ({
           question_text: q.question_text,
           question_type: q.question_type,
@@ -242,35 +259,7 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
         throw new Error(response.message || 'Failed to create test');
       }
     } catch (error: any) {
-      console.error('Error creating test:', error);
-      
-      // Enhanced error messaging
-      let errorMessage = 'Failed to create test. ';
-      
-      if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
-        // Handle validation errors from backend
-        const validationErrors = error.response.data.errors
-          .map((err: any) => `${err.field}: ${err.message}`)
-          .join('\n');
-        errorMessage += `\nValidation errors:\n${validationErrors}`;
-      } else if (error.response?.data?.message) {
-        errorMessage += error.response.data.message;
-      } else if (error.response?.data?.error) {
-        errorMessage += error.response.data.error;
-      } else if (error.message) {
-        errorMessage += error.message;
-      } else {
-        errorMessage += 'Please check the data and try again.';
-      }
-      
-      // Show authentication errors differently
-      if (error.response?.status === 401) {
-        errorMessage = 'Authentication failed. Please log in again.';
-      } else if (error.response?.status === 403) {
-        errorMessage = 'Access denied. You do not have permission to create tests.';
-      }
-      
-      alert(errorMessage);
+      handleApiError('Test Creation', error, true);
     } finally {
       setLoading(false);
     }
@@ -300,17 +289,20 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-2xl font-bold text-gray-800">Create New Test</h2>
-          <button onClick={handleClose} className="p-2 hover:bg-gray-100 rounded-full">
-            <FiX className="w-6 h-6" />
-          </button>
-        </div>
+      return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                {/* Fixed Header */}
+                <div className="flex justify-between items-center p-6 border-b bg-white rounded-t-lg flex-shrink-0">
+                    <h2 className="text-2xl font-bold text-gray-800">Create New Test</h2>
+                    <button onClick={handleClose} className="p-2 hover:bg-gray-100 rounded-full">
+                        <FiX className="w-6 h-6" />
+                    </button>
+                </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                {/* Scrollable Content */}
+                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                    <form id="test-form" onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Basic Test Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -569,27 +561,30 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
             )}
           </div>
 
-          {/* Submit Buttons */}
-          <div className="flex justify-end gap-4 border-t pt-6">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading || loadingJobs || jobs.length === 0}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              title={jobs.length === 0 ? 'No jobs available to create test for' : ''}
-            >
-              {loading ? 'Creating...' : loadingJobs ? 'Loading Jobs...' : 'Create Test'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+                    </form>
+                </div>
+
+                {/* Fixed Footer */}
+                <div className="flex justify-end gap-4 border-t p-6 bg-white rounded-b-lg flex-shrink-0">
+                    <button
+                        type="button"
+                        onClick={handleClose}
+                        className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        form="test-form"
+                        disabled={loading || loadingJobs || jobs.length === 0}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={jobs.length === 0 ? 'No jobs available to create test for' : ''}
+                    >
+                        {loading ? 'Creating...' : loadingJobs ? 'Loading Jobs...' : 'Create Test'}
+                    </button>
+                </div>
+            </div>
+        </div>
   );
 };
 

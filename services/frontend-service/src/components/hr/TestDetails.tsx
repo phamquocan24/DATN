@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiArrowLeft, FiEdit, FiUser, FiBarChart2, FiCheckCircle, FiClock, FiTrash2, FiUserPlus, FiX } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
 import testApi from '../../services/testApi';
+import { handleApiError } from '../../utils/errorHandler';
 
 interface TestDetails {
     id: string;
@@ -93,8 +94,32 @@ const TestDetails: React.FC = () => {
 
     const handleAssignTest = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!test || !assignForm.candidate_id || !assignForm.application_id) {
-            alert('Please fill in all required fields');
+        
+        // Enhanced validation
+        if (!test) {
+            alert('Test information not available');
+            return;
+        }
+        
+        if (!assignForm.candidate_id || !assignForm.candidate_id.trim()) {
+            alert('Please select a candidate');
+            return;
+        }
+        
+        if (!assignForm.application_id || !assignForm.application_id.trim()) {
+            alert('Please select an application');
+            return;
+        }
+
+        // UUID validation
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(assignForm.candidate_id)) {
+            alert('Invalid candidate ID format');
+            return;
+        }
+        
+        if (!uuidRegex.test(assignForm.application_id)) {
+            alert('Invalid application ID format');
             return;
         }
 
@@ -105,9 +130,8 @@ const TestDetails: React.FC = () => {
             setAssignForm({ candidate_id: '', application_id: '' });
             loadTestResults(); // Reload test results
             alert('Test assigned successfully!');
-        } catch (err) {
-            alert('Failed to assign test. Please try again.');
-            console.error('Error assigning test:', err);
+        } catch (err: any) {
+            handleApiError('Test Assignment', err, true);
         } finally {
             setAssignLoading(false);
         }

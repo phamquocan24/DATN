@@ -12,14 +12,20 @@ export interface Question {
 
 export interface Test {
   test_id?: string;
+  id?: string; // Backend may return this field name
   job_id: string;
   test_name: string;
-  test_description: string;
-  test_type: 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'ESSAY' | 'CODING' | 'MIXED';
-  time_limit: number; // in minutes
+  test_description?: string;
+  description?: string; // Backend might return this field name
+  test_type?: 'TECHNICAL' | 'PERSONALITY' | 'COGNITIVE' | 'SKILLS' | 'CUSTOM';
+  difficulty_level?: 'EASY' | 'MEDIUM' | 'HARD' | 'EXPERT';
+  time_limit?: number; // in minutes (mapped from duration_minutes)
+  duration_minutes?: number; // Backend field name
   passing_score: number;
   is_active: boolean;
-  questions: Question[];
+  is_mandatory?: boolean;
+  instructions?: string;
+  questions?: Question[];
   created_by?: string;
   created_at?: string;
   updated_at?: string;
@@ -147,6 +153,113 @@ export const testApi = {
   // Get candidate test result details
   getCandidateResult: async (testId: string, candidateId: string) => {
     const response = await apiClient.get(`/api/v1/tests/${testId}/results/${candidateId}`);
+    return response.data;
+  },
+
+  // AI Test Generation Endpoints (Port 8002)
+  generateInterviewQuestions: async (data: {
+    job_id: string;
+  }) => {
+    try {
+      // Check if AI service is available first
+      const healthResponse = await fetch('http://localhost:8002/health', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }).catch(() => null);
+
+      if (!healthResponse || !healthResponse.ok) {
+        throw new Error('AI service is not available. Please make sure the AI service is running on port 8002.');
+      }
+
+      // Use direct fetch for AI service as it's on different port
+      const response = await fetch('http://localhost:8002/api/v1/ai/generate-interview-questions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          // Remove auth token as AI service may not need it
+        },
+        body: JSON.stringify({ job_id: data.job_id }) // Only send job_id
+      });
+
+      if (!response.ok) {
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorData.message || errorMessage;
+        } catch (e) {
+          // If response is not JSON, use status text
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error: any) {
+      console.error('Error generating interview questions:', error);
+      
+      // Provide specific error messages
+      if (error.message?.includes('Failed to fetch') || error.name === 'TypeError') {
+        throw new Error('AI service is not available. Please make sure the AI service is running on port 8002.');
+      } else if (error.message?.includes('CORS')) {
+        throw new Error('CORS error: AI service configuration issue. Please check AI service CORS settings.');
+      } else {
+        throw new Error(error.message || 'Failed to generate interview questions');
+      }
+    }
+  },
+
+  bulkGenerateQuestions: async (data: {
+    job_id: string;
+    question_types: string[];
+    count_per_type: number;
+    difficulty_level?: string;
+  }) => {
+    const response = await apiClient.post('http://localhost:8002/api/v1/ai/questions/bulk-generate', data);
+    return response.data;
+  },
+
+  customizeQuestions: async (data: {
+    questions: any[];
+    customization_request: string;
+  }) => {
+    const response = await apiClient.post('http://localhost:8002/api/v1/ai/customize-questions', data);
+    return response.data;
+  },
+
+  updateQuestion: async (questionId: string, data: {
+    question_text?: string;
+    options?: string[];
+    correct_answer?: string;
+  }) => {
+    const response = await apiClient.put(`http://localhost:8002/api/v1/ai/questions/${questionId}/customize`, data);
+    return response.data;
+  },
+
+  getQuestionTemplates: async () => {
+    const response = await apiClient.get('http://localhost:8002/api/v1/ai/question-templates');
+    return response.data;
+  },
+
+  evaluateSingleAnswer: async (data: {
+    question_text: string;
+    correct_answer: string;
+    candidate_answer: string;
+  }) => {
+    const response = await apiClient.post('http://localhost:8002/api/v1/ai/evaluate-single-answer', data);
+    return response.data;
+  },
+
+  evaluateTestResult: async (resultId: string) => {
+    const response = await apiClient.post(`http://localhost:8002/api/v1/ai/evaluate-test-result`, { result_id: resultId });
+    return response.data;
+  },
+
+  getResultAnswers: async (resultId: string) => {
+    const response = await apiClient.get(`http://localhost:8002/api/v1/ai/test-result/${resultId}/answers`);
     return response.data;
   },
 };
