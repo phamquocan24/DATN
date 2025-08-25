@@ -1,13 +1,13 @@
 from fastapi import FastAPI, Depends, HTTPException, Path
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from .db import get_db
-from .utils import (
+from db import get_db
+from utils import (
     get_job, get_or_create_job_test, create_question,
     generate_questions_from_jd, evaluate_single_answer, evaluate_test_result, get_answer_details
 )
-from .models import TestQuestion, JobTest, Job, QuestionAnswer, TestResult,  Application
-from .utils import GenerateQuestionRequest, QuestionCreate, EvaluateAnswerRequest
+from models import TestQuestion, JobTest, Job, QuestionAnswer, TestResult,  Application
+from utils import GenerateQuestionRequest, QuestionCreate, EvaluateAnswerRequest
 from typing import List
 import os
 from dotenv import load_dotenv

@@ -10,37 +10,37 @@ interface CreateTestModalProps {
 
 const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTestCreated }) => {
     const handleCreateTest = async (formData: TestFormData, questions: Question[]) => {
-        const testData = {
+      const testData = {
             job_id: formData.job_id,
             test_name: formData.test_name,
             test_description: formData.test_description,
             test_type: 'TECHNICAL' as const, // Default to TECHNICAL for now
-            time_limit: Number(formData.time_limit),
-            passing_score: Number(formData.passing_score),
+        time_limit: Number(formData.time_limit),
+        passing_score: Number(formData.passing_score),
             is_active: formData.is_active,
             // Note: created_by is automatically added by backend from req.user.user_id
-            questions: questions.map(q => ({
-                question_text: q.question_text,
-                question_type: q.question_type,
+        questions: questions.map(q => ({
+          question_text: q.question_text,
+          question_type: q.question_type,
                 options: q.question_type === 'MULTIPLE_CHOICE' ? q.options.filter(opt => opt.trim() !== '') : [],
-                correct_answer: q.correct_answer,
+          correct_answer: q.correct_answer,
                 points: q.points,
                 time_limit_seconds: 120,
                 explanation: "",
                 required: true
-            }))
-        };
+        }))
+      };
 
         await testApi.createTest(testData);
         alert('Test created successfully!');
         onTestCreated();
-        onClose();
-    };
+    onClose();
+  };
 
-    if (!isOpen) return null;
+  if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <TestFormBase
                 onSubmit={handleCreateTest}
                 onCancel={onClose}
@@ -48,8 +48,8 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
                 title="Create New Test"
                 isModal={true}
             />
-        </div>
-    );
+    </div>
+  );
 };
 
 export default CreateTestModal;

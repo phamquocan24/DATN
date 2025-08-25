@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from uuid import UUID
 from sqlalchemy.orm import Session
 import re
-from .models import Job, JobTest, TestQuestion, QuestionAnswer, TestResult, Application
+from models import Job, JobTest, TestQuestion, QuestionAnswer, TestResult, Application
 import os
 import requests
 from langdetect import detect
@@ -239,7 +239,7 @@ def generate_evaluation(question: str, answer: str, model: str = LLM_MODEL_NAME)
         return {}
 
 def evaluate_single_answer(question_id: str, answer_id: str, db) -> dict:
-    from .models import TestQuestion, QuestionAnswer
+    from models import TestQuestion, QuestionAnswer
 
     question = db.query(TestQuestion).filter(TestQuestion.question_id == question_id).first()
     answer = db.query(QuestionAnswer).filter(QuestionAnswer.answer_id == answer_id).first()
