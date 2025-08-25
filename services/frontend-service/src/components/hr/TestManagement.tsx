@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiFilter, FiChevronDown, FiSearch, FiPlus } from 'react-icons/fi';
+import { FiChevronDown, FiSearch, FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import calendarIcon from '../../assets/scheme.png';
 import testApi from '../../services/testApi';
@@ -206,17 +206,14 @@ const TestManagement: React.FC = () => {
                             className="w-full pl-10 pr-4 py-2 border rounded-lg" 
                         />
                     </div>
-                    <button className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50">
-                        <FiFilter className="text-gray-600" />
-                        <span>Filter</span>
-                    </button>
+
                 </div>
             </div>
 
             <div className="bg-white rounded-lg border">
                 <table className="w-full">
                     <thead>
-                        <tr className="border-b text-sm text-gray-500 text-left">
+                        <tr className="border-b text-sm font-bold text-black text-left">
                             <th className="px-4 py-3 font-medium">Test Title <FiChevronDown className="inline ml-1"/></th>
                             <th className="px-4 py-3 font-medium">Duration <FiChevronDown className="inline ml-1"/></th>
                             <th className="px-4 py-3 font-medium">Questions <FiChevronDown className="inline ml-1"/></th>
@@ -247,13 +244,14 @@ const TestManagement: React.FC = () => {
                                 </td>
                             </tr>
                         ) : (
-                            tests.map(test => {
+                            tests.map((test, index) => {
                                 // Handle both possible field names from backend
                                 const testId = test.id || test.test_id;
                                 const timeLimit = test.time_limit || test.duration_minutes || 0;
+                                const isLastRow = index === tests.length - 1;
                                 
                                 return (
-                                    <tr key={testId} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/hr/test-management/${testId}`)}>
+                                    <tr key={testId} className={`${!isLastRow ? 'border-b' : ''} hover:bg-gray-50 cursor-pointer`} onClick={() => navigate(`/hr/test-management/${testId}`)}>
                                         <td className="px-4 py-4 font-medium">{test.test_name}</td>
                                         <td className="px-4 py-4">{formatDuration(timeLimit)}</td>
                                         <td className="px-4 py-4">{test.questions?.length || 0} questions</td>
@@ -278,9 +276,7 @@ const TestManagement: React.FC = () => {
                         )}
                     </tbody>
                 </table>
-                 <div className="text-center py-4">
-                    <button className="text-[#007BFF]">View All</button>
-                </div>
+
             </div>
 
             <CreateTestModal

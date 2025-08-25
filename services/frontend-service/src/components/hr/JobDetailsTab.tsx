@@ -8,7 +8,6 @@ interface JobDetails {
   title: string;
   description: string;
   requirements: string;
-  responsibilities: string;
   benefits: string;
   employment_type: string;
   experience_level: string;
@@ -79,7 +78,7 @@ const JobDetailsTab: React.FC = () => {
             if (editedJob.title) updateData.job_title = editedJob.title;
             if (editedJob.description) updateData.job_description = editedJob.description;
             if (editedJob.requirements) updateData.job_requirements = editedJob.requirements;
-            if (editedJob.responsibilities) updateData.job_responsibilities = editedJob.responsibilities;
+            // Note: responsibilities field is not supported in updateJobSchema
             if (editedJob.benefits) updateData.job_benefits = editedJob.benefits;
             if (editedJob.employment_type) updateData.employment_type = editedJob.employment_type;
             if (editedJob.salary_min !== undefined) updateData.salary_min = editedJob.salary_min;
@@ -251,18 +250,6 @@ const JobDetailsTab: React.FC = () => {
                         )}
                     </Section>
 
-                    <Section title="Responsibilities">
-                        {isEditing ? (
-                            <textarea
-                                value={editedJob.responsibilities || ''}
-                                onChange={(e) => handleFieldChange('responsibilities', e.target.value)}
-                                className="w-full h-32 border border-gray-300 rounded-lg px-3 py-2 text-gray-600"
-                                placeholder="Job responsibilities (one per line)..."
-                            />
-                        ) : (
-                            <div className="text-gray-600 whitespace-pre-line">{jobDetails.responsibilities}</div>
-                        )}
-                    </Section>
 
                     <Section title="Requirements">
                         {isEditing ? (
