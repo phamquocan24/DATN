@@ -306,8 +306,8 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
           {/* Basic Test Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Job *
+              <label className="block text-sm font-medium text-black mb-2">
+                Select Job <span className="text-red-500">*</span>
               </label>
               {loadingJobs ? (
                 <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500">
@@ -336,8 +336,8 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Test Name *
+              <label className="block text-sm font-medium text-black mb-2">
+                Test Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -351,7 +351,7 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-black mb-2">
               Test Description
             </label>
             <textarea
@@ -365,7 +365,7 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-black mb-2">
                 Test Type
               </label>
               <select
@@ -380,7 +380,7 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-black mb-2">
                 Time Limit (minutes)
               </label>
               <input
@@ -393,7 +393,7 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-black mb-2">
                 Passing Score (%)
               </label>
               <input
@@ -416,7 +416,7 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
               onChange={handleInputChange}
               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
-            <label className="ml-2 block text-sm text-gray-700">
+            <label className="ml-2 block text-sm text-black">
               Test is active
             </label>
           </div>
@@ -474,7 +474,7 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
 
                 {currentQuestion.question_type === 'MULTIPLE_CHOICE' && (
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">Options:</label>
+                    <label className="block text-sm font-medium text-black">Options:</label>
                     {currentQuestion.options.map((option, index) => (
                       <div key={index} className="flex items-center gap-2">
                         <input
@@ -499,7 +499,7 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
 
                 {currentQuestion.question_type === 'ESSAY' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Sample Answer:</label>
+                    <label className="block text-sm font-medium text-black mb-2">Sample Answer:</label>
                     <textarea
                       placeholder="Enter the expected answer or key points"
                       value={currentQuestion.correct_answer}
