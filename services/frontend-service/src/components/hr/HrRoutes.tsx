@@ -4,6 +4,7 @@ import { HrLayout, PostNewJob } from '.';
 import ApplicantDetail from './ApplicantDetail';
 import JobApplicants from './JobApplicants';
 import TestDetails from './TestDetails';
+import EditTest from './EditTest';
 import TestResultDetails from './TestResultDetails';
 
 // Note: Authentication is now handled by parent ProtectedHrRoute in App.tsx
@@ -29,6 +30,7 @@ const HrRoutes: React.FC<HrRoutesProps> = ({ currentUser }) => {
             <Route path="settings" element={<HrLayout activeTab="settings" currentUser={currentUser} />} />
             <Route path="test-management" element={<HrLayout activeTab="test" currentUser={currentUser} />} />
             <Route path="test-management/:id" element={<HrLayout activeTab="test" currentUser={currentUser}><TestDetails /></HrLayout>} />
+            <Route path="test-management/:id/edit" element={<HrLayout activeTab="test" currentUser={currentUser}><EditTest /></HrLayout>} />
             <Route path="test-management/:id/results/:candidateId" element={<HrLayout activeTab="test" currentUser={currentUser}><TestResultDetails /></HrLayout>} />
             <Route path="help-center" element={<HrLayout activeTab="help" currentUser={currentUser} />} />
         </Routes>

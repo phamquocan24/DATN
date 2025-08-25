@@ -220,7 +220,10 @@ const TestDetails: React.FC = () => {
                     >
                         <FiUserPlus /> Assign Test
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2 border border-[#007BFF] text-[#007BFF] rounded-lg text-sm font-medium hover:bg-blue-50">
+                    <button 
+                        onClick={() => navigate(`/hr/test-management/${id}/edit`)}
+                        className="flex items-center gap-2 px-4 py-2 border border-[#007BFF] text-[#007BFF] rounded-lg text-sm font-medium hover:bg-blue-50"
+                    >
                         <FiEdit /> Edit Test
                     </button>
                     <button 
