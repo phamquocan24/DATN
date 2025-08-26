@@ -1388,7 +1388,7 @@ class ApplicationController {
 
       const application = await this.applicationModel.updateStatus(
         id,
-        'INTERVIEW',
+        'ASSESSMENT',
         req.user.user_id,
         reason || 'Candidate shortlisted for further review'
       );

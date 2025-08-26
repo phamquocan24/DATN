@@ -32,12 +32,12 @@ const mapStatusToHiringStage = (status: string): Applicant['hiringStage'] => {
     case 'APPLIED':
     case 'SCREENING':
       return 'In-review';
-    case 'INTERVIEW':
+    case 'ASSESSMENT':
       return 'Shortlisted';
     case 'REJECTED':
     case 'WITHDRAWN':
       return 'Declined';
-    case 'ASSESSMENT':
+    case 'INTERVIEW':
       return 'Interviewed';
     case 'HIRED':
     case 'OFFER':

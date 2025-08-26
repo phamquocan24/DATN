@@ -453,15 +453,15 @@ const ApplicantDetail: React.FC = () => {
               </div>
               <div className="flex justify-end gap-4">
                 <div className="relative" ref={dropdownRef}>
-                  <button 
+                <button
                     className="p-2 text-gray-500 hover:bg-gray-200 rounded-md"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  >
+                >
                     <FiMoreVertical size={20} />
-                  </button>
+                </button>
                   {isDropdownOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                      <button
+                <button 
                         onClick={() => {
                           handleAcceptCandidate();
                           setIsDropdownOpen(false);
@@ -478,7 +478,7 @@ const ApplicantDetail: React.FC = () => {
                         className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2 rounded-b-lg"
                       >
                         <FiX /> Reject Candidate
-                      </button>
+                </button>
                     </div>
                   )}
                 </div>
@@ -537,16 +537,23 @@ const ApplicantDetail: React.FC = () => {
                   <div className="flex gap-1">
                     {[...Array(5)].map((_, idx) => {
                       const getStageProgress = (status: string) => {
-                        switch (status) {
-                          case 'SUBMITTED': return 1;
+                        switch (status?.toUpperCase()) {
+                          case 'APPLIED': 
+                          case 'SUBMITTED': 
+                          case 'PENDING': return 1;
+                          case 'SCREENING': 
                           case 'REVIEWING': return 2;
+                          case 'ASSESSMENT':
                           case 'SHORTLISTED': return 3;
+                          case 'INTERVIEW': 
                           case 'INTERVIEWED': return 4;
-                          case 'OFFERED': case 'HIRED': return 5;
+                          case 'OFFER':
+                          case 'OFFERED': 
+                          case 'HIRED': return 5;
                           default: return 1;
                         }
                       };
-                      const progress = getStageProgress(candidateDetails.current_status || 'SUBMITTED');
+                      const progress = getStageProgress(candidateDetails.current_status || 'APPLIED');
                       return (
                       <div
                         key={idx}
@@ -726,7 +733,7 @@ const ApplicantDetail: React.FC = () => {
                     </div>
                     
                     <div className="flex items-center bg-gray-100 rounded-full p-1">
-                      {['APPLIED', 'SCREENING', 'INTERVIEW', 'ASSESSMENT', 'HIRED'].map((stage, index) => {
+                      {['APPLIED', 'SCREENING', 'ASSESSMENT', 'INTERVIEW', 'HIRED'].map((stage, index) => {
                         const currentStatus = candidateDetails.current_status?.toUpperCase() || 'APPLIED';
                         const statusMapping: {[key: string]: string} = {
                           'APPLIED': 'APPLIED',
@@ -734,18 +741,18 @@ const ApplicantDetail: React.FC = () => {
                           'SUBMITTED': 'APPLIED',
                           'REVIEWING': 'SCREENING',
                           'SCREENING': 'SCREENING', 
-                          'SHORTLISTED': 'INTERVIEW',
+                          'SHORTLISTED': 'ASSESSMENT',
+                          'ASSESSMENT': 'ASSESSMENT',
                           'INTERVIEW': 'INTERVIEW',
                           'INTERVIEWED': 'INTERVIEW',
-                          'ASSESSMENT': 'ASSESSMENT',
                           'OFFER': 'HIRED',
                           'OFFERED': 'HIRED',
                           'HIRED': 'HIRED'
                         };
                         const mappedStatus = statusMapping[currentStatus] || currentStatus;
                         const isActive = mappedStatus === stage;
-                        const isPassed = ['APPLIED', 'SCREENING', 'INTERVIEW', 'ASSESSMENT', 'HIRED'].indexOf(mappedStatus) > index;
-                        const stageLabels = ['Applied', 'Screening', 'Interview', 'Assessment', 'Hired'];
+                        const isPassed = ['APPLIED', 'SCREENING', 'ASSESSMENT', 'INTERVIEW', 'HIRED'].indexOf(mappedStatus) > index;
+                        const stageLabels = ['Applied', 'Screening', 'Assessment', 'Interview', 'Hired'];
                         
                         return (
                           <div 
