@@ -5,16 +5,21 @@ import testApi from '../../services/testApi';
 import { handleApiError } from '../../utils/errorHandler';
 
 interface TestDetails {
-    id: string;
+    test_id: string;
+    id?: string; // Keep for backward compatibility
     test_name: string;
-    test_description: string;
+    test_description?: string;
+    description?: string; // Alternative field name
     test_type: string;
-    time_limit: number;
+    time_limit?: number;
+    duration_minutes?: number; // Alternative field name
     passing_score: number;
     is_active: boolean;
     created_at: string;
     updated_at: string;
     job_id: string;
+    job_title?: string;
+    company_name?: string;
     questions: any[];
 }
 
@@ -54,7 +59,8 @@ const TestDetails: React.FC = () => {
         try {
             setLoading(true);
             const response = await testApi.getTestById(id!, true); // Include answers for HR
-            setTest(response);
+            console.log('Test API Response:', response);
+            setTest(response.data || response);
         } catch (err) {
             setError('Failed to load test details');
             console.error('Error loading test details:', err);
@@ -82,7 +88,8 @@ const TestDetails: React.FC = () => {
 
         try {
             setDeleteLoading(true);
-            await testApi.deleteTest(test.id);
+            const testId = test.test_id || test.id;
+            await testApi.deleteTest(testId);
             navigate('/hr/test-management');
         } catch (err) {
             alert('Failed to delete test. You may not have permission to delete this test.');
@@ -243,7 +250,7 @@ const TestDetails: React.FC = () => {
                         <FiClock className="w-5 h-5 text-gray-400" />
                         <div>
                             <p className="text-gray-500">Duration</p>
-                            <p className="font-semibold text-gray-800">{formatDuration(test.time_limit)}</p>
+                            <p className="font-semibold text-gray-800">{formatDuration(test.time_limit || test.duration_minutes || 0)}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -279,7 +286,7 @@ const TestDetails: React.FC = () => {
                 <hr className="my-6" />
                 <div>
                     <h4 className="text-lg font-semibold mb-2 text-gray-700">Description</h4>
-                    <p className="text-gray-600">{test.test_description || 'No description provided for this test.'}</p>
+                    <p className="text-gray-600">{test.test_description || test.description || 'No description provided for this test.'}</p>
                 </div>
             </div>
 

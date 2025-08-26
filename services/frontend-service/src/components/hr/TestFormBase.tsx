@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { FiX, FiPlus, FiTrash2, FiZap } from 'react-icons/fi';
 import testApi from '../../services/testApi';
 import hrApi from '../../services/hrApi';
@@ -59,16 +59,21 @@ const TestFormBase: React.FC<TestFormBaseProps> = ({
     const [loadingJobs, setLoadingJobs] = useState(false);
     const [generatingQuestions, setGeneratingQuestions] = useState(false);
     const [jobs, setJobs] = useState<Job[]>([]);
-    const [formData, setFormData] = useState<TestFormData>({
-        job_id: initialData.job_id || '',
-        test_name: initialData.test_name || '',
-        test_description: initialData.test_description || '',
-        test_type: initialData.test_type || 'MULTIPLE_CHOICE',
-        time_limit: initialData.time_limit || 60,
-        passing_score: initialData.passing_score || 70,
-        is_active: initialData.is_active !== undefined ? initialData.is_active : true
-    });
-    const [questions, setQuestions] = useState<Question[]>(initialQuestions);
+
+
+
+    const [formData, setFormData] = useState<TestFormData>(() => ({
+        job_id: initialData?.job_id || '',
+        test_name: initialData?.test_name || '',
+        test_description: initialData?.test_description || '',
+        test_type: initialData?.test_type || 'MULTIPLE_CHOICE' as const,
+        time_limit: initialData?.time_limit || 60,
+        passing_score: initialData?.passing_score || 70,
+        is_active: initialData?.is_active !== undefined ? initialData.is_active : true
+    }));
+    const [questions, setQuestions] = useState<Question[]>(() => 
+        initialQuestions && Array.isArray(initialQuestions) ? [...initialQuestions] : []
+    );
     const [currentQuestion, setCurrentQuestion] = useState<Question>({
         question_text: '',
         question_type: 'MULTIPLE_CHOICE',
@@ -77,29 +82,8 @@ const TestFormBase: React.FC<TestFormBaseProps> = ({
         points: 5
     });
 
-    useEffect(() => {
-        loadJobs();
-    }, []);
-
-    // Update form data when initialData changes
-    useEffect(() => {
-        setFormData({
-            job_id: initialData.job_id || '',
-            test_name: initialData.test_name || '',
-            test_description: initialData.test_description || '',
-            test_type: initialData.test_type || 'MULTIPLE_CHOICE',
-            time_limit: initialData.time_limit || 60,
-            passing_score: initialData.passing_score || 70,
-            is_active: initialData.is_active !== undefined ? initialData.is_active : true
-        });
-    }, [initialData]);
-
-    // Update questions when initialQuestions changes
-    useEffect(() => {
-        setQuestions(initialQuestions);
-    }, [initialQuestions]);
-
-    const loadJobs = async () => {
+    // Memoize loadJobs function to prevent re-creation on every render
+    const loadJobs = useCallback(async () => {
         try {
             setLoadingJobs(true);
             
@@ -118,9 +102,64 @@ const TestFormBase: React.FC<TestFormBaseProps> = ({
         } finally {
             setLoadingJobs(false);
         }
-    };
+    }, []);
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    useEffect(() => {
+        loadJobs();
+    }, [loadJobs]);
+
+    // Update form data when initialData changes (only if different)
+    useEffect(() => {
+        const newFormData = {
+            job_id: initialData?.job_id || '',
+            test_name: initialData?.test_name || '',
+            test_description: initialData?.test_description || '',
+            test_type: initialData?.test_type || 'MULTIPLE_CHOICE' as const,
+            time_limit: initialData?.time_limit || 60,
+            passing_score: initialData?.passing_score || 70,
+            is_active: initialData?.is_active !== undefined ? initialData.is_active : true
+        };
+        
+        // Only update if data actually changed
+        setFormData(prevData => {
+            if (JSON.stringify(prevData) !== JSON.stringify(newFormData)) {
+                return newFormData;
+            }
+            return prevData;
+        });
+    }, [
+        initialData?.job_id,
+        initialData?.test_name,
+        initialData?.test_description,
+        initialData?.test_type,
+        initialData?.time_limit,
+        initialData?.passing_score,
+        initialData?.is_active
+    ]);
+
+    // Update questions when initialQuestions changes (only if different and has data)
+    useEffect(() => {
+        if (initialQuestions && Array.isArray(initialQuestions) && initialQuestions.length > 0) {
+            console.log('useEffect: initialQuestions changed with data:', initialQuestions);
+            setQuestions(prevQuestions => {
+                const questionsString = JSON.stringify(prevQuestions);
+                const newQuestionsString = JSON.stringify(initialQuestions);
+                
+                if (questionsString !== newQuestionsString) {
+                    console.log('useEffect: Updating questions from initialQuestions');
+                    return [...initialQuestions];
+                }
+                console.log('useEffect: No change, keeping existing questions');
+                return prevQuestions;
+            });
+        } else {
+            console.log('useEffect: initialQuestions is empty or undefined, skipping update');
+        }
+    }, [initialQuestions]);
+
+
+
+    const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
         if (type === 'checkbox') {
             const checked = (e.target as HTMLInputElement).checked;
@@ -128,19 +167,21 @@ const TestFormBase: React.FC<TestFormBaseProps> = ({
         } else {
             setFormData(prev => ({ ...prev, [name]: value }));
         }
-    };
+    }, []);
 
-    const handleQuestionChange = (field: keyof Question, value: any) => {
+    const handleQuestionChange = useCallback((field: keyof Question, value: any) => {
         setCurrentQuestion(prev => ({ ...prev, [field]: value }));
-    };
+    }, []);
 
-    const handleOptionChange = (index: number, value: string) => {
-        const newOptions = [...currentQuestion.options];
-        newOptions[index] = value;
-        setCurrentQuestion(prev => ({ ...prev, options: newOptions }));
-    };
+    const handleOptionChange = useCallback((index: number, value: string) => {
+        setCurrentQuestion(prev => {
+            const newOptions = [...prev.options];
+            newOptions[index] = value;
+            return { ...prev, options: newOptions };
+        });
+    }, []);
 
-    const addQuestion = () => {
+    const addQuestion = useCallback(() => {
         if (!currentQuestion.question_text.trim()) {
             alert('Please enter a question text');
             return;
@@ -158,7 +199,7 @@ const TestFormBase: React.FC<TestFormBaseProps> = ({
             }
         }
 
-        setQuestions([...questions, { ...currentQuestion }]);
+        setQuestions(prev => [...prev, { ...currentQuestion }]);
         setCurrentQuestion({
             question_text: '',
             question_type: 'MULTIPLE_CHOICE',
@@ -166,20 +207,27 @@ const TestFormBase: React.FC<TestFormBaseProps> = ({
             correct_answer: '',
             points: 5
         });
-    };
+    }, [currentQuestion]);
 
-    const removeQuestion = (index: number) => {
-        setQuestions(questions.filter((_, i) => i !== index));
-    };
+    const removeQuestion = useCallback((index: number) => {
+        setQuestions(prev => prev.filter((_, i) => i !== index));
+    }, []);
 
-    const editQuestion = (index: number) => {
-        setCurrentQuestion(questions[index]);
-        removeQuestion(index);
-    };
+    const editQuestion = useCallback((index: number) => {
+        setQuestions(prev => {
+            setCurrentQuestion(prev[index]);
+            return prev.filter((_, i) => i !== index);
+        });
+    }, []);
 
-    const generateAIQuestions = async () => {
+    const generateAIQuestions = useCallback(async () => {
         if (!formData.job_id) {
             alert('Please select a job first to generate AI questions');
+            return;
+        }
+
+        if (generatingQuestions) {
+            console.log('Already generating questions, skipping...');
             return;
         }
 
@@ -188,6 +236,9 @@ const TestFormBase: React.FC<TestFormBaseProps> = ({
             const result = await testApi.generateInterviewQuestions({
                 job_id: formData.job_id
             });
+
+            console.log('AI Generation Result:', result);
+            console.log('Questions saved:', result?.questions_saved);
 
             if (result && result.questions_saved && Array.isArray(result.questions_saved)) {
                 const aiQuestions: Question[] = result.questions_saved.map((q: any) => ({
@@ -199,7 +250,13 @@ const TestFormBase: React.FC<TestFormBaseProps> = ({
                 }));
 
                 if (aiQuestions.length > 0) {
-                    setQuestions(prev => [...prev, ...aiQuestions]);
+                    console.log('Setting AI questions:', aiQuestions);
+                    console.log('Current questions before:', questions);
+                    setQuestions(prev => {
+                        const newQuestions = [...prev, ...aiQuestions];
+                        console.log('New questions after:', newQuestions);
+                        return newQuestions;
+                    });
                     alert(`Generated ${aiQuestions.length} AI questions successfully!`);
                 } else {
                     throw new Error('No valid questions received from AI service');
@@ -213,13 +270,23 @@ const TestFormBase: React.FC<TestFormBaseProps> = ({
         } finally {
             setGeneratingQuestions(false);
         }
-    };
+    }, [formData.job_id, generatingQuestions]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
         
         if (!formData.job_id) {
             alert('Please select a job');
+            return;
+        }
+
+        if (!formData.test_name.trim()) {
+            alert('Please enter test name');
+            return;
+        }
+
+        if (!formData.test_description.trim()) {
+            alert('Please enter test description');
             return;
         }
 
@@ -231,9 +298,9 @@ const TestFormBase: React.FC<TestFormBaseProps> = ({
         } finally {
             setLoading(false);
         }
-    };
+    }, [formData, questions, onSubmit]);
 
-    const handleClose = () => {
+    const handleClose = useCallback(() => {
         // Reset form
         setFormData({
             job_id: '',
@@ -253,11 +320,11 @@ const TestFormBase: React.FC<TestFormBaseProps> = ({
             points: 5
         });
         onCancel();
-    };
+    }, [onCancel]);
 
     const containerClass = isModal 
-        ? "bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
-        : "bg-white rounded-lg border shadow-sm";
+        ? "bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col text-left"
+        : "bg-white rounded-lg border shadow-sm text-left";
 
     const headerClass = isModal
         ? "flex justify-between items-center p-6 border-b bg-white rounded-t-lg flex-shrink-0"
@@ -336,16 +403,18 @@ const TestFormBase: React.FC<TestFormBaseProps> = ({
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-black mb-2">
-                            Test Description
-                        </label>
-                        <textarea
-                            name="test_description"
-                            value={formData.test_description}
-                            onChange={handleInputChange}
-                            rows={3}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                                                <label className="block text-sm font-medium text-black mb-2">
+                             Test Description <span className="text-red-500">*</span>
+                         </label>
+                         <textarea
+                             name="test_description"
+                             value={formData.test_description}
+                             onChange={handleInputChange}
+                             rows={3}
+                             required
+                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                             placeholder="Enter test description..."
+                         />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

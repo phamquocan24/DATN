@@ -22,30 +22,44 @@ const EditTest: React.FC = () => {
         try {
             setLoading(true);
             const response = await testApi.getTestById(id!, true);
+            console.log('EditTest API Response:', response);
+            
+            // Handle response structure (could be response.data or direct response)
+            const testData = response.data || response;
             
             setInitialData({
-                test_name: response.test_name || '',
-                test_description: response.test_description || response.description || '',
-                test_type: response.test_type || 'MULTIPLE_CHOICE',
-                time_limit: response.time_limit || response.duration_minutes || 60,
-                passing_score: response.passing_score || 70,
-                is_active: response.is_active !== undefined ? response.is_active : true,
-                job_id: response.job_id || ''
+                test_name: testData.test_name || '',
+                test_description: testData.test_description || testData.description || '',
+                test_type: testData.test_type || 'MULTIPLE_CHOICE',
+                time_limit: testData.time_limit || testData.duration_minutes || 60,
+                passing_score: Number(testData.passing_score) || 70,
+                is_active: testData.is_active !== undefined ? testData.is_active : true,
+                job_id: testData.job_id || ''
             });
 
             // Load questions if they exist
-            if (response.questions && Array.isArray(response.questions)) {
-                const formattedQuestions = response.questions.map((q: any, index: number) => ({
-                    question_id: q.question_id,
-                    question_text: q.question_text || '',
-                    question_type: q.question_type || 'ESSAY',
-                    options: q.options || [],
-                    correct_answer: q.correct_answer || '',
-                    points: q.points || 5,
-                    time_limit_seconds: q.time_limit_seconds || 120,
-                    explanation: q.explanation || '',
-                    order_index: q.order_index || index + 1
-                }));
+            if (testData.questions && Array.isArray(testData.questions)) {
+                const formattedQuestions = testData.questions.map((q: any, index: number) => {
+                    // Handle options - convert from API format to form format
+                    let formattedOptions: string[] = [];
+                    if (q.options && Array.isArray(q.options)) {
+                        formattedOptions = q.options.map((opt: any) => opt.option_text || opt);
+                    } else {
+                        formattedOptions = ['', '', '', '']; // Default empty options
+                    }
+
+                    return {
+                        question_id: q.question_id,
+                        question_text: q.question_text || '',
+                        question_type: q.question_type || 'ESSAY',
+                        options: formattedOptions,
+                        correct_answer: q.correct_answer || '',
+                        points: Number(q.points) || 5,
+                        time_limit_seconds: q.time_limit_seconds || 120,
+                        explanation: q.explanation || '',
+                        order_index: q.order_index || index + 1
+                    };
+                });
                 setInitialQuestions(formattedQuestions);
             }
         } catch (err: any) {
@@ -107,7 +121,6 @@ const EditTest: React.FC = () => {
                 >
                     <FiArrowLeft /> Back to Test Management
                 </button>
-                <h1 className="text-2xl font-bold text-gray-800">Edit Test</h1>
             </div>
 
             {/* Form */}
