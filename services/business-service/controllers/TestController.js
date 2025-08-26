@@ -30,7 +30,7 @@ const createTestSchema = Joi.object({
     question_text: Joi.string().required(),
     question_type: Joi.string().valid('MULTIPLE_CHOICE', 'SINGLE_CHOICE', 'TRUE_FALSE', 'ESSAY', 'CODE').default('MULTIPLE_CHOICE'),
     options: Joi.array().items(Joi.string()).optional(),
-    correct_answer: Joi.string().required(),
+    correct_answer: Joi.string().allow('').optional(), // Allow empty for ESSAY questions
     points: Joi.number().min(1).max(100).default(1)
   })).min(1).required()
 });
@@ -46,7 +46,7 @@ const updateTestSchema = Joi.object({
     question_text: Joi.string().required(),
     question_type: Joi.string().valid('MULTIPLE_CHOICE', 'SINGLE_CHOICE', 'TRUE_FALSE', 'ESSAY', 'CODE').default('MULTIPLE_CHOICE'),
     options: Joi.array().items(Joi.string()).optional(),
-    correct_answer: Joi.string().required(),
+    correct_answer: Joi.string().allow('').optional(), // Allow empty for ESSAY questions
     points: Joi.number().min(1).max(100).default(1)
   })).optional()
 });
@@ -216,7 +216,7 @@ class TestController {
       const totalPages = Math.ceil(totalTests / limit);
       const offset = (page - 1) * limit;
 
-      // Main query
+      // Main query with questions count
       const testsQuery = `
         SELECT 
           t.test_id as id,
@@ -231,10 +231,16 @@ class TestController {
           t.updated_at,
           j.title,
           j.company_id,
-          c.company_name
+          c.company_name,
+          COALESCE(q.question_count, 0) as question_count
         FROM job_tests t
         LEFT JOIN jobs j ON t.job_id = j.job_id
         LEFT JOIN companies c ON j.company_id = c.company_id
+        LEFT JOIN (
+          SELECT test_id, COUNT(*) as question_count 
+          FROM test_questions 
+          GROUP BY test_id
+        ) q ON t.test_id = q.test_id
         ${whereClause}
         ORDER BY t.created_at DESC
         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}

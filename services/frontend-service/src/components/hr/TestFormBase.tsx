@@ -337,20 +337,20 @@ const TestFormBase: React.FC<TestFormBaseProps> = ({
     const formClass = isModal ? "p-6 space-y-6" : "p-6 space-y-6";
 
     const footerClass = isModal
-        ? "flex justify-end gap-4 border-t p-6 bg-white rounded-b-lg flex-shrink-0"
-        : "flex justify-end gap-4 border-t pt-6";
+        ? "flex justify-end gap-4 border-t p-6 bg-white rounded-b-lg flex-shrink-0 mb-4 pr-4"
+        : "flex justify-end gap-4 border-t pt-6 mb-4 pr-4";
 
     return (
         <div className={containerClass}>
-            {/* Header */}
-            <div className={headerClass}>
-                <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
-                {isModal && (
+            {/* Header - only show for modal */}
+            {isModal && (
+                <div className={headerClass}>
+                    <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
                     <button onClick={handleClose} className="p-2 hover:bg-gray-100 rounded-full">
                         <FiX className="w-6 h-6" />
                     </button>
-                )}
-            </div>
+                </div>
+            )}
 
             {/* Scrollable Content */}
             <div className={contentClass}>

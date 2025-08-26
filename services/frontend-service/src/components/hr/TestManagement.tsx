@@ -20,6 +20,7 @@ interface Test {
     updated_at: string;
     job_id: string;
     questions: any[];
+    question_count?: number; // Backend-calculated questions count
 }
 
 interface TestStats {
@@ -78,6 +79,7 @@ const TestManagement: React.FC = () => {
                 search: searchTerm || undefined,
             });
             
+            console.log('getAllTests response:', response);
             setTests(response.data || response.tests || []);
             setTotalTests(response.total || response.data?.length || 0);
         } catch (err) {
@@ -301,7 +303,7 @@ const TestManagement: React.FC = () => {
                                     <tr key={testId} className={`${!isLastRow ? 'border-b' : ''} hover:bg-gray-50 cursor-pointer`} onClick={() => navigate(`/hr/test-management/${testId}`)}>
                                         <td className="px-4 py-4 font-medium">{test.test_name}</td>
                                         <td className="px-4 py-4">{formatDuration(timeLimit)}</td>
-                                        <td className="px-4 py-4">{test.questions?.length || 0} questions</td>
+                                        <td className="px-4 py-4">{test.question_count || test.questions?.length || 0} questions</td>
                                         <td className="px-4 py-4">
                                             <span className={`px-3 py-1 text-xs font-semibold rounded-full ${test.is_active ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                                                 {test.is_active ? 'Active' : 'Inactive'}

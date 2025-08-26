@@ -14,7 +14,7 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
             job_id: formData.job_id,
             test_name: formData.test_name,
             test_description: formData.test_description,
-            test_type: 'TECHNICAL' as const, // Default to TECHNICAL for now
+            test_type: formData.test_type || 'MULTIPLE_CHOICE', // Use form value
         time_limit: Number(formData.time_limit),
         passing_score: Number(formData.passing_score),
             is_active: formData.is_active,
