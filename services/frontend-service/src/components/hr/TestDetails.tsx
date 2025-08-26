@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiArrowLeft, FiEdit, FiUser, FiBarChart2, FiCheckCircle, FiClock, FiUserPlus, FiX } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
 import testApi from '../../services/testApi';
+import { hrApi } from '../../services/hrApi';
 import { handleApiError } from '../../utils/errorHandler';
 
 interface TestDetails {
@@ -119,7 +120,7 @@ const TestDetails: React.FC = () => {
 
         try {
             setAssignLoading(true);
-            await testApi.assignTest(test.id, {
+            await testApi.assignTest(test.id || test.test_id, {
                 candidate_id: assignForm.selectedApplication.candidate_id,
                 application_id: assignForm.selectedApplication.application_id
             });
