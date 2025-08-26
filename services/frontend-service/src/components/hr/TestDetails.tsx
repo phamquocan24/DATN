@@ -63,6 +63,9 @@ const TestDetails: React.FC = () => {
             const testData = response.data || response;
             console.log('Test data time_limit:', testData.time_limit);
             console.log('Test data duration_minutes:', testData.duration_minutes);
+            console.log('Test data test_description:', testData.test_description);
+            console.log('Test data description:', testData.description);
+            console.log('Full test data:', testData);
             setTest(testData);
         } catch (err) {
             setError('Failed to load test details');
@@ -267,7 +270,15 @@ const TestDetails: React.FC = () => {
                 <hr className="my-6" />
                 <div>
                     <h4 className="text-lg font-semibold mb-2 text-gray-700">Description</h4>
-                    <p className="text-gray-600">{test.test_description || test.description || 'No description provided for this test.'}</p>
+                    <p className="text-gray-600">
+                        {test.test_description || test.description || 'No description provided for this test.'}
+                        {/* Debug info */}
+                        {process.env.NODE_ENV === 'development' && (
+                            <span className="block text-xs text-red-500 mt-1">
+                                Debug: test_description="{test.test_description}", description="{test.description}"
+                            </span>
+                        )}
+                    </p>
                 </div>
             </div>
 

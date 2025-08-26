@@ -74,7 +74,12 @@ export const testApi = {
 
   // Get test by ID
   getTestById: async (testId: string, includeAnswers: boolean = false) => {
-    const params = includeAnswers ? { include_answers: includeAnswers } : {};
+    const params = includeAnswers ? { 
+      include_answers: includeAnswers,
+      _t: Date.now() // Cache busting
+    } : { 
+      _t: Date.now() // Cache busting
+    };
     const response = await apiClient.get(`/api/v1/tests/${testId}`, { params });
     return response.data;
   },

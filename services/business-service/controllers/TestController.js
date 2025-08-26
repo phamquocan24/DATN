@@ -534,8 +534,8 @@ class TestController {
       const mappedTest = {
         ...test,
         id: test.test_id,
-        time_limit: test.duration_minutes,
-        test_description: test.description
+        time_limit: test.time_limit, // Already mapped from duration_minutes in model
+        test_description: test.test_description // Already mapped from description in model
       };
 
       res.json({
