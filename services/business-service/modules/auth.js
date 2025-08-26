@@ -555,6 +555,8 @@ router.post('/register', authLimiter, async (req, res) => {
  */
 // Login endpoint
 router.post('/login', authLimiter, async (req, res) => {
+  let email; // Declare email outside try block for error logging
+  
   try {
     const { error, value } = loginSchema.validate(req.body);
     if (error) {
@@ -565,7 +567,8 @@ router.post('/login', authLimiter, async (req, res) => {
       });
     }
 
-    const { email, password } = value;
+    const { password } = value;
+    email = value.email; // Assign email to outer scope variable
 
     // Authenticate user
     const result = await userModel.authenticate(email, password);
