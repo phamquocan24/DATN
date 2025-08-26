@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { MatchScoreDisplay } from './MatchScoreDisplay';
 import { calculateAIMatchScore } from '../../services/aiMatchingApi';
+import { useNavigate } from 'react-router-dom';
 
 // Resume interface from Resume.tsx
 interface Resume {
@@ -25,6 +25,7 @@ interface CVDetailedModalProps {
 interface DetailedMatchScore {
   jobTitle: string;
   company: string;
+  job_id?: string;
   overall_similarity: number;
   ky_nang_similarity: number;
   kinh_nghiem_similarity: number;
@@ -36,6 +37,7 @@ const CVDetailedModal: React.FC<CVDetailedModalProps> = ({ resume, onClose }) =>
   const [activeTab, setActiveTab] = useState<'info' | 'match'>('info');
   const [matchScores, setMatchScores] = useState<DetailedMatchScore[]>([]);
   const [isLoadingMatches, setIsLoadingMatches] = useState(false);
+  const navigate = useNavigate();
 
   // Load match scores when modal opens
   useEffect(() => {
@@ -52,10 +54,14 @@ const CVDetailedModal: React.FC<CVDetailedModalProps> = ({ resume, onClose }) =>
       const jobs = jobsData ? JSON.parse(jobsData) : [];
       
       if (jobs.length > 0) {
-        console.log('Loading match scores for CV:', resume.id, 'with jobs:', jobs.slice(0, 5).map((j: any) => ({ id: j.job_id, title: j.title })));
+        // Shuffle jobs array and take 10 random jobs
+        const shuffledJobs = [...jobs].sort(() => Math.random() - 0.5);
+        const randomJobs = shuffledJobs.slice(0, Math.min(10, shuffledJobs.length));
+        
+        console.log('Loading match scores for CV:', resume.id, 'with random jobs:', randomJobs.slice(0, 5).map((j: any) => ({ id: j.job_id, title: j.title })));
         
         const scores = await Promise.all(
-          jobs.slice(0, 10).map(async (job: any) => {
+          randomJobs.map(async (job: any) => {
             try {
               // Use correct IDs: resume.id (CV ID) and job.job_id (Job UUID)
               const result = await calculateAIMatchScore(resume.id, job.job_id || job.id);
@@ -65,6 +71,7 @@ const CVDetailedModal: React.FC<CVDetailedModalProps> = ({ resume, onClose }) =>
                 return {
                   jobTitle: job.title,
                   company: job.company_name || job.company?.name || 'Unknown Company',
+                  job_id: job.job_id || job.id,
                   overall_similarity: result.data.overall_score / 100, // Convert percentage to 0-1 scale
                   ky_nang_similarity: result.data.detailed_scores?.skills_similarity / 100 || 0,
                   kinh_nghiem_similarity: result.data.detailed_scores?.experience_similarity / 100 || 0,
@@ -79,6 +86,7 @@ const CVDetailedModal: React.FC<CVDetailedModalProps> = ({ resume, onClose }) =>
               return {
                 jobTitle: job.title,
                 company: job.company_name || job.company?.name || 'Unknown Company',
+                job_id: job.job_id || job.id,
                 overall_similarity: 0,
                 ky_nang_similarity: 0,
                 kinh_nghiem_similarity: 0,
@@ -89,8 +97,11 @@ const CVDetailedModal: React.FC<CVDetailedModalProps> = ({ resume, onClose }) =>
           })
         );
         
-        console.log('Final match scores:', scores);
-        setMatchScores(scores);
+        // Sort scores from high to low by overall similarity
+        const sortedScores = scores.sort((a, b) => b.overall_similarity - a.overall_similarity);
+        
+        console.log('Final match scores (sorted):', sortedScores);
+        setMatchScores(sortedScores);
       }
     } catch (error) {
       console.error('Failed to load match scores:', error);
@@ -301,30 +312,55 @@ const CVDetailedModal: React.FC<CVDetailedModalProps> = ({ resume, onClose }) =>
               ) : matchScores.length > 0 ? (
                 <div className="space-y-4">
                   {matchScores.map((score, index) => (
-                    <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div 
+                      key={index} 
+                      className="border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer"
+                      onClick={() => {
+                        if (score.job_id) {
+                          navigate(`/candidate/job-detail/${score.job_id}`);
+                        }
+                      }}
+                    >
                       <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <h4 className="font-semibold text-gray-900">{score.jobTitle}</h4>
-                          <p className="text-sm text-gray-600">{score.company}</p>
+                        <div className="flex items-center space-x-3">
+                          <div className="bg-blue-100 text-blue-800 font-semibold text-sm px-2 py-1 rounded-full min-w-[24px] text-center">
+                            {index + 1}
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-gray-900 hover:text-blue-600 transition-colors">{score.jobTitle}</h4>
+                            <p className="text-sm text-gray-600">{score.company}</p>
+                          </div>
                         </div>
-                        <MatchScoreDisplay
-                          score={score.overall_similarity * 100}
-                          showDetails={false}
-                          size="small"
-                        />
+                        <div className={`font-semibold rounded-full px-2 py-1 text-xs ${
+                          score.overall_similarity >= 0.8 ? 'text-green-600 bg-green-100' :
+                          score.overall_similarity >= 0.7 ? 'text-blue-600 bg-blue-100' :
+                          score.overall_similarity >= 0.6 ? 'text-yellow-600 bg-yellow-100' :
+                          score.overall_similarity >= 0.5 ? 'text-orange-600 bg-orange-100' :
+                          'text-red-600 bg-red-100'
+                        }`}>
+                          {Math.round(score.overall_similarity * 100)}%
+                        </div>
                       </div>
                       
-                      <MatchScoreDisplay
-                        score={score.overall_similarity * 100}
-                        detailedScores={{
-                          skills_similarity: score.ky_nang_similarity * 100,
-                          experience_similarity: score.kinh_nghiem_similarity * 100,
-                          education_similarity: score.hoc_van_similarity * 100,
-                          description_similarity: score.mo_ta_ban_than_similarity * 100
-                        }}
-                        showDetails={true}
-                        size="small"
-                      />
+                      {/* Detailed Scores */}
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                        <div className="text-center">
+                          <p className="text-gray-500 text-xs">Skills</p>
+                          <p className="font-medium text-blue-600">{Math.round(score.ky_nang_similarity * 100)}%</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-gray-500 text-xs">Experience</p>
+                          <p className="font-medium text-green-600">{Math.round(score.kinh_nghiem_similarity * 100)}%</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-gray-500 text-xs">Education</p>
+                          <p className="font-medium text-purple-600">{Math.round(score.hoc_van_similarity * 100)}%</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-gray-500 text-xs">Description</p>
+                          <p className="font-medium text-orange-600">{Math.round(score.mo_ta_ban_than_similarity * 100)}%</p>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>

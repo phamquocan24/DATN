@@ -779,7 +779,7 @@ export const Resume: React.FC = () => {
             {/* Show job match count */}
           {resume.jobMatchScores && resume.jobMatchScores.length > 0 && (
             <p className="text-xs text-blue-600">
-              {resume.jobMatchScores.length} job{resume.jobMatchScores.length > 1 ? 's' : ''} analyzed
+              {Math.min(resume.jobMatchScores.length, 10)} job{Math.min(resume.jobMatchScores.length, 10) > 1 ? 's' : ''} analyzed
             </p>
           )}
         </div>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import MatchScoreDisplay from './MatchScoreDisplay';
+import { useNavigate } from 'react-router-dom';
 
 interface Resume {
   id: string;
@@ -14,6 +15,13 @@ interface Resume {
   bestMatchScore?: number;
   bestMatchJob?: string;
   hasJobMatches?: boolean;
+  cv_file_url?: string;
+  cv_file_name?: string;
+  cv_file_type?: 'pdf' | 'doc' | 'docx';
+  fileBase64?: string;
+  fileName?: string;
+  fileType?: string;
+  file?: File;
 }
 
 interface MatchScore {
@@ -38,7 +46,8 @@ interface CVDetailModalProps {
 }
 
 export const CVDetailModal: React.FC<CVDetailModalProps> = ({ isOpen, onClose, resume }) => {
-  const [activeTab, setActiveTab] = useState<'info' | 'match'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'preview' | 'match'>('info');
+  const navigate = useNavigate();
   
   if (!isOpen || !resume) return null;
 
@@ -51,6 +60,137 @@ export const CVDetailModal: React.FC<CVDetailModalProps> = ({ isOpen, onClose, r
     const minutes = String(d.getMinutes()).padStart(2, '0');
     
     return `${hours}:${minutes} ${day}/${month}/${year}`;
+  };
+
+  const renderPDFPreviewTab = () => {
+    // Debug log to see what data we have
+    console.log('PDF Preview Data:', {
+      cv_file_url: resume.cv_file_url,
+      fileBase64: resume.fileBase64 ? 'has base64' : 'no base64',
+      cv_file_name: resume.cv_file_name,
+      cv_file_type: resume.cv_file_type,
+      fileName: resume.fileName,
+      fileType: resume.fileType,
+      file: resume.file ? 'has file object' : 'no file object'
+    });
+
+    // Check all possible sources for file data
+    const hasFileUrl = resume.cv_file_url;
+    const hasBase64 = resume.fileBase64;
+    const hasFileObject = resume.file;
+    
+    if (!hasFileUrl && !hasBase64 && !hasFileObject) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="bg-gray-100 rounded-full p-4 mb-4">
+            <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No PDF File Available</h3>
+          <p className="text-gray-500 mb-2">The CV file has not been uploaded or is not accessible.</p>
+          <p className="text-xs text-gray-400">Please re-upload your CV to enable PDF preview.</p>
+        </div>
+      );
+    }
+
+    // Get file URL from multiple sources
+    let fileUrl = '';
+    let fileName = '';
+    let fileType = '';
+    
+    if (hasFileUrl) {
+      fileUrl = resume.cv_file_url!;
+      fileName = resume.cv_file_name || resume.fileName || 'CV.pdf';
+      fileType = resume.cv_file_type || resume.fileType || 'pdf';
+    } else if (hasFileObject) {
+      fileUrl = URL.createObjectURL(resume.file!);
+      fileName = resume.file!.name;
+      fileType = resume.file!.type;
+    } else if (hasBase64) {
+      // Check if base64 already includes data URI prefix
+      if (resume.fileBase64!.startsWith('data:')) {
+        fileUrl = resume.fileBase64!;
+      } else {
+        fileUrl = `data:application/pdf;base64,${resume.fileBase64}`;
+      }
+      fileName = resume.cv_file_name || resume.fileName || 'CV.pdf';
+      fileType = resume.cv_file_type || resume.fileType || 'pdf';
+    }
+    
+    // Check if it's a PDF file
+    const isPdf = fileType === 'pdf' || 
+                  fileType.includes('pdf') || 
+                  fileName.toLowerCase().endsWith('.pdf') ||
+                  fileUrl.includes('pdf');
+    
+    if (isPdf) {
+      return (
+        <div className="h-full">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900">PDF Preview</h3>
+            <div className="flex items-center space-x-2">
+              {fileName && (
+                <span className="text-sm text-gray-500">{fileName}</span>
+              )}
+              {fileUrl && (
+                <a 
+                  href={fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 text-sm"
+                >
+                  Open in new tab
+                </a>
+              )}
+            </div>
+          </div>
+          <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50" style={{ height: 'calc(100vh - 200px)' }}>
+            {fileUrl ? (
+              <iframe
+                src={`${fileUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+                className="w-full h-full"
+                title="CV Preview"
+                style={{ minHeight: '600px' }}
+                onError={() => console.error('PDF loading error')}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <p className="text-gray-500">Unable to load PDF preview</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    } else {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="bg-blue-100 rounded-full p-4 mb-4">
+            <svg className="w-12 h-12 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Document Available</h3>
+          <p className="text-gray-500 mb-4">
+            File: {fileName || 'CV Document'} ({fileType?.toUpperCase() || 'DOC'})
+          </p>
+          {fileUrl && (
+            <a 
+              href={fileUrl}
+              download={fileName}
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Download File
+            </a>
+          )}
+        </div>
+      );
+    }
   };
 
   const renderCVInfoTab = () => (
@@ -283,18 +423,18 @@ export const CVDetailModal: React.FC<CVDetailModalProps> = ({ isOpen, onClose, r
             </div>
             <div className="grid grid-cols-3 gap-4 mt-4">
               <div className="text-center">
-                <p className="text-2xl font-bold text-blue-600">{resume.jobMatchScores.length}</p>
+                <p className="text-2xl font-bold text-blue-600">{Math.min(resume.jobMatchScores.length, 10)}</p>
                 <p className="text-sm text-gray-600">Jobs Analyzed</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-green-600">
-                  {resume.jobMatchScores.filter(job => job.match_score >= 70).length}
+                  {resume.jobMatchScores.slice(0, 10).filter(job => job.match_score >= 70).length}
                 </p>
                 <p className="text-sm text-gray-600">Good Match (≥70%)</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-yellow-600">
-                  {Math.round(resume.jobMatchScores.reduce((sum, job) => sum + job.match_score, 0) / resume.jobMatchScores.length)}%
+                  {Math.round(resume.jobMatchScores.slice(0, 10).reduce((sum, job) => sum + job.match_score, 0) / Math.min(resume.jobMatchScores.length, 10))}%
                 </p>
                 <p className="text-sm text-gray-600">Average Score</p>
               </div>
@@ -306,15 +446,28 @@ export const CVDetailModal: React.FC<CVDetailModalProps> = ({ isOpen, onClose, r
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 text-left">Detailed Job Matching</h3>
           <div className="space-y-4">
-            {resume.jobMatchScores.map((match, index) => (
-                              <div key={match.job_id} className="border border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition-colors">
+            {resume.jobMatchScores
+              .sort((a, b) => b.match_score - a.match_score)
+              .slice(0, 10)
+              .map((match, index) => (
+                <div 
+                  key={match.job_id} 
+                  className="border border-gray-200 rounded-xl p-4 hover:bg-gray-50 hover:border-blue-300 transition-all cursor-pointer"
+                  onClick={() => {
+                    if (match.job_id) {
+                      navigate(`/candidate/job-detail/${match.job_id}`);
+                    }
+                  }}
+                >
                 <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">#{index + 1}</span>
-                      <h5 className="font-medium text-gray-900 text-left">{match.job_title}</h5>
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-blue-100 text-blue-800 font-semibold text-sm px-2 py-1 rounded-full min-w-[24px] text-center">
+                      {index + 1}
                     </div>
-                    <p className="text-gray-600 text-sm mt-1 text-left">{match.company_name}</p>
+                    <div>
+                      <h5 className="font-medium text-gray-900 text-left hover:text-blue-600 transition-colors">{match.job_title}</h5>
+                      <p className="text-gray-600 text-sm mt-1 text-left">{match.company_name}</p>
+                    </div>
                   </div>
                   <MatchScoreDisplay 
                     score={match.match_score} 
@@ -401,6 +554,21 @@ export const CVDetailModal: React.FC<CVDetailModalProps> = ({ isOpen, onClose, r
               </div>
             </button>
             <button
+              onClick={() => setActiveTab('preview')}
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'preview'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>PDF Preview</span>
+              </div>
+            </button>
+            <button
               onClick={() => setActiveTab('match')}
               className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'match'
@@ -415,7 +583,7 @@ export const CVDetailModal: React.FC<CVDetailModalProps> = ({ isOpen, onClose, r
                 <span>Job Matching</span>
                 {resume.hasJobMatches && resume.jobMatchScores && resume.jobMatchScores.length > 0 && (
                   <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                    {resume.jobMatchScores.length}
+                    {Math.min(resume.jobMatchScores.length, 10)}
                   </span>
                 )}
               </div>
@@ -425,7 +593,9 @@ export const CVDetailModal: React.FC<CVDetailModalProps> = ({ isOpen, onClose, r
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-          {activeTab === 'info' ? renderCVInfoTab() : renderMatchTab()}
+          {activeTab === 'info' ? renderCVInfoTab() : 
+           activeTab === 'preview' ? renderPDFPreviewTab() : 
+           renderMatchTab()}
         </div>
       </div>
     </div>

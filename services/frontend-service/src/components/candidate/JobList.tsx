@@ -182,7 +182,7 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
           <button 
             onClick={(e) => {
               e.stopPropagation();
-              onApply?.(job);
+              onJobClick?.(job.job_id || job.id);
             }}
             className="bg-[#007BFF] text-white px-4 py-1.5 rounded-lg text-xs hover:bg-[#0056b3] transition-colors"
           >
@@ -266,7 +266,7 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
     return (
       <div 
         className="bg-white border border-gray-200 rounded-xl p-6 hover:border-[#007BFF] transition-all duration-300 group cursor-pointer relative hover:shadow-lg hover:-translate-y-1"
-        onClick={() => onJobClick?.(job.id.toString())}
+        onClick={() => onJobClick?.(job.job_id || job.id)}
       >
         {cardStyle === 'latest' ? latestJobCard : featuredJobCard}
     </div>
