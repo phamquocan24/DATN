@@ -3,6 +3,7 @@ import Logo from '../../assets/Logo.png';
 import BellIcon from '../../assets/bell-outlined.png';
 import UserIcon from '../../assets/user-outlined.png';
 import NotificationPanel from './NotificationPanel';
+import { useCandidateNotifications } from '../../hooks/useCandidateNotifications';
 
 type CurrentPage = 'home' | 'find-jobs' | 'agent-ai' | 'favorite-jobs' | 'companies' | 'find-companies' | 'browse-companies' | 'job-detail' | 'company-profile' | 'resume' | 'profile' | 'dashboard' | 'my-applications' | 'test-management' | 'settings' | 'help-center';
 
@@ -17,15 +18,18 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onPageChange, currentPage, onAuthOpen, onHomeClick, currentUser, onLogout }) => {
   const [showNotifications, setShowNotifications] = useState(false);
-  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(true);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  
+  // Use candidate notifications hook
+  const { unreadCount, refreshUnreadCount, markAllAsRead } = useCandidateNotifications();
 
   const toggleNotifications = () => {
     setShowNotifications(!showNotifications);
   };
 
-  const handleMarkAllAsRead = () => {
-    setHasUnreadNotifications(false);
+  const handleMarkAllAsRead = async () => {
+    await markAllAsRead();
+    await refreshUnreadCount();
   };
 
   return (
@@ -156,9 +160,11 @@ export const Header: React.FC<HeaderProps> = ({ onPageChange, currentPage, onAut
                   className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   <img src={BellIcon} alt="Notifications" className="w-5 h-5" />
-                  {/* Notification dot - only show if there are unread notifications */}
-                  {hasUnreadNotifications && (
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
+                  {/* Notification count badge - show actual unread count */}
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
                   )}
                 </button>
 

@@ -427,10 +427,15 @@ export const candidateApi = {
     return response.data;
   },
 
-  // Notifications
-  getNotifications: async () => {
+  // Notifications - Complete implementation matching HR API pattern
+  getNotifications: async (params?: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    direction?: string;
+  }) => {
     try {
-      const response = await apiClient.get('/notifications');
+      const response = await apiClient.get('/api/v1/notifications', { params });
       return response.data;
     } catch (error: any) {
       // If user is not authenticated, return empty notifications
@@ -442,9 +447,59 @@ export const candidateApi = {
     }
   },
 
+  getNotificationById: async (notificationId: string) => {
+    try {
+      const response = await apiClient.get(`/api/v1/notifications/${notificationId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error getting notification by ID:', error);
+      throw error;
+    }
+  },
+
+  deleteNotification: async (notificationId: string) => {
+    try {
+      const response = await apiClient.delete(`/api/v1/notifications/${notificationId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error deleting notification:', error);
+      throw error;
+    }
+  },
+
   markNotificationAsRead: async (notificationId: string) => {
-    const response = await apiClient.patch(`/notifications/${notificationId}/read`);
-    return response.data;
+    try {
+      const response = await apiClient.put(`/api/v1/notifications/${notificationId}/read`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error marking notification as read:', error);
+      throw error;
+    }
+  },
+
+  markAllNotificationsAsRead: async () => {
+    try {
+      const response = await apiClient.put('/api/v1/notifications/mark-all-read');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error marking all notifications as read:', error);
+      throw error;
+    }
+  },
+
+  getUnreadNotificationCount: async () => {
+    try {
+      const response = await apiClient.get('/api/v1/notifications/unread-count');
+      return response.data;
+    } catch (error: any) {
+      // If user is not authenticated, return 0 count
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        console.warn('User not authenticated for notification count, returning 0');
+        return { data: { unread_count: 0 } };
+      }
+      console.error('Error getting unread notification count:', error);
+      throw error;
+    }
   },
 
   // Settings

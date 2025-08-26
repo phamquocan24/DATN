@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, BellRing, Calendar, Clock, User, AlertCircle, Briefcase, FileText, Users, X } from 'lucide-react';
-import { notificationApi, type Notification, type NotificationType } from '../../services/notificationApi';
+import { type Notification, type NotificationType } from '../../services/notificationApi';
+import candidateApi from '../../services/candidateApi';
 import Avatar from '../../assets/Avatar17.png';
 
 interface NotificationPanelProps {
@@ -28,15 +29,19 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose, 
     try {
       setLoading(true);
       setError(null);
-      const response = await notificationApi.getNotifications({
+      const response = await candidateApi.getNotifications({
         limit: 20,
         orderBy: 'created_at',
         direction: 'DESC'
       });
-      setNotifications(response.data);
+      
+      // Handle different response structures
+      const notificationData = response.data ?? response;
+      setNotifications(Array.isArray(notificationData) ? notificationData : []);
     } catch (err) {
       setError('Failed to load notifications');
       console.error('Error loading notifications:', err);
+      setNotifications([]);
     } finally {
       setLoading(false);
     }
@@ -44,16 +49,18 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose, 
 
   const loadUnreadCount = async () => {
     try {
-      const response = await notificationApi.getUnreadCount();
-      setUnreadCount(response.data.unread_count);
+      const response = await candidateApi.getUnreadNotificationCount();
+      const count = response.data?.unread_count ?? response.data?.count ?? response.unread_count ?? response.count ?? 0;
+      setUnreadCount(count);
     } catch (err) {
       console.error('Error loading unread count:', err);
+      setUnreadCount(0);
     }
   };
 
   const markAsRead = async (notificationId: string) => {
     try {
-      await notificationApi.markAsRead(notificationId);
+      await candidateApi.markNotificationAsRead(notificationId);
       setNotifications(prev => prev.map(notif => 
         notif.notification_id === notificationId ? { ...notif, is_read: true, read_at: new Date().toISOString() } : notif
       ));
@@ -65,7 +72,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose, 
 
   const markAllAsRead = async () => {
     try {
-      await notificationApi.markAllAsRead();
+      await candidateApi.markAllNotificationsAsRead();
       setNotifications(prev => prev.map(notif => ({ 
         ...notif, 
         is_read: true, 
@@ -80,7 +87,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose, 
 
   const deleteNotification = async (notificationId: string) => {
     try {
-      await notificationApi.deleteNotification(notificationId);
+      await candidateApi.deleteNotification(notificationId);
       setNotifications(prev => prev.filter(notif => notif.notification_id !== notificationId));
       loadUnreadCount(); // Refresh unread count
     } catch (err) {
@@ -297,12 +304,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose, 
           )}
         </div>
         
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-200 text-left">
-          <button className="text-[#007BFF] hover:text-[#0056b3] text-sm font-medium">
-            View all notifications
-          </button>
-        </div>
+
       </div>
     </>
   );
