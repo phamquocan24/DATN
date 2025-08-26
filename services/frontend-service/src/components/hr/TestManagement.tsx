@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiChevronDown, FiSearch, FiPlus, FiMoreVertical, FiEdit, FiTrash2, FiUserPlus } from 'react-icons/fi';
+import { FiChevronDown, FiSearch, FiPlus, FiMoreVertical, FiEdit, FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import calendarIcon from '../../assets/scheme.png';
 import testApi from '../../services/testApi';
@@ -46,8 +46,7 @@ const TestManagement: React.FC = () => {
     const [showDropdown, setShowDropdown] = useState<string | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [testToDelete, setTestToDelete] = useState<Test | null>(null);
-    const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-    const [testToAssign, setTestToAssign] = useState<Test | null>(null);
+
 
     // Load tests when component mounts or page/search changes
     useEffect(() => {
@@ -179,11 +178,7 @@ const TestManagement: React.FC = () => {
         }
     };
 
-    const handleAssignTest = (test: Test) => {
-        setTestToAssign(test);
-        setIsAssignModalOpen(true);
-        setShowDropdown(null);
-    };
+
 
     const handleEditTest = (test: Test) => {
         const testId = test.id || test.test_id;
@@ -342,16 +337,7 @@ const TestManagement: React.FC = () => {
                                                                 <FiEdit className="text-gray-500" />
                                                                 Edit Test
                                                             </button>
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleAssignTest(test);
-                                                                }}
-                                                                className="flex items-center gap-2 w-full px-4 py-2 text-left hover:bg-gray-50 text-gray-700"
-                                                            >
-                                                                <FiUserPlus className="text-gray-500" />
-                                                                Assign to Candidate
-                                                            </button>
+
                                                             <button
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
@@ -411,25 +397,7 @@ const TestManagement: React.FC = () => {
                 </div>
             )}
 
-            {/* Assign Test Modal - Placeholder for now */}
-            {isAssignModalOpen && testToAssign && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 w-96">
-                        <h3 className="text-lg font-semibold mb-4">Assign Test</h3>
-                        <p className="text-gray-600 mb-6">
-                            Assign "{testToAssign.test_name}" to a candidate. This feature will be implemented soon.
-                        </p>
-                        <div className="flex justify-end">
-                            <button
-                                onClick={() => setIsAssignModalOpen(false)}
-                                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+
         </div>
     );
 };

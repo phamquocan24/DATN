@@ -270,15 +270,7 @@ const TestDetails: React.FC = () => {
                 <hr className="my-6" />
                 <div>
                     <h4 className="text-lg font-semibold mb-2 text-gray-700">Description</h4>
-                    <p className="text-gray-600">
-                        {test.test_description || test.description || 'No description provided for this test.'}
-                        {/* Debug info */}
-                        {process.env.NODE_ENV === 'development' && (
-                            <span className="block text-xs text-red-500 mt-1">
-                                Debug: test_description="{test.test_description}", description="{test.description}"
-                            </span>
-                        )}
-                    </p>
+                    <p className="text-gray-600">{test.test_description || test.description || 'No description provided for this test.'}</p>
                 </div>
             </div>
 
