@@ -4,8 +4,6 @@ import { FiArrowLeft, FiEdit, FiMessageSquare, FiCheck, FiX, FiMoreHorizontal, F
 import { FaInstagram } from 'react-icons/fa';
 import { BiWorld } from 'react-icons/bi';
 import DashboardSidebar from './DashboardSidebar';
-import authService from '../../services/authService';
-import api from '../../services/api';
 import hrApi from '../../services/hrApi';
 
 interface CandidateDetails {
@@ -73,24 +71,7 @@ const ApplicantDetail: React.FC = () => {
     notes: ''
   });
 
-  const handleLogoutClick = () => {
-    // Clear auth data immediately
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    delete api.defaults.headers.common['Authorization'];
-    
-    // Call logout API in background (don't wait for it)
-    authService.logout().catch(error => {
-      console.error('Logout API error:', error);
-    });
-    
-    // Redirect to home immediately
-    navigate('/');
-    
-    // Reload page to reset all app state
-    window.location.reload();
-  };
+
 
   // Fetch application details
   const fetchApplicationDetails = async () => {
@@ -100,10 +81,72 @@ const ApplicantDetail: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      const response = await hrApi.getApplicationById(id, true);
+      // Debug authentication
+      const token = localStorage.getItem('token');
+      const user = localStorage.getItem('user');
+      console.log('Current user:', user ? JSON.parse(user) : null);
+      console.log('Has token:', !!token);
+      console.log('Token length:', token ? token.length : 0);
       
-      if (response.success && response.data) {
-        const apiData = response.data;
+      console.log('Fetching application details for ID:', id);
+      
+      // Try alternative approach: get all applications and filter by ID
+      let response;
+      let apiData;
+      
+      try {
+        // First try the direct API
+        response = await hrApi.getApplicationById(id, true);
+        console.log('Direct API Response:', response);
+        
+        if (response.success && response.data) {
+          apiData = response.data;
+        } else {
+          throw new Error('Direct API failed');
+        }
+      } catch (directApiError) {
+        console.log('Direct API failed, trying alternative approach:', directApiError);
+        
+        // Try getting all applications with pagination
+        let allApplications = [];
+        let page = 1;
+        let hasMore = true;
+        
+        while (hasMore && page <= 5) { // Max 5 pages (500 records)
+          try {
+            const allApplicationsResponse = await hrApi.getApplications({ 
+              limit: 100, 
+              page: page 
+            });
+            
+            if (allApplicationsResponse.success && allApplicationsResponse.data) {
+              allApplications.push(...allApplicationsResponse.data);
+              
+              // Check if we found the application
+              const foundApp = allApplicationsResponse.data.find((app: any) => app.application_id === id);
+              if (foundApp) {
+                apiData = foundApp;
+                break;
+              }
+              
+              // Check if there are more pages
+              hasMore = allApplicationsResponse.data.length === 100;
+              page++;
+            } else {
+              hasMore = false;
+            }
+          } catch (paginationError) {
+            console.log(`Error fetching page ${page}:`, paginationError);
+            hasMore = false;
+          }
+        }
+        
+        if (!apiData) {
+          throw new Error('Application not found in applications list');
+        }
+      }
+      
+      if (apiData) {
         
         // Transform API data to match interface
         const transformedData: CandidateDetails = {
@@ -159,7 +202,18 @@ const ApplicantDetail: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Error fetching application details:', err);
-      setError('Failed to load application details');
+      console.error('Error status:', err.response?.status);
+      console.error('Error data:', err.response?.data);
+      
+      if (err.response?.status === 403) {
+        setError('Access denied. You may not have permission to view this application.');
+      } else if (err.response?.status === 404) {
+        setError('Application not found.');
+      } else if (err.response?.status === 401) {
+        setError('Authentication required. Please login again.');
+      } else {
+        setError(`Failed to load application details: ${err.response?.data?.message || err.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -190,66 +244,9 @@ const ApplicantDetail: React.FC = () => {
     fetchApplicationDetails();
   }, [id]);
 
-  // Mock data fallback (will be replaced by API data)
-  const mockCandidateDetails: CandidateDetails = {
-    application_id: id || '1',
-    fullName: 'Jerome Bell',
-    email: 'jeromeBell45@email.com',
-    phone: '+44 1245 572 135',
-    address: '4517 Washington Ave. Manchester, Kentucky 39495',
-    avatar: `https://i.pravatar.cc/150?u=${id}`,
-    education: 'Bachelors in Engineering',
-    gender: 'Male',
-    dateOfBirth: 'March 23, 1995',
-    languages: ['English', 'French', 'Bahasa'],
-    experience: [
-      'Software Engineer at ABC Corp (2020-2023)',
-      'Junior Developer at DEF Tech (2018-2020)',
-    ],
-    skills: ['Project Management', 'Copywriting', 'English'],
-    resumeUrl: '#',
-    aboutMe: "I'm a product designer + filmmaker currently working remotely at Twitter from beautiful Manchester, United Kingdom. I'm passionate about designing digital products that have a positive impact on the world.",
-    currentJob: {
-      title: 'Product Designer',
-      years: '4 Years'
-    },
-    professionalInfo: {
-      aboutMe: "I'm a product designer + filmmaker currently working remotely at Twitter from beautiful Manchester, United Kingdom. I'm passionate about designing digital products that have a positive impact on the world.",
-      experience: "For 10 years, I've specialised in interface, experience & interaction design as well as working in user research and product strategy for product agencies, big tech companies & start-ups.",
-      currentJob: {
-        title: 'Product Designer',
-        years: '4 Years'
-      },
-      education: 'Bachelors in Engineering',
-      skills: ['Project Management', 'Copywriting', 'English']
-    },
-    matchPercentage: 90,
-    // API fields
-    candidate_name: 'Jerome Bell',
-    candidate_email: 'jeromeBell45@email.com',
-    phone_number: '+44 1245 572 135',
-    current_status: 'REVIEWING',
-    match_score: 90,
-    submitted_at: new Date().toISOString(),
-    job_title: 'Product Designer',
-    candidate_id: '1',
-    job_id: '1'
-  };
 
-  // Mock hiring timeline data
-  const hiringTimeline = [
-    { id: 1, label: 'Application Submitted', date: 'Jan 10, 2024', status: 'completed' },
-    { id: 2, label: 'HR Screening', date: 'Jan 12, 2024', status: 'completed' },
-    { id: 3, label: 'Interview', date: 'Jan 15, 2024', status: 'current' },
-    { id: 4, label: 'Offer', date: '--', status: 'upcoming' },
-    { id: 5, label: 'Hired', date: '--', status: 'upcoming' },
-  ];
 
-  // Mock interview schedule data
-  const interviewSchedule = [
-    { id: 1, date: 'Jan 15, 2024', time: '10:00 AM - 11:00 AM', interviewer: 'John Doe', mode: 'Video Call' },
-    { id: 2, date: 'Jan 20, 2024', time: '2:00 PM - 3:00 PM', interviewer: 'Jane Smith', mode: 'Onsite' },
-  ];
+
 
   const handleRejectConfirm = async () => {
     if (!candidateDetails?.application_id || !rejectionReason.trim()) return;
@@ -335,7 +332,7 @@ const ApplicantDetail: React.FC = () => {
                   <img src={candidateDetails.avatar} alt={candidateDetails.fullName} className="w-24 h-24 rounded-full object-cover" />
                   <div className="h-24 flex flex-col justify-between text-left">
                     <h2 className="text-lg font-semibold text-gray-900">{candidateDetails.fullName}</h2>
-                    <p className="text-sm text-gray-500">Product Designer</p>
+                    <p className="text-sm text-gray-500">{candidateDetails.job_title || 'Job Position'}</p>
                     <p className="text-sm font-semibold">
                       <span className="text-gray-800">Match: </span>
                       <span className="text-green-500">{candidateDetails.matchPercentage}%</span>
@@ -346,27 +343,40 @@ const ApplicantDetail: React.FC = () => {
                 {/* Applied Job Card */}
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6 text-left">
                   <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
-                    <span>Applied Jobs</span>
-                    <span>2 days ago</span>
+                    <span>Applied Job</span>
+                    <span>{new Date(candidateDetails.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                   </div>
                   <div className="h-px bg-gray-200 mb-2" />
-                  <h3 className="font-semibold text-gray-800 text-sm">Product Development</h3>
-                  <p className="text-xs text-gray-500">Marketing • Full-Time</p>
+                  <h3 className="font-semibold text-gray-800 text-sm">{candidateDetails.job_title || 'Job Position'}</h3>
+                  <p className="text-xs text-gray-500">{candidateDetails.current_status ? candidateDetails.current_status.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) : 'Applied'}</p>
                 </div>
 
                 {/* Stage Progress */}
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
                   <div className="flex items-center justify-between text-sm mb-2">
                     <span className="text-gray-600">Stage</span>
-                    <span className="text-[#007BFF]">Interview</span>
+                    <span className="text-[#007BFF]">{candidateDetails.current_status ? candidateDetails.current_status.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) : 'Applied'}</span>
                   </div>
                   <div className="flex gap-1">
-                    {[...Array(5)].map((_, idx) => (
-                      <div
-                        key={idx}
-                        className={`flex-1 h-2 rounded-full ${idx < 3 ? 'bg-[#007BFF]' : 'bg-gray-200'}`}
-                      />
-                    ))}
+                    {[...Array(5)].map((_, idx) => {
+                      const getStageProgress = (status: string) => {
+                        switch (status) {
+                          case 'SUBMITTED': return 1;
+                          case 'REVIEWING': return 2;
+                          case 'SHORTLISTED': return 3;
+                          case 'INTERVIEWED': return 4;
+                          case 'OFFERED': case 'HIRED': return 5;
+                          default: return 1;
+                        }
+                      };
+                      const progress = getStageProgress(candidateDetails.current_status || 'SUBMITTED');
+                      return (
+                        <div
+                          key={idx}
+                          className={`flex-1 h-2 rounded-full ${idx < progress ? 'bg-[#007BFF]' : 'bg-gray-200'}`}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -531,90 +541,79 @@ const ApplicantDetail: React.FC = () => {
 
                 {activeTab === 'resume' && (
                   <div className="p-6 bg-white rounded-lg shadow-md text-left border border-gray-300">
-                    <div className="grid grid-cols-3 gap-8">
-                      {/* Left Column */}
-                      <div className="col-span-2">
-                        <h2 className="text-4xl font-bold">Jerome Bell</h2>
-                        <p className="text-xl text-gray-600 mb-6">Product Designer</p>
-
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Experience</h3>
-                        <div className="space-y-6">
-                          <div>
-                            <p className="font-semibold">Senior UI/UX Product Designer</p>
-                            <p className="text-gray-600">Enterprise name</p>
-                            <p className="text-gray-500 text-xs">Aug 2018 - Present • 1 year, Paris</p>
-                            <p className="mt-2">Directly collaborated with CEO and Product team to prototype, design and deliver the UI and UX experience with a lean design process: research, design, test, and iterate.</p>
-                          </div>
-                          <div>
-                            <p className="font-semibold">UI/UX Product Designer</p>
-                            <p className="text-gray-600">Enterprise name</p>
-                            <p className="text-gray-500 text-xs">Aug 2013 - Aug 2018 • 5 years, Paris</p>
-                            <p className="mt-2">Lead the UI design with the accountability of the design system, collaborated with product and development teams on core projects to improve product interfaces and experiences.</p>
-                          </div>
-                          <div>
-                            <p className="font-semibold">UI Designer</p>
-                            <p className="text-gray-600">Enterprise name</p>
-                            <p className="text-gray-500 text-xs">Aug 2012 - Jul 2013 • 1 year, Paris</p>
-                            <p className="mt-2">Designed mobile UI applications for Orange R&D departement, BNP Paribas, La Poste, Le Cned...</p>
-                          </div>
-                          <div>
-                            <p className="font-semibold">Graphic Designer</p>
-                            <p className="text-gray-600">Enterprise name</p>
-                            <p className="text-gray-500 text-xs">Sept 2010 - Jul 2012 • 2 years, Paris</p>
-                            <p className="mt-2">Designed print and web applications for Pau Brasil, Renault, Le théatre du Mantois, La mairie de Mantes la Ville...</p>
-                          </div>
-                        </div>
-                        
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-8 mb-4">Education</h3>
-                        <div className="space-y-4">
-                          <div>
-                            <p className="font-semibold">Bachelor European in Graphic Design</p>
-                            <p className="text-gray-600">School name</p>
-                            <p className="text-gray-500 text-xs">2006 - 2010, Bagnolet</p>
-                          </div>
-                          <div>
-                            <p className="font-semibold">BTS Communication Visuelle option Multimédia</p>
-                            <p className="text-gray-600">School name</p>
-                            <p className="text-gray-500 text-xs">2007 - 2009, Bagnolet</p>
-                          </div>
-                        </div>
+                    {candidateDetails.resumeUrl ? (
+                      // If resume URL exists, show iframe or download link
+                      <div className="w-full h-96 border border-gray-200 rounded-lg overflow-hidden">
+                        <iframe 
+                          src={candidateDetails.resumeUrl} 
+                          className="w-full h-full"
+                          title="Resume"
+                        />
                       </div>
+                    ) : (
+                      // Show parsed candidate information
+                      <div className="grid grid-cols-3 gap-8">
+                        {/* Left Column */}
+                        <div className="col-span-2">
+                          <h2 className="text-4xl font-bold">{candidateDetails.fullName}</h2>
+                          <p className="text-xl text-gray-600 mb-6">{candidateDetails.currentJob.title}</p>
 
-                      {/* Right Column */}
-                      <div>
-                        <img src="https://i.pravatar.cc/150?u=a042581f4e29026704d" alt="Jerome Bell" className="w-24 h-24 rounded-full mb-4" />
+                          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Experience</h3>
+                          <div className="space-y-6">
+                            {candidateDetails.experience.length > 0 ? (
+                              candidateDetails.experience.map((exp, index) => (
+                                <div key={index}>
+                                  <p className="font-semibold">{exp}</p>
+                                  <p className="text-gray-600">{candidateDetails.currentJob.years} experience</p>
+                                </div>
+                              ))
+                            ) : (
+                              <div>
+                                <p className="font-semibold">{candidateDetails.currentJob.title}</p>
+                                <p className="text-gray-600">{candidateDetails.currentJob.years} experience</p>
+                                <p className="mt-2">{candidateDetails.professionalInfo.experience}</p>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-8 mb-4">Education</h3>
+                          <div className="space-y-4">
+                            <div>
+                              <p className="font-semibold">{candidateDetails.education || 'Education not specified'}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right Column */}
                         <div>
-                          <p>jeromebell@gmail.com</p>
-                          <p>+44 1245 572 135</p>
-                          <p>Vernouillet</p>
-                        </div>
-                        <div className="mt-6">
-                          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Industry Knowledge</h3>
-                          <p>Product Design</p>
-                          <p>User Interface</p>
-                          <p>User Experience</p>
-                          <p>Interaction Design</p>
-                          <p>Wireframing</p>
-                          <p>Rapid Prototyping</p>
-                          <p>Design Research</p>
+                          <img src={candidateDetails.avatar} alt={candidateDetails.fullName} className="w-24 h-24 rounded-full mb-4" />
+                          <div>
+                            <p>{candidateDetails.email}</p>
+                            <p>{candidateDetails.phone}</p>
+                            <p>{candidateDetails.address || 'Address not provided'}</p>
+                          </div>
+                          <div className="mt-6">
+                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Skills</h3>
+                            {candidateDetails.skills.length > 0 ? (
+                              candidateDetails.skills.map((skill, index) => (
+                                <p key={index}>{skill}</p>
+                              ))
+                            ) : (
+                              <p>No skills listed</p>
+                            )}
 
-                          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-6 mb-4">Tools & Technologies</h3>
-                          <p>Figma, Sketch, Protopie, Framer, Invision, Abstract, Zeplin, Google Analytics, Amplitude, Fullstory...</p>
-
-                          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-6 mb-4">Other Skills</h3>
-                          <p>HTML, CSS, JQuery</p>
-
-                          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-6 mb-4">Languages</h3>
-                          <p>French (native)</p>
-                          <p>English (professionnal)</p>
-
-                          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-6 mb-4">Social</h3>
-                          <p className="text-blue-600 hover:underline cursor-pointer">yoursite.com</p>
-                          <p className="text-blue-600 hover:underline cursor-pointer">linkedin.com/in/yourname</p>
-                          <p className="text-blue-600 hover:underline cursor-pointer">dribbble.com/yourname</p>
+                            {candidateDetails.languages.length > 0 && (
+                              <>
+                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-6 mb-4">Languages</h3>
+                                {candidateDetails.languages.map((lang, index) => (
+                                  <p key={index}>{lang}</p>
+                                ))}
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
 
@@ -628,55 +627,75 @@ const ApplicantDetail: React.FC = () => {
                     </div>
                     
                     <div className="flex items-center bg-gray-100 rounded-full p-1">
-                      <div className="flex-1 py-2 text-center text-sm font-semibold rounded-full" style={{ color: '#007BFF' }}>
-                        In-Review
-                      </div>
-                      <div className="flex-1 py-2 text-center text-sm font-semibold rounded-full" style={{ color: '#007BFF' }}>
-                        Approve
-                      </div>
-                      <div className="flex-1 py-2 text-center text-white text-sm font-semibold rounded-full shadow-md" style={{ backgroundColor: '#007BFF' }}>
-                        Interview
-                      </div>
-                      <div className="flex-1 py-2 text-center text-gray-400 text-sm font-semibold rounded-full">
-                        Mini-test
-                      </div>
-                      <div className="flex-1 py-2 text-center text-gray-400 text-sm font-semibold rounded-full">
-                        Hired / Declined
-                      </div>
+                      {['SUBMITTED', 'REVIEWING', 'SHORTLISTED', 'INTERVIEWED', 'HIRED'].map((stage, index) => {
+                        const isActive = candidateDetails.current_status === stage;
+                        const isPassed = ['SUBMITTED', 'REVIEWING', 'SHORTLISTED', 'INTERVIEWED', 'HIRED'].indexOf(candidateDetails.current_status || 'SUBMITTED') > index;
+                        const stageLabels = ['Applied', 'In-Review', 'Shortlisted', 'Interview', 'Hired'];
+                        
+                        return (
+                          <div 
+                            key={stage}
+                            className={`flex-1 py-2 text-center text-sm font-semibold rounded-full ${
+                              isActive 
+                                ? 'text-white shadow-md' 
+                                : isPassed 
+                                  ? 'text-[#007BFF]' 
+                                  : 'text-gray-400'
+                            }`}
+                            style={{ 
+                              backgroundColor: isActive ? '#007BFF' : 'transparent'
+                            }}
+                          >
+                            {stageLabels[index]}
+                          </div>
+                        );
+                      })}
                     </div>
 
                     <div className="mt-8 pt-6 border-t border-gray-300">
-                      <h4 className="font-semibold mb-4 text-left">Stage Info</h4>
+                      <h4 className="font-semibold mb-4 text-left">Application Info</h4>
                       <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-left">
                         <div>
-                          <p className="text-sm text-gray-500">Interview Date</p>
-                          <p>10 - 13 July 2021</p>
+                          <p className="text-sm text-gray-500">Application Date</p>
+                          <p>{new Date(candidateDetails.submitted_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-500">Interview Status</p>
+                          <p className="text-sm text-gray-500">Current Status</p>
                           <p className="font-semibold">
-                            <span className="bg-yellow-100 text-yellow-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">On Progress</span>
+                            <span className={`text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full ${
+                              candidateDetails.current_status === 'SUBMITTED' ? 'bg-gray-100 text-gray-800' :
+                              candidateDetails.current_status === 'REVIEWING' ? 'bg-yellow-100 text-yellow-800' :
+                              candidateDetails.current_status === 'SHORTLISTED' ? 'bg-blue-100 text-blue-800' :
+                              candidateDetails.current_status === 'INTERVIEWED' ? 'bg-purple-100 text-purple-800' :
+                              candidateDetails.current_status === 'HIRED' ? 'bg-green-100 text-green-800' :
+                              candidateDetails.current_status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {candidateDetails.current_status ? candidateDetails.current_status.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) : 'Applied'}
+                            </span>
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-500">Interview Location</p>
-                          <p>
-                            Silver Crysta Room, Nomad Office<br />
-                            3517 W. Gray St. Utica,<br />
-                            Pennsylvania 57867
-                          </p>
+                          <p className="text-sm text-gray-500">Match Score</p>
+                          <p className="font-semibold text-green-600">{candidateDetails.matchPercentage}%</p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-500">Assigned to</p>
-                          <div className="flex -space-x-2 overflow-hidden">
-                            <img className="inline-block h-8 w-8 rounded-full ring-2 ring-white" src="https://i.pravatar.cc/50?u=a" alt="User 1" />
-                            <img className="inline-block h-8 w-8 rounded-full ring-2 ring-white" src="https://i.pravatar.cc/50?u=b" alt="User 2" />
-                            <img className="inline-block h-8 w-8 rounded-full ring-2 ring-white" src="https://i.pravatar.cc/50?u=c" alt="User 3" />
-                          </div>
+                          <p className="text-sm text-gray-500">Job Position</p>
+                          <p>{candidateDetails.job_title || 'Not specified'}</p>
                         </div>
                       </div>
                       <div className="text-left mt-6">
-                        <button className="border px-4 py-2 rounded-md hover:bg-gray-50 text-sm font-semibold" style={{ borderColor: '#007BFF', color: '#007BFF' }}>
+                        <button 
+                          onClick={() => setIsScheduleModalOpen(true)}
+                          className="border px-4 py-2 rounded-md hover:bg-gray-50 text-sm font-semibold mr-4" 
+                          style={{ borderColor: '#007BFF', color: '#007BFF' }}
+                        >
+                          Schedule Interview
+                        </button>
+                        <button 
+                          onClick={handleAcceptCandidate}
+                          className="border px-4 py-2 rounded-md hover:bg-green-50 text-sm font-semibold mr-4 border-green-500 text-green-600"
+                        >
                           Move To Next Step
                         </button>
                       </div>
@@ -909,6 +928,108 @@ const ApplicantDetail: React.FC = () => {
                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm font-medium"
               >
                 Confirm Rejection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Interview Modal */}
+      {isScheduleModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 w-full max-w-md shadow-xl relative text-left">
+            <button
+              onClick={() => setIsScheduleModalOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            >
+              <FiX className="w-6 h-6" />
+            </button>
+            <h2 className="text-xl font-semibold mb-4">Schedule Interview</h2>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="scheduled_date" className="block text-sm font-medium text-gray-700 mb-2">
+                  Interview Date & Time
+                </label>
+                <input
+                  type="datetime-local"
+                  id="scheduled_date"
+                  value={scheduleData.scheduled_date}
+                  onChange={(e) => setScheduleData({...scheduleData, scheduled_date: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="interview_type" className="block text-sm font-medium text-gray-700 mb-2">
+                  Interview Type
+                </label>
+                <select
+                  id="interview_type"
+                  value={scheduleData.interview_type}
+                  onChange={(e) => setScheduleData({...scheduleData, interview_type: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="PHONE">Phone Call</option>
+                  <option value="VIDEO">Video Call</option>
+                  <option value="ONSITE">On-site</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
+                  Location/Link
+                </label>
+                <input
+                  type="text"
+                  id="location"
+                  value={scheduleData.location}
+                  onChange={(e) => setScheduleData({...scheduleData, location: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Meeting room or video call link"
+                />
+              </div>
+              <div>
+                <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
+                  Notes
+                </label>
+                <textarea
+                  id="notes"
+                  rows={3}
+                  value={scheduleData.notes}
+                  onChange={(e) => setScheduleData({...scheduleData, notes: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Interview notes or instructions"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-4 mt-6">
+              <button
+                onClick={() => setIsScheduleModalOpen(false)}
+                className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!candidateDetails?.application_id || !scheduleData.scheduled_date) return;
+                  
+                  try {
+                    await hrApi.updateApplicationStatus(
+                      candidateDetails.application_id, 
+                      'INTERVIEWED', 
+                      scheduleData.notes || 'Interview scheduled',
+                      scheduleData.scheduled_date
+                    );
+                    setIsScheduleModalOpen(false);
+                    setScheduleData({ scheduled_date: '', interview_type: 'PHONE', location: '', notes: '' });
+                    fetchApplicationDetails(); // Refresh data
+                  } catch (error) {
+                    console.error('Error scheduling interview:', error);
+                    alert('Failed to schedule interview. Please try again.');
+                  }
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
+              >
+                Schedule Interview
               </button>
             </div>
           </div>

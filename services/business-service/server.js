@@ -89,15 +89,24 @@ const swaggerOptions = {
 };
 
 // Middleware
+// Configure CSP based on environment
+const cspDirectives = {
+  defaultSrc: ["'self'"],
+  styleSrc: ["'self'", "'unsafe-inline'"],
+  scriptSrc: ["'self'", "'unsafe-inline'"],
+  imgSrc: ["'self'", "data:", "https:"],
+  connectSrc: ["'self'", "http://localhost:*", "https://localhost:*", "ws://localhost:*"],
+};
+
+// In development, be more permissive for Swagger UI
+if (process.env.NODE_ENV === 'development') {
+  cspDirectives.connectSrc.push("http://127.0.0.1:*", "https://127.0.0.1:*");
+}
+
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
   contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-    },
+    directives: cspDirectives,
   },
 }));
 
@@ -165,8 +174,11 @@ app.use(generalLimiter);
 // Add audit logging middleware (after parsing middleware)
 app.use(auditLogger.middleware());
 
-// Swagger UI
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, swaggerOptions));
+// Disable CSP for Swagger UI to allow API calls
+app.use('/api-docs', (req, res, next) => {
+  res.removeHeader('Content-Security-Policy');
+  next();
+}, swaggerUi.serve, swaggerUi.setup(swaggerSpecs, swaggerOptions));
 
 // Swagger JSON endpoint - serve raw OpenAPI specification
 /**

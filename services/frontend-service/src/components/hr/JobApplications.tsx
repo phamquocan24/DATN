@@ -226,7 +226,7 @@ const JobApplications = () => {
               </tr>
             ) : (
               applicants.map((applicant) => (
-                <tr key={applicant.application_id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => navigate(`/hr/applicant-detail/${applicant.application_id}`)}>
+                <tr key={applicant.application_id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => navigate(`/hr/job-applications/${applicant.application_id}`)}>
                   <td className="px-4 py-2">
                     <div className="flex items-center gap-3">
                       <img src={applicant.avatar} alt={applicant.fullName} className="w-8 h-8 rounded-full" />
@@ -247,7 +247,7 @@ const JobApplications = () => {
                         className="px-3 py-1 text-sm border border-blue-500 text-blue-500 rounded-md hover:bg-blue-50" 
                         onClick={(e) => {
                           e.stopPropagation(); 
-                          navigate(`/hr/applicant-detail/${applicant.application_id}`)
+                          navigate(`/hr/job-applications/${applicant.application_id}`)
                         }}
                       >
                         See Application

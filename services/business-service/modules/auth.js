@@ -163,15 +163,72 @@ function generateTokens(user) {
 const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    
+    // Debug logging
+    logger.info('Authentication attempt:', {
+      url: req.originalUrl,
+      method: req.method,
+      authHeader: authHeader ? 'present' : 'missing',
+      authHeaderValue: authHeader ? `${authHeader.substring(0, 20)}...` : 'none',
+      headers: Object.keys(req.headers)
+    });
+    
+    let token = authHeader && authHeader.split(' ')[1];
 
-    if (!token) {
-      return sendError(res, 'MISSING_TOKEN');
+    // Handle case where token is literal string "string" (from Swagger UI bug)
+    if (token === 'string' || token === '"string"') {
+      logger.warn('Detected literal string token from Swagger UI:', { token });
+      return sendError(res, 'INVALID_TOKEN', 'Please enter a valid JWT token, not the literal word "string"');
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET);
+    if (!token) {
+      logger.warn('Missing token:', {
+        authHeader,
+        authHeaderType: typeof authHeader,
+        authHeaderLength: authHeader ? authHeader.length : 0,
+        rawAuthHeader: JSON.stringify(authHeader)
+      });
+      return sendError(res, 'MISSING_TOKEN');
+    }
     
-    if (decoded.type !== 'access') {
+    // Clean token of any quotes or extra characters
+    token = token.replace(/['"]/g, '').trim();
+    
+    // Debug token format
+    logger.info('Token details:', {
+      tokenLength: token.length,
+      tokenStart: token.substring(0, 10),
+      tokenEnd: token.substring(token.length - 10),
+      tokenType: typeof token
+    });
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (jwtError) {
+      logger.warn('JWT verification failed:', {
+        error: jwtError.message,
+        tokenLength: token.length,
+        jwtSecret: JWT_SECRET ? 'present' : 'missing'
+      });
+      
+      if (jwtError.name === 'TokenExpiredError') {
+        return sendError(res, 'TOKEN_EXPIRED');
+      }
+      
+      if (jwtError.name === 'JsonWebTokenError') {
+        return sendError(res, 'INVALID_TOKEN', `JWT Error: ${jwtError.message}`);
+      }
+      
+      return sendError(res, 'INVALID_TOKEN', 'Token verification failed');
+    }
+    
+    if (!decoded || decoded.type !== 'access') {
+      logger.warn('Invalid token type:', { 
+        tokenType: decoded?.type,
+        expectedType: 'access',
+        decodedKeys: decoded ? Object.keys(decoded) : 'none'
+      });
       return sendError(res, 'INVALID_TOKEN', 'Invalid token type');
     }
 
@@ -1123,6 +1180,81 @@ router.post('/reset-password', authLimiter, async (req, res) => {
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
+/**
+ * @swagger
+ * /api/v1/auth/demo-login:
+ *   post:
+ *     summary: Demo login for testing (Development only)
+ *     description: Quick login endpoint for testing in Swagger UI
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: "hr@topcv.vn"
+ *               password:
+ *                 type: string
+ *                 example: "password123"
+ *     responses:
+ *       200:
+ *         description: Login successful with token
+ */
+router.post('/demo-login', authLimiter, async (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ success: false, message: 'Not found' });
+  }
+  
+  try {
+    const { email, password } = req.body;
+    
+    // Find user
+    const user = await userModel.findOne({ email, is_active: true });
+    if (!user || !user.password_hash) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+    
+    // Verify password
+    const isValid = await bcrypt.compare(password, user.password_hash);
+    if (!isValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+    
+    // Generate tokens
+    const tokens = generateTokens(user);
+    
+    res.json({
+      success: true,
+      message: 'Login successful',
+      data: {
+        user: {
+          user_id: user.user_id,
+          email: user.email,
+          full_name: user.full_name,
+          role: user.role
+        },
+        ...tokens
+      }
+    });
+  } catch (error) {
+    logger.error('Demo login failed:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Login failed'
+    });
+  }
+});
+
 // Validate token endpoint (for frontend to check if token is still valid)
 router.get('/validate-token', authenticateToken, (req, res) => {
   res.json({
