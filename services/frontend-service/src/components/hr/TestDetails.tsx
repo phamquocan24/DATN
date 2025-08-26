@@ -420,8 +420,9 @@ const TestDetails: React.FC = () => {
                         
                         <form onSubmit={handleAssignTest} className="p-6 space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Select Application *
+                                <label className="block text-sm font-medium mb-2">
+                                    <span className="text-black">Select Application</span>
+                                    <span className="text-red-500 ml-1">*</span>
                                 </label>
                                 <select
                                     value={assignForm.selectedApplication?.application_id || ''}
