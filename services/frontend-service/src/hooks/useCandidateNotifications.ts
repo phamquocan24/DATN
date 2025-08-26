@@ -15,6 +15,15 @@ export const useCandidateNotifications = (): UseCandidateNotificationsReturn => 
   const [error, setError] = useState<string | null>(null);
 
   const fetchUnreadCount = useCallback(async () => {
+    // Check if user is authenticated before making API calls
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setUnreadCount(0);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
@@ -57,6 +66,12 @@ export const useCandidateNotifications = (): UseCandidateNotificationsReturn => 
   }, [fetchUnreadCount]);
 
   const markAllAsRead = useCallback(async () => {
+    // Check if user is authenticated before making API calls
+    const token = localStorage.getItem('token');
+    if (!token) {
+      return;
+    }
+
     try {
       await candidateApi.markAllNotificationsAsRead();
       setUnreadCount(0);
@@ -72,11 +87,14 @@ export const useCandidateNotifications = (): UseCandidateNotificationsReturn => 
     fetchUnreadCount();
   }, [fetchUnreadCount]);
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 2 minutes (only when authenticated)
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchUnreadCount();
-    }, 30000); // 30 seconds
+      const token = localStorage.getItem('token');
+      if (token) {
+        fetchUnreadCount();
+      }
+    }, 120000); // 2 minutes
 
     return () => clearInterval(interval);
   }, [fetchUnreadCount]);

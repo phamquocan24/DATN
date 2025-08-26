@@ -147,7 +147,7 @@ export const candidateApi = {
   },
 
   withdrawApplication: async (applicationId: string, reason?: string) => {
-    const response = await apiClient.put(`/api/v1/applications/${applicationId}/withdraw`, { reason });
+    const response = await apiClient.post(`/api/v1/applications/${applicationId}/withdraw`, { reason });
     return response.data;
   },
 
@@ -158,9 +158,18 @@ export const candidateApi = {
   },
 
   // Company Information with error handling
-  getAllCompanies: async () => {
+  getAllCompanies: async (params?: {
+    search?: string;
+    industry?: string;
+    city_id?: string;
+    company_size?: string;
+    page?: number;
+    limit?: number;
+    order_by?: string;
+    direction?: string;
+  }) => {
     try {
-      const response = await apiClient.get('/companies');
+      const response = await apiClient.get('/api/v1/companies', { params });
       return response.data;
     } catch (error: any) {
       console.error('Failed to get companies:', error);
@@ -171,8 +180,13 @@ export const candidateApi = {
   },
 
   getCompanyById: async (companyId: string) => {
-    const response = await apiClient.get(`/companies/${companyId}`);
-    return response.data;
+    try {
+      const response = await apiClient.get(`/api/v1/companies/${companyId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Failed to get company by ID:', error);
+      throw error;
+    }
   },
 
   getCompanyJobs: async (companyId: string, params?: {

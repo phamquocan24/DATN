@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import JobDetail from './JobDetail';
+import ApplicationDetail from './ApplicationDetail';
 import DashboardSidebar from './DashboardSidebar';
 import candidateApi from '../../services/candidateApi';
 
@@ -87,7 +88,7 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
   const [activeTab, setActiveTab] = useState('applications');
   const [selectedStatusTab, setSelectedStatusTab] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
-  const [currentView, setCurrentView] = useState<'list' | 'detail'>('list');
+  const [currentView, setCurrentView] = useState<'list' | 'detail' | 'application-detail'>('list');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
   const [userProfile, setUserProfile] = useState<any>({});
@@ -99,10 +100,15 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
     total: 0,
     totalPages: 0
   });
+  
+  // Separate state for controlling the fetch trigger
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageLimit, setPageLimit] = useState(20);
 
   // Store selected application to access its status
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [withdrawingApplication, setWithdrawingApplication] = useState<string | null>(null);
+  const [showDropdown, setShowDropdown] = useState<string | null>(null);
 
   // Fetch user profile data
   useEffect(() => {
@@ -120,13 +126,27 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
     fetchUserProfile();
   }, []);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (showDropdown) {
+        setShowDropdown(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showDropdown]);
+
   useEffect(() => {
     const fetchApplications = async () => {
       setIsLoading(true);
       try {
         const response = await candidateApi.getMyApplications({
-          page: pagination.page,
-          limit: pagination.limit,
+          page: currentPage,
+          limit: pageLimit,
           status: selectedStatusTab !== 'all' ? selectedStatusTab.toUpperCase() as any : undefined,
           orderBy: 'created_at',
           direction: 'DESC'
@@ -173,7 +193,7 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
     };
 
     fetchApplications();
-  }, [pagination.page, pagination.limit, selectedStatusTab]);
+  }, [currentPage, pageLimit, selectedStatusTab]);
 
   // Convert Application to Job format for JobDetail
   const convertApplicationToJob = (application: Application): Job => {
@@ -215,8 +235,8 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
       
       // Refresh applications list
       const response = await candidateApi.getMyApplications({
-        page: pagination.page,
-        limit: pagination.limit,
+        page: currentPage,
+        limit: pageLimit,
         status: selectedStatusTab !== 'all' ? selectedStatusTab.toUpperCase() as any : undefined,
         orderBy: 'created_at',
         direction: 'DESC'
@@ -320,7 +340,12 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
 
       {/* Main Content */}
       <div className="flex-1 p-8">
-        {currentView === 'detail' && selectedJob ? (
+        {currentView === 'application-detail' && selectedApplication ? (
+          <ApplicationDetail
+            applicationId={selectedApplication.application_id}
+            onBack={handleBackToList}
+          />
+        ) : currentView === 'detail' && selectedJob ? (
           <JobDetail 
             job={selectedJob}
             onBack={handleBackToList}
@@ -390,7 +415,7 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
                       key={tab.id}
                       onClick={() => {
                         setSelectedStatusTab(tab.id);
-                        setPagination(prev => ({ ...prev, page: 1 })); // Reset to page 1 when changing status
+                        setCurrentPage(1); // Reset to page 1 when changing status
                       }}
                       className={`py-2 px-1 border-b-2 font-medium text-sm ${
                         selectedStatusTab === tab.id
@@ -484,30 +509,75 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          {(application.status === 'PENDING' || application.status === 'REVIEWING') && (
+                          <div className="relative">
                             <button 
-                              className="text-red-600 hover:text-red-800 mr-3"
+                              className="text-gray-400 hover:text-gray-600 p-2"
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent row click when clicking menu button
+                                setShowDropdown(showDropdown === application.id ? null : application.id);
+                              }}
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                              </svg>
+                            </button>
+                            
+                            {/* Dropdown Menu */}
+                            {showDropdown === application.id && (
+                              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10">
+                                <div className="py-1">
+                                  <button
+                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setCurrentView('application-detail');
+                                      setSelectedApplication(application);
+                                      setShowDropdown(null);
+                                    }}
+                                  >
+                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                    View Application Details
+                                  </button>
+                                  
+                                  <button
+                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleApplicationClick(application);
+                                      setShowDropdown(null);
+                                    }}
+                                  >
+                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2h8zM9 7h6v10H9V7z" />
+                                    </svg>
+                                    View Job Details
+                                  </button>
+                                  
+                                  {(application.status === 'PENDING' || application.status === 'REVIEWING') && (
+                                    <button
+                                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                        setShowDropdown(null);
                                 if (confirm('Are you sure you want to withdraw this application?')) {
                                   handleWithdrawApplication(application.id, 'Candidate withdrew application');
                                 }
                               }}
                               disabled={withdrawingApplication === application.id}
                             >
-                              {withdrawingApplication === application.id ? 'Withdrawing...' : 'Withdraw'}
+                                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                      {withdrawingApplication === application.id ? 'Withdrawing...' : 'Withdraw Application'}
                             </button>
                           )}
-                          <button 
-                            className="text-gray-400 hover:text-gray-600"
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent row click when clicking menu button
-                            }}
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                            </svg>
-                          </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -520,12 +590,12 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
                 <div className="px-6 py-3 border-t border-gray-200">
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-700">
-                      Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} applications
+                      Showing {((currentPage - 1) * pageLimit) + 1} to {Math.min(currentPage * pageLimit, pagination.total)} of {pagination.total} applications
                     </div>
                     <div className="flex items-center space-x-2">
                       <button 
-                        onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
-                        disabled={pagination.page <= 1}
+                        onClick={() => setCurrentPage(prev => prev - 1)}
+                        disabled={currentPage <= 1}
                         className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -535,11 +605,11 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
                       <div className="flex items-center space-x-1">
                         {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
                           const pageNum = i + 1;
-                          const isCurrentPage = pageNum === pagination.page;
+                          const isCurrentPage = pageNum === currentPage;
                           return (
                             <button
                               key={pageNum}
-                              onClick={() => setPagination(prev => ({ ...prev, page: pageNum }))}
+                              onClick={() => setCurrentPage(pageNum)}
                               className={`px-3 py-1 text-sm font-medium rounded ${
                                 isCurrentPage
                                   ? 'text-white bg-[#007BFF]'
@@ -554,9 +624,9 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
                           <>
                             <span className="px-2 text-sm text-gray-500">...</span>
                             <button
-                              onClick={() => setPagination(prev => ({ ...prev, page: pagination.totalPages }))}
+                              onClick={() => setCurrentPage(pagination.totalPages)}
                               className={`px-3 py-1 text-sm font-medium rounded ${
-                                pagination.page === pagination.totalPages
+                                currentPage === pagination.totalPages
                                   ? 'text-white bg-[#007BFF]'
                                   : 'text-gray-700 hover:text-gray-900'
                               }`}
@@ -567,8 +637,8 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
                         )}
                       </div>
                       <button 
-                        onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-                        disabled={pagination.page >= pagination.totalPages}
+                        onClick={() => setCurrentPage(prev => prev + 1)}
+                        disabled={currentPage >= pagination.totalPages}
                         className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -110,13 +110,22 @@ export const adminApi = {
   },
 
   // Company Management
-  getAllCompanies: async () => {
-    const response = await apiClient.get('/companies');
+  getAllCompanies: async (params?: {
+    search?: string;
+    industry?: string;
+    city_id?: string;
+    company_size?: string;
+    page?: number;
+    limit?: number;
+    order_by?: string;
+    direction?: string;
+  }) => {
+    const response = await apiClient.get('/api/v1/companies', { params });
     return response.data;
   },
 
   getCompanyById: async (companyId: string) => {
-    const response = await apiClient.get(`/companies/${companyId}`);
+    const response = await apiClient.get(`/api/v1/companies/${companyId}`);
     return response.data;
   },
 

@@ -5,22 +5,22 @@ import { getCompanyId } from './tokenUtils';
 export const hrApi = {
   // Company Management
   createCompany: async (companyData: any) => {
-    const response = await apiClient.post('/companies', companyData);
+    const response = await apiClient.post('/api/v1/companies', companyData);
     return response.data;
   },
 
   updateCompany: async (companyId: string, companyData: any) => {
-    const response = await apiClient.put(`/companies/${companyId}`, companyData);
+    const response = await apiClient.put(`/api/v1/companies/${companyId}`, companyData);
     return response.data;
   },
 
   getCompanyById: async (companyId: string) => {
-    const response = await apiClient.get(`/companies/${companyId}`);
+    const response = await apiClient.get(`/api/v1/companies/${companyId}`);
     return response.data;
   },
 
   getCompanyRecruiters: async (companyId: string) => {
-    const response = await apiClient.get(`/companies/${companyId}/recruiters`);
+    const response = await apiClient.get(`/api/v1/companies/${companyId}/recruiters`);
     return response.data;
   },
 

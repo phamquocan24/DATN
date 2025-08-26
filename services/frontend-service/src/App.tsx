@@ -22,7 +22,7 @@ import {
   Dashboard,
   MyApplications,
   TestManagement,
-
+  
   AgentAI,
   Settings,
   HelpCenter,
@@ -42,13 +42,14 @@ import {
   AdminHRDetail,
 } from './components/admin';
 import HrRoutes from './components/hr/HrRoutes';
+import { EndpointTester } from './components/candidate/EndpointTester';
 
 import './App.css';
 import api from './services/api';
 import authService from './services/authService';
 import firebaseService from './services/firebase';
 
-type CurrentPage = 'home' | 'find-jobs' | 'agent-ai' | 'favorite-jobs' | 'companies' | 'find-companies' | 'job-detail' | 'company-profile' | 'resume' | 'profile' | 'dashboard' | 'my-applications' | 'test-management' | 'settings' | 'help-center';
+type CurrentPage = 'home' | 'find-jobs' | 'agent-ai' | 'favorite-jobs' | 'companies' | 'find-companies' | 'job-detail' | 'company-profile' | 'resume' | 'profile' | 'dashboard' | 'my-applications' | 'test-management' | 'endpoint-tester' | 'settings' | 'help-center';
 
 const pageToPath: Record<CurrentPage, string> = {
   home: '/',
@@ -64,6 +65,7 @@ const pageToPath: Record<CurrentPage, string> = {
   dashboard: '/dashboard',
   'my-applications': '/my-applications',
   'test-management': '/test-management',
+  'endpoint-tester': '/endpoint-tester',
   settings: '/settings',
   'help-center': '/help-center',
 };
@@ -428,6 +430,8 @@ const MainContent = () => {
           onSettingsClick={() => handlePageChange('settings')}
           onHelpCenterClick={() => handlePageChange('help-center')}
         />;
+      case 'endpoint-tester':
+        return <EndpointTester />;
       case 'settings':
         return <Settings 
           onHomeClick={handleBackClick}
