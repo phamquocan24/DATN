@@ -22,12 +22,9 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
         questions: questions.map(q => ({
           question_text: q.question_text,
           question_type: q.question_type,
-                options: q.question_type === 'MULTIPLE_CHOICE' ? q.options.filter(opt => opt.trim() !== '') : [],
+          options: q.question_type === 'MULTIPLE_CHOICE' ? q.options.filter(opt => opt.trim() !== '') : [],
           correct_answer: q.correct_answer,
-                points: q.points,
-                time_limit_seconds: 120,
-                explanation: "",
-                required: true
+          points: q.points
         }))
       };
 

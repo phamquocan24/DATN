@@ -78,17 +78,12 @@ const EditTest: React.FC = () => {
             time_limit: Number(formData.time_limit),
             passing_score: Number(formData.passing_score),
             is_active: formData.is_active,
-            job_id: formData.job_id,
             questions: questions.map((q, index) => ({
-                question_id: q.question_id,
                 question_text: q.question_text,
                 question_type: q.question_type,
                 options: q.question_type === 'MULTIPLE_CHOICE' ? q.options : [],
                 correct_answer: q.correct_answer,
-                points: q.points,
-                time_limit_seconds: q.time_limit_seconds || 120,
-                explanation: q.explanation || '',
-                order_index: index + 1
+                points: q.points
             }))
         };
 
