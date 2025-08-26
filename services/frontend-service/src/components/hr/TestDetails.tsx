@@ -38,6 +38,7 @@ const TestDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const [test, setTest] = useState<TestDetails | null>(null);
     const [candidates, setCandidates] = useState<CandidateResult[]>([]);
+    const [applications, setApplications] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +46,8 @@ const TestDetails: React.FC = () => {
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [assignForm, setAssignForm] = useState({
         candidate_id: '',
-        application_id: ''
+        application_id: '',
+        selectedApplication: null as any
     });
 
     useEffect(() => {
@@ -87,7 +89,19 @@ const TestDetails: React.FC = () => {
         }
     };
 
-
+    const loadApplications = async () => {
+        try {
+            const response = await hrApi.getApplications({
+                page: 1,
+                limit: 100, // Get enough applications for dropdown
+                orderBy: 'submitted_at',
+                direction: 'DESC'
+            });
+            setApplications(response.data || []);
+        } catch (err) {
+            console.error('Error loading applications:', err);
+        }
+    };
 
     const handleAssignTest = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -98,33 +112,19 @@ const TestDetails: React.FC = () => {
             return;
         }
         
-        if (!assignForm.candidate_id || !assignForm.candidate_id.trim()) {
-            alert('Please select a candidate');
-            return;
-        }
-        
-        if (!assignForm.application_id || !assignForm.application_id.trim()) {
+        if (!assignForm.selectedApplication) {
             alert('Please select an application');
-            return;
-        }
-
-        // UUID validation
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-        if (!uuidRegex.test(assignForm.candidate_id)) {
-            alert('Invalid candidate ID format');
-            return;
-        }
-        
-        if (!uuidRegex.test(assignForm.application_id)) {
-            alert('Invalid application ID format');
             return;
         }
 
         try {
             setAssignLoading(true);
-            await testApi.assignTest(test.id, assignForm);
+            await testApi.assignTest(test.id, {
+                candidate_id: assignForm.selectedApplication.candidate_id,
+                application_id: assignForm.selectedApplication.application_id
+            });
             setShowAssignModal(false);
-            setAssignForm({ candidate_id: '', application_id: '' });
+            setAssignForm({ candidate_id: '', application_id: '', selectedApplication: null });
             loadTestResults(); // Reload test results
             alert('Test assigned successfully!');
         } catch (err: any) {
