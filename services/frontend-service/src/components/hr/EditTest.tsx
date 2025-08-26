@@ -26,6 +26,8 @@ const EditTest: React.FC = () => {
             
             // Handle response structure (could be response.data or direct response)
             const testData = response.data || response;
+            console.log('Test data test_description:', testData.test_description);
+            console.log('Test data description:', testData.description);
             
             setInitialData({
                 test_name: testData.test_name || '',

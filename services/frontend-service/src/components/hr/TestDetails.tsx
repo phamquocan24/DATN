@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiArrowLeft, FiEdit, FiUser, FiBarChart2, FiCheckCircle, FiClock, FiTrash2, FiUserPlus, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit, FiUser, FiBarChart2, FiCheckCircle, FiClock, FiUserPlus, FiX } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
 import testApi from '../../services/testApi';
 import { handleApiError } from '../../utils/errorHandler';
@@ -40,7 +40,7 @@ const TestDetails: React.FC = () => {
     const [candidates, setCandidates] = useState<CandidateResult[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [deleteLoading, setDeleteLoading] = useState(false);
+
     const [assignLoading, setAssignLoading] = useState(false);
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [assignForm, setAssignForm] = useState({
@@ -60,7 +60,10 @@ const TestDetails: React.FC = () => {
             setLoading(true);
             const response = await testApi.getTestById(id!, true); // Include answers for HR
             console.log('Test API Response:', response);
-            setTest(response.data || response);
+            const testData = response.data || response;
+            console.log('Test data time_limit:', testData.time_limit);
+            console.log('Test data duration_minutes:', testData.duration_minutes);
+            setTest(testData);
         } catch (err) {
             setError('Failed to load test details');
             console.error('Error loading test details:', err);
@@ -81,23 +84,7 @@ const TestDetails: React.FC = () => {
         }
     };
 
-    const handleDeleteTest = async () => {
-        if (!test || !window.confirm('Are you sure you want to delete this test? This action cannot be undone.')) {
-            return;
-        }
 
-        try {
-            setDeleteLoading(true);
-            const testId = test.test_id || test.id;
-            await testApi.deleteTest(testId);
-            navigate('/hr/test-management');
-        } catch (err) {
-            alert('Failed to delete test. You may not have permission to delete this test.');
-            console.error('Error deleting test:', err);
-        } finally {
-            setDeleteLoading(false);
-        }
-    };
 
     const handleAssignTest = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -223,7 +210,7 @@ const TestDetails: React.FC = () => {
                 <div className="flex items-center gap-2">
                     <button 
                         onClick={() => setShowAssignModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
+                        className="flex items-center gap-2 px-4 py-2 border border-green-600 text-green-600 rounded-lg text-sm font-medium hover:bg-green-50"
                     >
                         <FiUserPlus /> Assign Test
                     </button>
@@ -233,13 +220,7 @@ const TestDetails: React.FC = () => {
                     >
                         <FiEdit /> Edit Test
                     </button>
-                    <button 
-                        onClick={handleDeleteTest}
-                        disabled={deleteLoading}
-                        className="flex items-center gap-2 px-4 py-2 border border-red-500 text-red-500 rounded-lg text-sm font-medium hover:bg-red-50 disabled:opacity-50"
-                    >
-                        <FiTrash2 /> {deleteLoading ? 'Deleting...' : 'Delete'}
-                    </button>
+
                 </div>
             </div>
 
@@ -250,7 +231,7 @@ const TestDetails: React.FC = () => {
                         <FiClock className="w-5 h-5 text-gray-400" />
                         <div>
                             <p className="text-gray-500">Duration</p>
-                            <p className="font-semibold text-gray-800">{formatDuration(test.time_limit || test.duration_minutes || 0)}</p>
+                            <p className="font-semibold text-gray-800">{formatDuration(test.time_limit || test.duration_minutes || 60)}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -288,6 +269,68 @@ const TestDetails: React.FC = () => {
                     <h4 className="text-lg font-semibold mb-2 text-gray-700">Description</h4>
                     <p className="text-gray-600">{test.test_description || test.description || 'No description provided for this test.'}</p>
                 </div>
+            </div>
+
+            {/* Test Questions Section */}
+            <div className="bg-white p-6 rounded-lg border shadow-sm mt-8">
+                <h3 className="text-xl font-semibold mb-4 text-gray-700">Test Questions ({test.questions?.length || 0})</h3>
+                {test.questions && test.questions.length > 0 ? (
+                    <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 space-y-6 pr-2">
+                        {test.questions.map((question: any, index: number) => (
+                            <div key={question.question_id || index} className="border-l-4 border-blue-500 pl-4 py-2">
+                                <div className="flex justify-between items-start mb-2">
+                                    <h4 className="font-medium text-gray-800">
+                                        Question {index + 1} ({question.question_type}) - {question.points || 5} points
+                                    </h4>
+                                </div>
+                                <p className="text-gray-700 mb-3">{question.question_text}</p>
+                                
+                                {/* Multiple Choice Options */}
+                                {question.question_type === 'MULTIPLE_CHOICE' && question.options && (
+                                    <div className="ml-4">
+                                        <p className="text-sm font-medium text-gray-600 mb-2">Options:</p>
+                                        <div className="space-y-1">
+                                            {question.options.map((option: any, optIndex: number) => (
+                                                <div key={option.option_id || optIndex} className="flex items-center">
+                                                    <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs mr-2 ${
+                                                        option.is_correct 
+                                                        ? 'bg-green-100 border-green-500 text-green-700' 
+                                                        : 'bg-gray-100 border-gray-300 text-gray-600'
+                                                    }`}>
+                                                        {String.fromCharCode(65 + optIndex)}
+                                                    </span>
+                                                    <span className={option.is_correct ? 'font-medium text-green-700' : 'text-gray-700'}>
+                                                        {option.option_text}
+                                                    </span>
+                                                    {option.is_correct && (
+                                                        <span className="ml-2 text-green-600 text-sm">✓ Correct</span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Essay Questions */}
+                                {question.question_type === 'ESSAY' && (
+                                    <div className="ml-4">
+                                        <p className="text-sm text-gray-600 italic">Essay question - No predefined answer</p>
+                                    </div>
+                                )}
+
+                                {/* Show correct answer for non-multiple choice */}
+                                {question.question_type !== 'MULTIPLE_CHOICE' && question.correct_answer && (
+                                    <div className="ml-4 mt-2">
+                                        <p className="text-sm font-medium text-gray-600">Expected Answer:</p>
+                                        <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded">{question.correct_answer}</p>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-gray-500 text-center py-8">No questions have been added to this test yet.</p>
+                )}
             </div>
 
              <div className="mt-8">
