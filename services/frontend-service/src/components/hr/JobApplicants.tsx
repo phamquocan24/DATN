@@ -7,13 +7,45 @@ import hrApi from '../../services/hrApi';
 
 interface Applicant {
   id: number;
+  application_id?: string;
   fullName: string;
+  candidate_name?: string;
+  candidate_email?: string;
+  phone_number?: string;
   avatar: string;
   score: string;
+  match_score?: number;
   hiringStage: 'In-review' | 'Shortlisted' | 'Declined' | 'Hired' | 'Interviewed';
+  current_status?: string;
   appliedDate: string;
+  applied_at?: string;
   jobRole: string;
+  job_title?: string;
+  education_level?: string;
+  years_experience?: number;
+  location?: string;
+  resume_url?: string;
 }
+
+const mapStatusToHiringStage = (status: string): Applicant['hiringStage'] => {
+  switch (status?.toUpperCase()) {
+    case 'APPLIED':
+    case 'SCREENING':
+      return 'In-review';
+    case 'INTERVIEW':
+      return 'Shortlisted';
+    case 'REJECTED':
+    case 'WITHDRAWN':
+      return 'Declined';
+    case 'ASSESSMENT':
+      return 'Interviewed';
+    case 'HIRED':
+    case 'OFFER':
+      return 'Hired';
+    default:
+      return 'In-review';
+  }
+};
 
 const getHiringStageClass = (stage: Applicant['hiringStage']) => {
   switch (stage) {
@@ -45,6 +77,8 @@ const JobApplicants: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalApplicants, setTotalApplicants] = useState(0);
   const [jobTitle, setJobTitle] = useState('Loading...');
+  const [openDropdown, setOpenDropdown] = useState<number | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Fetch job details to get job title
   const fetchJobDetails = async () => {
@@ -71,8 +105,33 @@ const JobApplicants: React.FC = () => {
       });
       
       const data = response.data || response;
-      setApplicants(data.applications || data || []);
-      setTotalApplicants(data.total || data.length || 0);
+      const rawApplicants = data.applications || data || [];
+      
+      // Transform raw data to match our interface
+      const transformedApplicants = rawApplicants.map((app: any) => ({
+        id: app.application_id || app.id,
+        application_id: app.application_id,
+        fullName: app.candidate_name || app.full_name || 'Unknown',
+        candidate_name: app.candidate_name,
+        candidate_email: app.candidate_email || app.email,
+        phone_number: app.phone_number,
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(app.candidate_name || 'User')}&background=random`,
+        score: app.match_score ? `${app.match_score}%` : '0%',
+        match_score: app.match_score,
+        hiringStage: mapStatusToHiringStage(app.current_status || app.status),
+        current_status: app.current_status || app.status,
+        appliedDate: new Date(app.applied_at || app.created_at).toLocaleDateString(),
+        applied_at: app.applied_at || app.created_at,
+        jobRole: app.job_title || 'Position',
+        job_title: app.job_title,
+        education_level: app.education_level,
+        years_experience: app.years_experience,
+        location: app.location,
+        resume_url: app.resume_url
+      }));
+      
+      setApplicants(transformedApplicants);
+      setTotalApplicants(data.total || rawApplicants.length || 0);
       setTotalPages(data.totalPages || Math.ceil((data.total || 0) / applicantsPerPage));
       setError(null);
     } catch (err) {
@@ -116,6 +175,47 @@ const JobApplicants: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpenDropdown(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Handle accept/reject actions
+  const handleAcceptApplicant = async (applicantId: number) => {
+    try {
+      console.log('Accepting applicant:', applicantId);
+      // Use INTERVIEW status instead of shortlist since SHORTLISTED is not valid
+      await hrApi.updateApplicationStatus(applicantId.toString(), 'INTERVIEW', 'Candidate accepted for next stage');
+      
+      // Refresh applicants list
+      fetchApplicants();
+      setOpenDropdown(null);
+    } catch (error) {
+      console.error('Failed to accept applicant:', error);
+    }
+  };
+
+  const handleRejectApplicant = async (applicantId: number) => {
+    try {
+      console.log('Rejecting applicant:', applicantId);
+      // Call reject API
+      await hrApi.rejectCandidate(applicantId.toString(), 'Candidate rejected');
+      
+      // Refresh applicants list
+      fetchApplicants();
+      setOpenDropdown(null);
+    } catch (error) {
+      console.error('Failed to reject applicant:', error);
+    }
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'Applicants':
@@ -139,42 +239,98 @@ const JobApplicants: React.FC = () => {
               <thead>
                 <tr className="border-b border-gray-200 text-sm text-left">
                   <th className="px-4 py-3 font-bold text-black">Full Name <FiChevronDown className="inline-block ml-1" /></th>
+                  <th className="px-4 py-3 font-bold text-black">Contact <FiChevronDown className="inline-block ml-1" /></th>
+                  <th className="px-4 py-3 font-bold text-black">Experience <FiChevronDown className="inline-block ml-1" /></th>
                   <th className="px-4 py-3 font-bold text-black">Score <FiChevronDown className="inline-block ml-1" /></th>
                   <th className="px-4 py-3 font-bold text-black">Hiring Stage <FiChevronDown className="inline-block ml-1" /></th>
                   <th className="px-4 py-3 font-bold text-black">Applied Date <FiChevronDown className="inline-block ml-1" /></th>
-                  <th className="px-4 py-3 font-bold text-black">Job Role <FiChevronDown className="inline-block ml-1" /></th>
                   <th className="px-4 py-3 font-bold text-black">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan={6} className="text-center p-4">Loading applicants...</td></tr>
+                  <tr><td colSpan={7} className="text-center p-4">Loading applicants...</td></tr>
                 ) : error ? (
-                  <tr><td colSpan={6} className="text-center p-4 text-red-500">{error}</td></tr>
+                  <tr><td colSpan={7} className="text-center p-4 text-red-500">{error}</td></tr>
                 ) : applicants.map((applicant) => (
                   <tr key={applicant.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => navigate(`/hr/job-applications/${applicant.id}`)}>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-3">
                         <img src={applicant.avatar} alt={applicant.fullName} className="w-8 h-8 rounded-full" />
-                        <span className="font-medium text-gray-800">{applicant.fullName}</span>
+                        <div>
+                          <span className="font-medium text-gray-800 block">{applicant.fullName}</span>
+                          {applicant.location && (
+                            <span className="text-xs text-gray-500">{applicant.location}</span>
+                          )}
+                        </div>
                       </div>
                     </td>
-                    <td className="px-6 py-2 text-gray-700 text-left">{applicant.score}</td>
+                    <td className="px-4 py-2 text-left">
+                      <div className="text-sm">
+                        {applicant.candidate_email && (
+                          <div className="text-gray-700">{applicant.candidate_email}</div>
+                        )}
+                        {applicant.phone_number && (
+                          <div className="text-gray-500 text-xs">{applicant.phone_number}</div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2 text-left">
+                      <div className="text-sm">
+                        {applicant.years_experience && (
+                          <div className="text-gray-700">{applicant.years_experience} years</div>
+                        )}
+                        {applicant.education_level && (
+                          <div className="text-gray-500 text-xs">{applicant.education_level}</div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2 text-gray-700 text-left">{applicant.score}</td>
                     <td className="px-4 py-2 text-left">
                       <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getHiringStageClass(applicant.hiringStage)}`}>
                         {applicant.hiringStage}
                       </span>
                     </td>
-                    <td className="px-6 py-2 text-gray-700 text-left">{applicant.appliedDate}</td>
-                    <td className="px-4 py-2 text-gray-700 text-left">{applicant.jobRole}</td>
+                    <td className="px-4 py-2 text-gray-700 text-left">{applicant.appliedDate}</td>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-2">
                         <button className="px-3 py-1 text-sm border border-blue-500 text-blue-500 rounded-md hover:bg-blue-50" onClick={(e) => {e.stopPropagation(); navigate(`/hr/job-applications/${applicant.id}`)}}>
                           See Application
                         </button>
-                        <button className="p-1.5 text-gray-500 hover:bg-gray-200 rounded-md" onClick={(e) => e.stopPropagation()}>
-                          <FiMoreHorizontal />
-                        </button>
+                        <div className="relative" ref={openDropdown === applicant.id ? dropdownRef : undefined}>
+                          <button 
+                            className="p-1.5 text-gray-500 hover:bg-gray-200 rounded-md transform rotate-90" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenDropdown(openDropdown === applicant.id ? null : applicant.id);
+                            }}
+                          >
+                            <FiMoreHorizontal />
+                          </button>
+                          
+                          {openDropdown === applicant.id && (
+                            <div className="absolute right-0 top-full mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAcceptApplicant(applicant.id);
+                                }}
+                                className="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 rounded-t-lg"
+                              >
+                                Accept
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRejectApplicant(applicant.id);
+                                }}
+                                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-lg"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>

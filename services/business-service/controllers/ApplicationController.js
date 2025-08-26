@@ -30,22 +30,22 @@ const createApplicationSchema = Joi.object({
 });
 
 const updateApplicationStatusSchema = Joi.object({
-  current_status: Joi.string().valid('SUBMITTED', 'REVIEWING', 'SHORTLISTED', 'INTERVIEWED', 'OFFERED', 'HIRED', 'REJECTED', 'WITHDRAWN').required(),
+  current_status: Joi.string().valid('APPLIED', 'SCREENING', 'INTERVIEW', 'ASSESSMENT', 'OFFER', 'HIRED', 'REJECTED', 'WITHDRAWN').required(),
   reason: Joi.string().max(1000).optional(),
   scheduled_date: Joi.date().optional()
 });
 
 const bulkUpdateSchema = Joi.object({
   application_ids: Joi.array().items(Joi.string().uuid()).min(1).max(100).required(),
-  current_status: Joi.string().valid('SUBMITTED', 'REVIEWING', 'SHORTLISTED', 'INTERVIEWED', 'OFFERED', 'HIRED', 'REJECTED', 'WITHDRAWN').required(),
+  current_status: Joi.string().valid('APPLIED', 'SCREENING', 'INTERVIEW', 'ASSESSMENT', 'OFFER', 'HIRED', 'REJECTED', 'WITHDRAWN').required(),
   reason: Joi.string().max(1000).optional()
 });
 
 const searchApplicationsSchema = Joi.object({
   job_id: Joi.string().uuid().optional(),
   current_status: Joi.alternatives().try(
-    Joi.string().valid('SUBMITTED', 'REVIEWING', 'SHORTLISTED', 'INTERVIEWED', 'OFFERED', 'HIRED', 'REJECTED', 'WITHDRAWN'),
-    Joi.array().items(Joi.string().valid('SUBMITTED', 'REVIEWING', 'SHORTLISTED', 'INTERVIEWED', 'OFFERED', 'HIRED', 'REJECTED', 'WITHDRAWN'))
+    Joi.string().valid('APPLIED', 'SCREENING', 'INTERVIEW', 'ASSESSMENT', 'OFFER', 'HIRED', 'REJECTED', 'WITHDRAWN'),
+    Joi.array().items(Joi.string().valid('APPLIED', 'SCREENING', 'INTERVIEW', 'ASSESSMENT', 'OFFER', 'HIRED', 'REJECTED', 'WITHDRAWN'))
   ).optional(),
   search: Joi.string().optional(),
   date_from: Joi.date().optional(),
@@ -618,12 +618,11 @@ class ApplicationController {
         });
       }
 
-      const updatedApplication = await this.applicationModel.updateApplicationStatus(
+      const updatedApplication = await this.applicationModel.updateStatus(
         id,
-        value.status,
+        value.current_status,
         req.user.user_id,
-        value.reason,
-        value.scheduled_date
+        value.reason
       );
 
       logger.info('Application status updated successfully', {
@@ -1387,9 +1386,9 @@ class ApplicationController {
       const { id } = req.params;
       const { reason } = req.body;
 
-      const application = await this.applicationModel.updateApplicationStatus(
+      const application = await this.applicationModel.updateStatus(
         id,
-        'SHORTLISTED',
+        'INTERVIEW',
         req.user.user_id,
         reason || 'Candidate shortlisted for further review'
       );
@@ -1503,7 +1502,7 @@ class ApplicationController {
         });
       }
 
-      const application = await this.applicationModel.updateApplicationStatus(
+      const application = await this.applicationModel.updateStatus(
         id,
         'REJECTED',
         req.user.user_id,

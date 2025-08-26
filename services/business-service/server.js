@@ -96,6 +96,8 @@ const cspDirectives = {
   scriptSrc: ["'self'", "'unsafe-inline'"],
   imgSrc: ["'self'", "data:", "https:"],
   connectSrc: ["'self'", "http://localhost:*", "https://localhost:*", "ws://localhost:*"],
+  frameSrc: ["'self'", "data:", "http://localhost:*", "https://localhost:*"],
+  frameAncestors: ["'self'", "http://localhost:*", "https://localhost:*"]
 };
 
 // In development, be more permissive for Swagger UI

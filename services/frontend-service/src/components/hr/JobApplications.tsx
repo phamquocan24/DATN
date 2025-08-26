@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiSearch, FiMoreHorizontal, FiChevronDown } from 'react-icons/fi';
+import { FiSearch, FiMoreVertical, FiChevronDown, FiCheck, FiX } from 'react-icons/fi';
 import hrApi from '../../services/hrApi';
 
 interface Applicant {
@@ -18,6 +18,12 @@ interface Applicant {
   match_score: number;
   submitted_at: string;
   job_title: string;
+  // CV fields for PDF preview
+  cv_file_path?: string;
+  cv_file_name?: string;
+  file_path?: string;
+  file_name?: string;
+  resume_url?: string;
 }
 
 const JobApplications = () => {
@@ -28,6 +34,8 @@ const JobApplications = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [totalCount, setTotalCount] = useState(0);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [currentPage, setCurrentPage] = useState(1);
   
   const [applicantsPerPage, setApplicantsPerPage] = useState(10);
@@ -66,7 +74,13 @@ const JobApplications = () => {
           current_status: app.current_status,
           match_score: app.match_score,
           submitted_at: app.submitted_at,
-          job_title: app.job_title
+          job_title: app.job_title,
+          // CV fields from candidate_cvs table
+          cv_file_path: app.file_path,
+          cv_file_name: app.file_name || app.cv_name,
+          file_path: app.file_path,
+          file_name: app.file_name,
+          resume_url: app.resume_url || app.file_path
         }));
         
         setApplicants(transformedApplicants);
@@ -86,6 +100,9 @@ const JobApplications = () => {
     const handleClickOutside = (event: MouseEvent) => {
       if (pageSelectRef.current && !pageSelectRef.current.contains(event.target as Node)) {
         setIsPageSelectOpen(false);
+      }
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpenDropdown(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -111,6 +128,37 @@ const JobApplications = () => {
 
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
+
+  // Handle accept/reject actions
+  const handleAcceptApplicant = async (applicationId: string) => {
+    try {
+      console.log('Accepting applicant:', applicationId);
+      // Use shortlistCandidate API which now correctly maps to INTERVIEW status in database
+      await hrApi.shortlistCandidate(applicationId, 'Candidate accepted for next stage');
+      
+      // Refresh applicants list
+      fetchApplications();
+      setOpenDropdown(null);
+    } catch (error) {
+      console.error('Failed to accept applicant:', error);
+      alert('Failed to accept candidate. Please try again.');
+    }
+  };
+
+  const handleRejectApplicant = async (applicationId: string) => {
+    try {
+      console.log('Rejecting applicant:', applicationId);
+      // Call reject API
+      await hrApi.rejectCandidate(applicationId, 'Candidate rejected');
+      
+      // Refresh applicants list
+      fetchApplications();
+      setOpenDropdown(null);
+    } catch (error) {
+      console.error('Failed to reject applicant:', error);
+      alert('Failed to reject candidate. Please try again.');
+    }
+  };
 
   // Calculate total pages
   const totalPages = Math.ceil(totalCount / applicantsPerPage);
@@ -252,9 +300,39 @@ const JobApplications = () => {
                       >
                         See Application
                       </button>
-                      <button className="p-1.5 text-gray-500 hover:bg-gray-200 rounded-md" onClick={(e) => e.stopPropagation()}>
-                        <FiMoreHorizontal />
-                      </button>
+                      <div className="relative" ref={openDropdown === applicant.application_id ? dropdownRef : undefined}>
+                        <button 
+                          className="p-1.5 text-gray-500 hover:bg-gray-200 rounded-md" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenDropdown(openDropdown === applicant.application_id ? null : applicant.application_id);
+                          }}
+                        >
+                          <FiMoreVertical />
+                        </button>
+                        {openDropdown === applicant.application_id && (
+                          <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAcceptApplicant(applicant.application_id);
+                              }}
+                              className="w-full px-4 py-2 text-left text-green-600 hover:bg-green-50 flex items-center gap-2 rounded-t-lg"
+                            >
+                              <FiCheck /> Accept Candidate
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRejectApplicant(applicant.application_id);
+                              }}
+                              className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2 rounded-b-lg"
+                            >
+                              <FiX /> Reject Candidate
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </td>
                 </tr>

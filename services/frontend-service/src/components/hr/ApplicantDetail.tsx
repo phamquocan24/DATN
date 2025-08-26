@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiEdit, FiMessageSquare, FiCheck, FiX, FiMoreHorizontal, FiPlus, FiChevronDown } from 'react-icons/fi';
+import { FiArrowLeft, FiCheck, FiX, FiPlus, FiChevronDown, FiMoreVertical } from 'react-icons/fi';
 import { FaInstagram } from 'react-icons/fa';
 import { BiWorld } from 'react-icons/bi';
 import DashboardSidebar from './DashboardSidebar';
@@ -17,6 +17,9 @@ interface CandidateDetails {
   experience: string[];
   skills: string[];
   resumeUrl: string;
+  cv_file_url?: string;
+  cv_file_name?: string;
+  cv_file_type?: string;
   gender: string;
   dateOfBirth: string;
   languages: string[];
@@ -53,8 +56,9 @@ const ApplicantDetail: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'profile' | 'resume' | 'progress' | 'schedule'>('profile');
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
-  const [relatedApplications, setRelatedApplications] = useState<any[]>([]);
-  const [loadingRelated, setLoadingRelated] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const [rejectionReason, setRejectionReason] = useState('');
   
   // API state management
@@ -98,8 +102,8 @@ const ApplicantDetail: React.FC = () => {
         // First try the direct API
         response = await hrApi.getApplicationById(id, true);
         console.log('Direct API Response:', response);
-        
-        if (response.success && response.data) {
+      
+      if (response.success && response.data) {
           apiData = response.data;
         } else {
           throw new Error('Direct API failed');
@@ -159,7 +163,10 @@ const ApplicantDetail: React.FC = () => {
           education: apiData.education || 'No education information',
           experience: apiData.experience ? [apiData.experience] : [],
           skills: apiData.skills || [],
-          resumeUrl: apiData.resume_url || '',
+          resumeUrl: apiData.resume_url || apiData.file_path || '',
+          cv_file_url: apiData.resume_url || apiData.file_path || '',
+          cv_file_name: apiData.file_name || apiData.cv_name || '',
+          cv_file_type: 'pdf', // Default to PDF as most CVs are PDFs
           gender: apiData.gender || '',
           dateOfBirth: apiData.date_of_birth || '',
           languages: apiData.languages || [],
@@ -193,10 +200,6 @@ const ApplicantDetail: React.FC = () => {
         
         setCandidateDetails(transformedData);
         
-        // Fetch related applications for the same job
-        if (apiData.job_id) {
-          fetchRelatedApplications(apiData.job_id);
-        }
       } else {
         setError('Failed to load application details');
       }
@@ -219,30 +222,26 @@ const ApplicantDetail: React.FC = () => {
     }
   };
 
-  // Fetch related applications for the same job
-  const fetchRelatedApplications = async (jobId: string) => {
-    try {
-      setLoadingRelated(true);
-      const response = await hrApi.getApplicationsByJobId(jobId, {
-        limit: 10,
-        page: 1
-      });
-      
-      const applicationsData = response.data || response || [];
-      // Filter out current application
-      const filtered = applicationsData.filter((app: any) => app.application_id !== id);
-      setRelatedApplications(filtered);
-    } catch (err: any) {
-      console.error('Error fetching related applications:', err);
-    } finally {
-      setLoadingRelated(false);
-    }
-  };
+
 
   // Fetch data on component mount
   useEffect(() => {
     fetchApplicationDetails();
   }, [id]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
 
 
@@ -263,10 +262,170 @@ const ApplicantDetail: React.FC = () => {
     }
   };
 
+  const renderPDFPreviewTab = () => {
+    if (!candidateDetails) return null;
+
+    // Debug log to see what data we have
+    console.log('PDF Preview Data:', {
+      cv_file_url: candidateDetails.cv_file_url,
+      resumeUrl: candidateDetails.resumeUrl,
+      cv_file_name: candidateDetails.cv_file_name,
+      cv_file_type: candidateDetails.cv_file_type
+    });
+
+    // Check all possible sources for file data
+    const hasFileUrl = candidateDetails.cv_file_url || candidateDetails.resumeUrl;
+    
+    if (!hasFileUrl) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="bg-gray-100 rounded-full p-4 mb-4">
+            <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No PDF File Available</h3>
+          <p className="text-gray-500 mb-2">The CV file has not been uploaded or is not accessible.</p>
+          <p className="text-xs text-gray-400">Please ask the candidate to re-upload their CV.</p>
+        </div>
+      );
+    }
+
+    // Get file URL and info
+    let fileUrl = candidateDetails.cv_file_url || candidateDetails.resumeUrl;
+    const fileName = candidateDetails.cv_file_name || 'CV.pdf';
+    const fileType = candidateDetails.cv_file_type || 'pdf';
+    
+    console.log('Raw file data:', {
+      cv_file_url: candidateDetails.cv_file_url,
+      resumeUrl: candidateDetails.resumeUrl,
+      fileName,
+      fileType
+    });
+    
+    // Handle different file URL formats
+    if (fileUrl) {
+      // If it's already a data URL (base64), use as is
+      if (fileUrl.startsWith('data:')) {
+        // Already a data URL, use directly
+      }
+      // If it's a full HTTP URL, use as is
+      else if (fileUrl.startsWith('http')) {
+        // Already absolute URL, use directly
+      }
+      // If it's base64 data without data URL prefix, add it
+      else if (fileUrl.length > 100 && !fileUrl.includes('/')) {
+        // Likely base64 data without prefix
+        fileUrl = `data:application/pdf;base64,${fileUrl}`;
+      }
+      // If it's a relative path, make it absolute
+      else {
+        fileUrl = `http://localhost:5001${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+      }
+    }
+    
+    // Check if it's a PDF file
+    const isPdf = fileType === 'pdf' || 
+                  fileType.includes('pdf') || 
+                  fileName.toLowerCase().endsWith('.pdf') ||
+                  fileUrl.includes('pdf');
+    
+    if (isPdf) {
+      return (
+        <div className="h-full">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900">PDF Preview</h3>
+            <div className="flex items-center space-x-2">
+              {fileName && (
+                <span className="text-sm text-gray-500">{fileName}</span>
+              )}
+              {fileUrl && (
+                <a 
+                  href={fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 text-sm"
+                >
+                  Open in new tab
+                </a>
+              )}
+            </div>
+          </div>
+          <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50" style={{ height: '500px' }}>
+            {fileUrl ? (
+              <div className="relative w-full h-full">
+                <iframe
+                  src={fileUrl.startsWith('data:') ? fileUrl : `${fileUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+                  className="w-full h-full"
+                  title="CV Preview"
+                  style={{ minHeight: '500px' }}
+                  onLoad={() => console.log('PDF loaded successfully')}
+                  onError={(e) => {
+                    console.error('PDF loading error:', e);
+                    // Show fallback download option
+                    const iframe = e.target as HTMLIFrameElement;
+                    if (iframe.parentElement) {
+                      iframe.parentElement.innerHTML = `
+                        <div class="flex flex-col items-center justify-center h-full p-8 text-center">
+                          <svg class="w-16 h-16 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                          </svg>
+                          <h3 class="text-lg font-medium text-gray-900 mb-2">Cannot preview PDF</h3>
+                          <p class="text-gray-500 mb-4">The PDF file cannot be displayed in the browser.</p>
+                          <a href="${fileUrl}" download="${fileName}" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                            Download CV
+                          </a>
+                        </div>
+                      `;
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <p className="text-gray-500">Unable to load PDF preview</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    } else {
+      // Non-PDF file
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="bg-blue-100 rounded-full p-4 mb-4">
+            <svg className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Document Available</h3>
+          <p className="text-gray-500 mb-4">
+            File: {fileName} ({fileType?.toUpperCase() || 'DOC'})
+          </p>
+          {fileUrl && (
+            <a 
+              href={fileUrl}
+              download={fileName}
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Download File
+            </a>
+          )}
+        </div>
+      );
+    }
+  };
+
   const handleAcceptCandidate = async () => {
     if (!candidateDetails?.application_id) return;
     
     try {
+      // Use shortlistCandidate API which now correctly maps to INTERVIEW status in database
       await hrApi.shortlistCandidate(candidateDetails.application_id, 'Candidate approved for next stage');
       // Refresh data to show updated status
       fetchApplicationDetails();
@@ -293,18 +452,36 @@ const ApplicantDetail: React.FC = () => {
                 <h1 className="text-2xl font-normal text-gray-800">Applicant Details</h1>
               </div>
               <div className="flex justify-end gap-4">
-                <button
-                  onClick={() => setIsRejectModalOpen(true)}
-                  className="bg-white border border-red-500 text-red-500 px-4 py-1 rounded-lg image.png flex items-center gap-2 hover:bg-red-50"
-                >
-                  <FiX /> Reject
-                </button>
-                <button 
-                  onClick={handleAcceptCandidate}
-                  className="bg-white border border-green-500 text-green-500 px-4 py-1 rounded-lg flex items-center gap-2 hover:bg-green-50"
-                >
-                  <FiCheck /> Accept
-                </button>
+                <div className="relative" ref={dropdownRef}>
+                  <button 
+                    className="p-2 text-gray-500 hover:bg-gray-200 rounded-md"
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  >
+                    <FiMoreVertical size={20} />
+                  </button>
+                  {isDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                      <button
+                        onClick={() => {
+                          handleAcceptCandidate();
+                          setIsDropdownOpen(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-green-600 hover:bg-green-50 flex items-center gap-2 rounded-t-lg"
+                      >
+                        <FiCheck /> Accept Candidate
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsRejectModalOpen(true);
+                          setIsDropdownOpen(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2 rounded-b-lg"
+                      >
+                        <FiX /> Reject Candidate
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -371,22 +548,16 @@ const ApplicantDetail: React.FC = () => {
                       };
                       const progress = getStageProgress(candidateDetails.current_status || 'SUBMITTED');
                       return (
-                        <div
-                          key={idx}
+                      <div
+                        key={idx}
                           className={`flex-1 h-2 rounded-full ${idx < progress ? 'bg-[#007BFF]' : 'bg-gray-200'}`}
-                        />
+                      />
                       );
                     })}
                   </div>
                 </div>
 
-                {/* Schedule Interview */}
-                <div className="flex gap-2">
-                  <button className="flex-1 px-4 py-2 text-[#007BFF] border border-[#007BFF] rounded-lg text-sm font-semibold hover:bg-blue-50">Schedule Interview</button>
-                  <button className="p-2 border border-[#007BFF] rounded-lg hover:bg-blue-50">
-                    <FiMessageSquare className="h-5 w-5 text-[#007BFF]" />
-                  </button>
-                </div>
+
 
                 {/* Contact */}
                 <div className="mt-8 border-t border-gray-200 pt-6">
@@ -541,79 +712,7 @@ const ApplicantDetail: React.FC = () => {
 
                 {activeTab === 'resume' && (
                   <div className="p-6 bg-white rounded-lg shadow-md text-left border border-gray-300">
-                    {candidateDetails.resumeUrl ? (
-                      // If resume URL exists, show iframe or download link
-                      <div className="w-full h-96 border border-gray-200 rounded-lg overflow-hidden">
-                        <iframe 
-                          src={candidateDetails.resumeUrl} 
-                          className="w-full h-full"
-                          title="Resume"
-                        />
-                      </div>
-                    ) : (
-                      // Show parsed candidate information
-                      <div className="grid grid-cols-3 gap-8">
-                        {/* Left Column */}
-                        <div className="col-span-2">
-                          <h2 className="text-4xl font-bold">{candidateDetails.fullName}</h2>
-                          <p className="text-xl text-gray-600 mb-6">{candidateDetails.currentJob.title}</p>
-
-                          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Experience</h3>
-                          <div className="space-y-6">
-                            {candidateDetails.experience.length > 0 ? (
-                              candidateDetails.experience.map((exp, index) => (
-                                <div key={index}>
-                                  <p className="font-semibold">{exp}</p>
-                                  <p className="text-gray-600">{candidateDetails.currentJob.years} experience</p>
-                                </div>
-                              ))
-                            ) : (
-                              <div>
-                                <p className="font-semibold">{candidateDetails.currentJob.title}</p>
-                                <p className="text-gray-600">{candidateDetails.currentJob.years} experience</p>
-                                <p className="mt-2">{candidateDetails.professionalInfo.experience}</p>
-                              </div>
-                            )}
-                          </div>
-                          
-                          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-8 mb-4">Education</h3>
-                          <div className="space-y-4">
-                            <div>
-                              <p className="font-semibold">{candidateDetails.education || 'Education not specified'}</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Right Column */}
-                        <div>
-                          <img src={candidateDetails.avatar} alt={candidateDetails.fullName} className="w-24 h-24 rounded-full mb-4" />
-                          <div>
-                            <p>{candidateDetails.email}</p>
-                            <p>{candidateDetails.phone}</p>
-                            <p>{candidateDetails.address || 'Address not provided'}</p>
-                          </div>
-                          <div className="mt-6">
-                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Skills</h3>
-                            {candidateDetails.skills.length > 0 ? (
-                              candidateDetails.skills.map((skill, index) => (
-                                <p key={index}>{skill}</p>
-                              ))
-                            ) : (
-                              <p>No skills listed</p>
-                            )}
-
-                            {candidateDetails.languages.length > 0 && (
-                              <>
-                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-6 mb-4">Languages</h3>
-                                {candidateDetails.languages.map((lang, index) => (
-                                  <p key={index}>{lang}</p>
-                                ))}
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    {renderPDFPreviewTab()}
                   </div>
                 )}
 
@@ -627,10 +726,26 @@ const ApplicantDetail: React.FC = () => {
                     </div>
                     
                     <div className="flex items-center bg-gray-100 rounded-full p-1">
-                      {['SUBMITTED', 'REVIEWING', 'SHORTLISTED', 'INTERVIEWED', 'HIRED'].map((stage, index) => {
-                        const isActive = candidateDetails.current_status === stage;
-                        const isPassed = ['SUBMITTED', 'REVIEWING', 'SHORTLISTED', 'INTERVIEWED', 'HIRED'].indexOf(candidateDetails.current_status || 'SUBMITTED') > index;
-                        const stageLabels = ['Applied', 'In-Review', 'Shortlisted', 'Interview', 'Hired'];
+                      {['APPLIED', 'SCREENING', 'INTERVIEW', 'ASSESSMENT', 'HIRED'].map((stage, index) => {
+                        const currentStatus = candidateDetails.current_status?.toUpperCase() || 'APPLIED';
+                        const statusMapping: {[key: string]: string} = {
+                          'APPLIED': 'APPLIED',
+                          'PENDING': 'APPLIED',
+                          'SUBMITTED': 'APPLIED',
+                          'REVIEWING': 'SCREENING',
+                          'SCREENING': 'SCREENING', 
+                          'SHORTLISTED': 'INTERVIEW',
+                          'INTERVIEW': 'INTERVIEW',
+                          'INTERVIEWED': 'INTERVIEW',
+                          'ASSESSMENT': 'ASSESSMENT',
+                          'OFFER': 'HIRED',
+                          'OFFERED': 'HIRED',
+                          'HIRED': 'HIRED'
+                        };
+                        const mappedStatus = statusMapping[currentStatus] || currentStatus;
+                        const isActive = mappedStatus === stage;
+                        const isPassed = ['APPLIED', 'SCREENING', 'INTERVIEW', 'ASSESSMENT', 'HIRED'].indexOf(mappedStatus) > index;
+                        const stageLabels = ['Applied', 'Screening', 'Interview', 'Assessment', 'Hired'];
                         
                         return (
                           <div 
@@ -647,7 +762,7 @@ const ApplicantDetail: React.FC = () => {
                             }}
                           >
                             {stageLabels[index]}
-                          </div>
+                      </div>
                         );
                       })}
                     </div>
@@ -685,13 +800,7 @@ const ApplicantDetail: React.FC = () => {
                         </div>
                       </div>
                       <div className="text-left mt-6">
-                        <button 
-                          onClick={() => setIsScheduleModalOpen(true)}
-                          className="border px-4 py-2 rounded-md hover:bg-gray-50 text-sm font-semibold mr-4" 
-                          style={{ borderColor: '#007BFF', color: '#007BFF' }}
-                        >
-                          Schedule Interview
-                        </button>
+
                         <button 
                           onClick={handleAcceptCandidate}
                           className="border px-4 py-2 rounded-md hover:bg-green-50 text-sm font-semibold mr-4 border-green-500 text-green-600"
@@ -708,32 +817,8 @@ const ApplicantDetail: React.FC = () => {
                           <FiPlus className="mr-1" /> Add Notes
                         </button>
                       </div>
-                      <div className="space-y-4 text-left">
-                        <div className="p-4 border rounded-md">
-                          <div className="flex items-start">
-                            <img src="https://i.pravatar.cc/50?u=maria" alt="Maria Kelly" className="w-10 h-10 rounded-full mr-4" />
-                            <div className="flex-1">
-                              <div className="flex justify-between items-center">
-                                <p className="font-semibold">Maria Kelly</p>
-                                <p className="text-xs text-gray-500">10 July, 2021 • 11:30 AM</p>
-                              </div>
-                              <p className="text-sm mt-1">Please, do an interview stage immediately. The design division needs more new employee now</p>
-                              <button className="text-sm font-semibold mt-2" style={{ color: '#007BFF' }}>2 Replies</button>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="p-4 border rounded-md">
-                          <div className="flex items-start">
-                            <img src="https://i.pravatar.cc/50?u=maria" alt="Maria Kelly" className="w-10 h-10 rounded-full mr-4" />
-                            <div className="flex-1">
-                              <div className="flex justify-between items-center">
-                                <p className="font-semibold">Maria Kelly</p>
-                                <p className="text-xs text-gray-500">10 July, 2021 • 10:30 AM</p>
-                              </div>
-                              <p className="text-sm mt-1">Please, do an interview stage immediately.</p>
-                            </div>
-                          </div>
-                        </div>
+                      <div className="text-center py-8 text-gray-500">
+                        <p>No notes available for this application.</p>
                       </div>
                     </div>
                   </div>
@@ -743,89 +828,15 @@ const ApplicantDetail: React.FC = () => {
                   <div className="bg-white p-6 rounded-lg shadow-md border border-gray-300">
                     <div className="flex justify-between items-center mb-4 text-left">
                       <h3 className="text-lg font-semibold">Interview List</h3>
-                      <button className="flex items-center gap-2 px-4 py-2 bg-[#007BFF] text-white rounded-lg"><FiPlus /> Add Schedule Interview</button>
+                      <button 
+                        onClick={() => setIsScheduleModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-[#007BFF] text-white rounded-lg hover:bg-blue-600"
+                      >
+                        <FiPlus /> Add Schedule Interview
+                      </button>
                     </div>
-                    <div className="space-y-4 text-left">
-                      <div>
-                        <p className="text-sm font-semibold text-gray-500 mb-2">Tomorrow - 10 July, 2021</p>
-                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                          <div className="flex items-center gap-4">
-                            <img src="https://i.pravatar.cc/48?u=d" className="w-12 h-12 rounded-full"/>
-                            <div>
-                              <p className="font-bold">Kathryn Murphy</p>
-                              <p className="text-sm text-gray-500">Written Test</p>
-                            </div>
-                          </div>
-                          <div>
-                            <p className="text-sm">10:00 AM - 11:30 AM</p>
-                            <p className="text-sm text-gray-500">Silver Crysta Room, Nomad</p>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <button className="flex items-center gap-2 px-3 py-1.5 border border-[#007BFF] text-[#007BFF] font-semibold rounded-lg text-sm"><FiEdit /> Add Feedback</button>
-                            <button><FiMoreHorizontal /></button>
-                          </div>
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-500 mb-2">11 July, 2021</p>
-                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                          <div className="flex items-center gap-4">
-                            <img src="https://i.pravatar.cc/48?u=e" className="w-12 h-12 rounded-full"/>
-                            <div>
-                              <p className="font-bold">Jenny Wilson</p>
-                              <p className="text-sm text-gray-500">Written Test 2</p>
-                            </div>
-                          </div>
-                          <div>
-                            <p className="text-sm">10:00 AM - 11:00 AM</p>
-                            <p className="text-sm text-gray-500">Silver Crysta Room, Nomad</p>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <button className="flex items-center gap-2 px-3 py-1.5 border border-[#007BFF] text-[#007BFF] font-semibold rounded-lg text-sm"><FiEdit /> Add Feedback</button>
-                            <button><FiMoreHorizontal /></button>
-                          </div>
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-500 mb-2">12 July, 2021</p>
-                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                          <div className="flex items-center gap-4">
-                            <img src="https://i.pravatar.cc/48?u=f" className="w-12 h-12 rounded-full"/>
-                            <div>
-                              <p className="font-bold">Thad Eddings</p>
-                              <p className="text-sm text-gray-500">Skill Test</p>
-                            </div>
-                          </div>
-                          <div>
-                            <p className="text-sm">10:00 AM - 11:00 AM</p>
-                            <p className="text-sm text-gray-500">Silver Crysta Room, Nomad</p>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <button className="flex items-center gap-2 px-3 py-1.5 border border-[#007BFF] text-[#007BFF] font-semibold rounded-lg text-sm"><FiEdit /> Add Feedback</button>
-                            <button><FiMoreHorizontal /></button>
-                          </div>
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-500 mb-2">13 July, 2021</p>
-                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                          <div className="flex items-center gap-4">
-                            <img src="https://i.pravatar.cc/48?u=g" className="w-12 h-12 rounded-full"/>
-                            <div>
-                              <p className="font-bold">Thad Eddings</p>
-                              <p className="text-sm text-gray-500">Final Test</p>
-                            </div>
-                          </div>
-                          <div>
-                            <p className="text-sm">10:00 AM - 11:00 AM</p>
-                            <p className="text-sm text-gray-500">Silver Crysta Room, Nomad</p>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <button className="flex items-center gap-2 px-3 py-1.5 border border-[#007BFF] text-[#007BFF] font-semibold rounded-lg text-sm"><FiEdit /> Add Feedback</button>
-                            <button><FiMoreHorizontal /></button>
-                          </div>
-                        </div>
-                      </div>
+                    <div className="text-center py-8 text-gray-500">
+                      <p>No interviews scheduled for this application.</p>
                     </div>
                   </div>
                 )}
@@ -833,62 +844,7 @@ const ApplicantDetail: React.FC = () => {
             </div>
             )}
 
-            {/* Related Applications Section */}
-            {candidateDetails?.job_id && (
-              <div className="bg-white rounded-lg border border-gray-200 p-6 mt-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Other Applications for "{candidateDetails.job_title}"
-                </h3>
-                
-                {loadingRelated ? (
-                  <div className="text-center py-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#007BFF] mx-auto"></div>
-                    <p className="text-sm text-gray-500 mt-2">Loading related applications...</p>
-                  </div>
-                ) : relatedApplications.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">No other applications for this job.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {relatedApplications.map((app: any) => (
-                      <div 
-                        key={app.application_id}
-                        className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                        onClick={() => navigate(`/hr/job-applications/${app.application_id}`)}
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                            <span className="text-sm font-medium text-gray-600">
-                              {app.candidate_name ? app.candidate_name.charAt(0).toUpperCase() : 'C'}
-                            </span>
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-gray-900">{app.candidate_name || 'Unknown Candidate'}</h4>
-                            <p className="text-sm text-gray-500">{app.candidate_email || 'No email'}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                              app.current_status === 'PENDING' ? 'bg-yellow-100 text-yellow-600' :
-                              app.current_status === 'INTERVIEWED' ? 'bg-blue-100 text-blue-600' :
-                              app.current_status === 'SHORTLISTED' ? 'bg-green-100 text-green-600' :
-                              app.current_status === 'REJECTED' ? 'bg-red-100 text-red-600' :
-                              'bg-gray-100 text-gray-600'
-                            }`}>
-                              {app.current_status}
-                            </span>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Match: {app.match_score || 0}%
-                            </p>
-                          </div>
-                          <FiMoreHorizontal className="text-gray-400" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+
           </div>
         </main>
       </div>
