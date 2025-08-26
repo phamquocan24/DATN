@@ -212,7 +212,10 @@ const TestDetails: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2">
                     <button 
-                        onClick={() => setShowAssignModal(true)}
+                        onClick={() => {
+                            setShowAssignModal(true);
+                            loadApplications();
+                        }}
                         className="flex items-center gap-2 px-4 py-2 border border-green-600 text-green-600 rounded-lg text-sm font-medium hover:bg-green-50"
                     >
                         <FiUserPlus /> Assign Test
@@ -417,30 +420,45 @@ const TestDetails: React.FC = () => {
                         <form onSubmit={handleAssignTest} className="p-6 space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Candidate ID *
+                                    Select Application *
                                 </label>
-                                <input
-                                    type="text"
-                                    value={assignForm.candidate_id}
-                                    onChange={(e) => setAssignForm(prev => ({ ...prev, candidate_id: e.target.value }))}
+                                <select
+                                    value={assignForm.selectedApplication?.application_id || ''}
+                                    onChange={(e) => {
+                                        const selected = applications.find(app => app.application_id === e.target.value);
+                                        setAssignForm(prev => ({ 
+                                            ...prev, 
+                                            selectedApplication: selected || null,
+                                            candidate_id: selected?.candidate_id || '',
+                                            application_id: selected?.application_id || ''
+                                        }));
+                                    }}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     required
-                                    placeholder="Enter candidate ID"
-                                />
-                            </div>
-                            
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Application ID *
-                                </label>
-                                <input
-                                    type="text"
-                                    value={assignForm.application_id}
-                                    onChange={(e) => setAssignForm(prev => ({ ...prev, application_id: e.target.value }))}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    required
-                                    placeholder="Enter application ID"
-                                />
+                                >
+                                    <option value="">Select an application...</option>
+                                    {applications.map((app) => (
+                                        <option key={app.application_id} value={app.application_id}>
+                                            {app.first_name} {app.last_name} - {app.job_title} ({new Date(app.submitted_at).toLocaleDateString()})
+                                        </option>
+                                    ))}
+                                </select>
+                                {assignForm.selectedApplication && (
+                                    <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                                        <p className="text-sm text-gray-600">
+                                            <strong>Candidate:</strong> {assignForm.selectedApplication.first_name} {assignForm.selectedApplication.last_name}
+                                        </p>
+                                        <p className="text-sm text-gray-600">
+                                            <strong>Email:</strong> {assignForm.selectedApplication.email}
+                                        </p>
+                                        <p className="text-sm text-gray-600">
+                                            <strong>Job:</strong> {assignForm.selectedApplication.job_title}
+                                        </p>
+                                        <p className="text-sm text-gray-600">
+                                            <strong>Status:</strong> {assignForm.selectedApplication.current_status}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                             
                             <div className="flex justify-end gap-4 pt-4">
