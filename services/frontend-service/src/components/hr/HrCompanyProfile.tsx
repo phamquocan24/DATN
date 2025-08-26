@@ -14,6 +14,7 @@ import work4 from '../../assets/work4.png';
 import { companyApi } from '../../services/companyApi';
 import { hrApi } from '../../services/hrApi';
 import { getCompanyId } from '../../services/tokenUtils';
+import { useNavigate } from 'react-router-dom';
 
 
 const HrCompanyProfile: React.FC = () => {
@@ -22,6 +23,7 @@ const HrCompanyProfile: React.FC = () => {
     const [companyJobs, setCompanyJobs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const navigate = useNavigate();
 
     useEffect(() => {
         loadCompanyData();
@@ -79,14 +81,15 @@ const HrCompanyProfile: React.FC = () => {
                 setCompanyJobs(jobs);
                 
                 // Update active jobs count
-                if (companyDetails) {
-                    setCompanyDetails(prev => ({
-                        ...prev,
-                        activeJobs: jobs.filter((job: any) => 
-                            job.status === 'PUBLISHED' || job.status === 'ACTIVE'
-                        ).length
-                    }));
-                }
+                const activeJobsCount = jobs.filter((job: any) => 
+                    job.status === 'PUBLISHED' || job.status === 'ACTIVE'
+                ).length;
+                
+                setCompanyDetails((prev: any) => prev ? {
+                    ...prev,
+                    activeJobs: activeJobsCount
+                } : prev);
+                
             } catch (jobsError) {
                 console.error('Error loading jobs:', jobsError);
                 // Jobs loading is optional, don't set main error
@@ -126,15 +129,96 @@ const HrCompanyProfile: React.FC = () => {
 
   const getTagStyle = (tag: string) => {
     switch (tag) {
+      case 'FULL_TIME':
       case 'Full-Time':
         return 'bg-green-100 text-green-700 border border-green-200';
-      case 'Marketing':
-        return 'bg-yellow-100 text-yellow-700 border border-yellow-200';
-      case 'Design':
+      case 'PART_TIME':
+      case 'Part-Time':
+        return 'bg-purple-100 text-purple-700 border border-purple-200';
+      case 'CONTRACT':
+      case 'Contract':
+        return 'bg-orange-100 text-orange-700 border border-orange-200';
+      case 'INTERNSHIP':
+      case 'Internship':
         return 'bg-blue-100 text-blue-700 border border-blue-200';
+      case 'REMOTE':
+      case 'Remote':
+        return 'bg-cyan-100 text-cyan-700 border border-cyan-200';
+      case 'HYBRID':
+      case 'Hybrid':
+        return 'bg-teal-100 text-teal-700 border border-teal-200';
+      case 'ONSITE':
+      case 'On-site':
+        return 'bg-gray-100 text-gray-700 border border-gray-200';
+      case 'ACTIVE':
+      case 'Active':
+        return 'bg-green-100 text-green-700 border border-green-200';
+      case 'DRAFT':
+      case 'Draft':
+        return 'bg-yellow-100 text-yellow-700 border border-yellow-200';
+      case 'PAUSED':
+      case 'Paused':
+        return 'bg-orange-100 text-orange-700 border border-orange-200';
+      case 'CLOSED':
+      case 'Closed':
+        return 'bg-red-100 text-red-700 border border-red-200';
       default:
         return 'bg-gray-100 text-gray-600 border border-gray-200';
     }
+  };
+
+  // Format employment type for display
+  const formatEmploymentType = (type: string) => {
+    switch (type) {
+      case 'FULL_TIME':
+        return 'Full-Time';
+      case 'PART_TIME':
+        return 'Part-Time';
+      case 'CONTRACT':
+        return 'Contract';
+      case 'INTERNSHIP':
+        return 'Internship';
+      default:
+        return type || 'Full-Time';
+    }
+  };
+
+  // Format remote work option for display
+  const formatRemoteWorkOption = (option: string) => {
+    switch (option) {
+      case 'REMOTE':
+        return 'Remote';
+      case 'HYBRID':
+        return 'Hybrid';
+      case 'ONSITE':
+        return 'On-site';
+      default:
+        return option;
+    }
+  };
+
+  // Format job status for display
+  const formatJobStatus = (status: string) => {
+    switch (status) {
+      case 'ACTIVE':
+      case 'PUBLISHED':
+        return 'Active';
+      case 'DRAFT':
+        return 'Draft';
+      case 'PAUSED':
+        return 'Paused';
+      case 'CLOSED':
+        return 'Closed';
+      default:
+        return status;
+    }
+  };
+
+  // Get active jobs for display
+  const getActiveJobs = () => {
+    return companyJobs.filter(job => 
+      job.status === 'PUBLISHED' || job.status === 'ACTIVE'
+    );
   };
 
   return (
@@ -413,31 +497,89 @@ const HrCompanyProfile: React.FC = () => {
       <div className="bg-white border border-gray-200 rounded-lg p-6 mb-8">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900">Open Positions</h3>
-          {!showMoreJobs && <button onClick={()=>setShowMoreJobs(true)} className="text-[#007BFF] text-sm font-medium flex items-center gap-1 hover:underline">Show all jobs <FiArrowRight/></button>}
+          <div className="flex items-center gap-4">
+            {getActiveJobs().length > 4 && !showMoreJobs && (
+              <button 
+                onClick={() => setShowMoreJobs(true)} 
+                className="text-[#007BFF] text-sm font-medium flex items-center gap-1 hover:underline"
+              >
+                Show all jobs <FiArrowRight/>
+              </button>
+            )}
+            <button 
+              onClick={() => navigate('/hr/job-management')} 
+              className="text-[#007BFF] text-sm font-medium flex items-center gap-1 hover:underline"
+            >
+              Show more <FiArrowRight/>
+            </button>
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[
-            {title: 'Social Media Assistant', company: 'Nomad', location: 'Paris, France', tags:['Full-Time', 'Marketing', 'Design'], logo: companyLogo},
-            {title: 'Brand Designer', company: 'Dropbox', location: 'San Fransisco, USA', tags:['Full-Time', 'Marketing', 'Design'], logo: companyLogo},
-            {title: 'Interactive Developer', company: 'Terraform', location: 'Hamburg, Germany', tags:['Full-Time', 'Marketing', 'Design'], logo: companyLogo},
-            {title: 'HR Manager', company: 'Packer', location: 'Lucern, Switzerland', tags:['Full-Time', 'Marketing', 'Design'], logo: companyLogo},
-          ].slice(0, showMoreJobs ? 4 : 4).map((job,i)=>(
-            <div key={i} className="border border-gray-200 rounded-lg p-4 flex items-start gap-4 hover:bg-gray-50 transition">
-              <img src={job.logo} alt={job.company} className="w-12 h-12 rounded-md"/>
-              <div className="text-left">
-                <h4 className="font-semibold text-gray-900 text-base">{job.title}</h4>
-                <p className="text-sm text-gray-500 my-1">{job.company} • {job.location}</p>
-                <div className="flex flex-wrap gap-2 text-sm">
-                  {job.tags.map((tag, j) => (
-                    <span key={j} className={`px-3 py-1 rounded-full ${getTagStyle(tag)}`}>
-                      {tag}
-                    </span>
-                  ))}
+        
+        {getActiveJobs().length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <p className="text-lg mb-2">No open positions available</p>
+            <p className="text-sm">Create your first job posting to start attracting candidates.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {getActiveJobs().slice(0, showMoreJobs ? getActiveJobs().length : 4).map((job) => {
+              // Create tags array from job data
+              const tags = [];
+              
+              // Add employment type
+              if (job.employment_type) {
+                tags.push(formatEmploymentType(job.employment_type));
+              }
+              
+              // Add remote work option
+              if (job.remote_work_option) {
+                tags.push(formatRemoteWorkOption(job.remote_work_option));
+              }
+              
+              // Add job status if it's not ACTIVE/PUBLISHED (show status for draft/paused jobs)
+              if (job.status && job.status !== 'ACTIVE' && job.status !== 'PUBLISHED') {
+                tags.push(formatJobStatus(job.status));
+              }
+              
+              return (
+                <div key={job.job_id} className="border border-gray-200 rounded-lg p-4 flex items-start gap-4 hover:bg-gray-50 transition">
+                  <img 
+                    src={job.logo_url || companyDetails.companyLogo} 
+                    alt={job.company_name || companyDetails.companyName} 
+                    className="w-12 h-12 rounded-md object-contain"
+                  />
+                  <div className="text-left flex-1">
+                    <h4 className="font-semibold text-gray-900 text-base">{job.title}</h4>
+                    <p className="text-sm text-gray-500 my-1">
+                      {job.company_name || companyDetails.companyName} • {job.address || 'Address not provided'}
+                    </p>
+                    <div className="flex flex-wrap gap-2 text-sm">
+                      {tags.slice(0, 3).map((tag, j) => (
+                        <span key={j} className={`px-3 py-1 rounded-full ${getTagStyle(tag)}`}>
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    {job.application_count && (
+                      <p className="text-xs text-gray-400 mt-2">
+                        {job.application_count} applications
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
+        
+        {showMoreJobs && getActiveJobs().length > 0 && (
+          <button 
+            onClick={() => setShowMoreJobs(false)} 
+            className="mt-4 text-[#007BFF] text-sm font-medium flex items-center gap-1 hover:underline"
+          >
+            Show less jobs
+          </button>
+        )}
       </div>
     </div>
   );
