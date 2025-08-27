@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import candidateApi from './services/candidateApi';
 import { 
   Header, 
   Hero, 
@@ -42,14 +43,13 @@ import {
   AdminHRDetail,
 } from './components/admin';
 import HrRoutes from './components/hr/HrRoutes';
-import { EndpointTester } from './components/candidate/EndpointTester';
 
 import './App.css';
 import api from './services/api';
 import authService from './services/authService';
 import firebaseService from './services/firebase';
 
-type CurrentPage = 'home' | 'find-jobs' | 'agent-ai' | 'favorite-jobs' | 'companies' | 'find-companies' | 'job-detail' | 'company-profile' | 'resume' | 'profile' | 'dashboard' | 'my-applications' | 'test-management' | 'endpoint-tester' | 'settings' | 'help-center';
+type CurrentPage = 'home' | 'find-jobs' | 'agent-ai' | 'favorite-jobs' | 'companies' | 'find-companies' | 'browse-companies' | 'job-detail' | 'company-profile' | 'resume' | 'profile' | 'dashboard' | 'my-applications' | 'test-management' | 'settings' | 'help-center';
 
 const pageToPath: Record<CurrentPage, string> = {
   home: '/',
@@ -58,6 +58,7 @@ const pageToPath: Record<CurrentPage, string> = {
   'favorite-jobs': '/favorite-jobs',
   companies: '/companies',
   'find-companies': '/find-companies',
+  'browse-companies': '/browse-companies',
   'job-detail': '/job-detail',
   'company-profile': '/company-profile',
   resume: '/resume',
@@ -65,7 +66,6 @@ const pageToPath: Record<CurrentPage, string> = {
   dashboard: '/dashboard',
   'my-applications': '/my-applications',
   'test-management': '/test-management',
-  'endpoint-tester': '/endpoint-tester',
   settings: '/settings',
   'help-center': '/help-center',
 };
@@ -106,7 +106,7 @@ const MainContent = () => {
   });
   
   // Initialize role states based on saved user
-  const [isAdmin, setIsAdmin] = useState(() => {
+  const [, setIsAdmin] = useState(() => {
     try {
       const savedUser = localStorage.getItem('user');
       if (savedUser) {
@@ -119,7 +119,7 @@ const MainContent = () => {
     return false;
   });
   
-  const [isHr, setIsHr] = useState(() => {
+  const [, setIsHr] = useState(() => {
     try {
       const savedUser = localStorage.getItem('user');
       if (savedUser) {
@@ -298,6 +298,143 @@ const MainContent = () => {
 
   // Removed unused handleApplyClick function
 
+  // JobDetailWrapper component to fetch and display job details
+  const JobDetailWrapper = ({ jobId, onBack }: { jobId: string | null, onBack: () => void }) => {
+    // Create initial placeholder job data
+    const [jobData, setJobData] = useState<any>(() => ({
+      job_id: jobId || '',
+      id: parseInt(jobId || '0'),
+      title: 'Loading...',
+      company: 'Loading...',
+      location: 'Loading...',
+      type: 'Full-Time',
+      tags: ['Loading'],
+      logo: 'L',
+      logoColor: 'bg-gray-400 text-white',
+      match: 85,
+      applied: 0,
+      capacity: 1,
+      salary: 'Loading...',
+      description: 'Loading job details...',
+      requirements: [],
+      benefits: [],
+      whoYouAre: [],
+      niceToHaves: []
+    }));
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+      const fetchJobDetails = async () => {
+        if (!jobId) {
+          setError('No job ID provided');
+          return;
+        }
+
+        try {
+          setError(null);
+          const response = await candidateApi.getJobById(jobId);
+          console.log('Job Details API Response:', response);
+          
+          // Handle different response structures - API returns array, take first item if array
+          let jobDetails;
+          if (response.data && Array.isArray(response.data)) {
+            jobDetails = response.data[0]; // Take first job from array
+          } else if (response.data) {
+            jobDetails = response.data;
+          } else {
+            jobDetails = response;
+          }
+
+          if (!jobDetails) {
+            throw new Error('No job data found');
+          }
+          
+          // Transform API data to match JobDetail component interface - using real API structure
+          const transformedJob = {
+            job_id: jobDetails.job_id,
+            id: jobDetails.id || parseInt(jobId),
+            title: jobDetails.title,
+            company: jobDetails.company_name,
+            location: [jobDetails.city_name, jobDetails.district_name, jobDetails.address]
+              .filter(Boolean)
+              .join(', ') || 'Remote',
+            type: jobDetails.employment_type === 'FULL_TIME' ? 'Full-Time' : 
+                  jobDetails.employment_type === 'PART_TIME' ? 'Part-Time' :
+                  jobDetails.employment_type === 'CONTRACT' ? 'Contract' :
+                  jobDetails.employment_type === 'INTERNSHIP' ? 'Internship' :
+                  jobDetails.employment_type || 'Full-Time',
+            tags: [
+              jobDetails.category,
+              jobDetails.employment_type === 'FULL_TIME' ? 'Full-Time' : jobDetails.employment_type,
+              jobDetails.remote_work_option && 'Remote',
+              jobDetails.featured && 'Featured'
+            ].filter(Boolean),
+            logo: (jobDetails.company_name || jobDetails.title)?.charAt(0).toUpperCase() || 'J',
+            logoColor: 'bg-blue-500 text-white',
+            match: 85, // Default match score since not provided in API
+            applied: parseInt(jobDetails.application_count) || 0,
+            capacity: jobDetails.max_applications || 1,
+            salary: jobDetails.salary_min && jobDetails.salary_max 
+              ? `${jobDetails.salary_min.toLocaleString()} - ${jobDetails.salary_max.toLocaleString()} ${jobDetails.currency || 'VND'}`
+              : jobDetails.salary_min 
+                ? `From ${jobDetails.salary_min.toLocaleString()} ${jobDetails.currency || 'VND'}`
+                : 'Competitive Salary',
+            description: jobDetails.description,
+            requirements: jobDetails.requirements 
+              ? (typeof jobDetails.requirements === 'string' 
+                  ? jobDetails.requirements.split('\n').filter(Boolean)
+                  : jobDetails.requirements)
+              : [],
+            benefits: jobDetails.benefits 
+              ? (typeof jobDetails.benefits === 'string' 
+                  ? jobDetails.benefits.split('\n').filter(Boolean)
+                  : jobDetails.benefits)
+              : [],
+            whoYouAre: jobDetails.responsibilities 
+              ? (typeof jobDetails.responsibilities === 'string' 
+                  ? jobDetails.responsibilities.split('\n').filter(Boolean)
+                  : jobDetails.responsibilities)
+              : [],
+            niceToHaves: jobDetails.education_requirements || jobDetails.language_requirements
+              ? [
+                  jobDetails.education_requirements,
+                  jobDetails.language_requirements
+                ].filter(Boolean)
+              : []
+          };
+          
+          setJobData(transformedJob);
+        } catch (err: any) {
+          console.error('Error fetching job details:', err);
+          setError('Failed to load job details');
+        }
+      };
+
+      fetchJobDetails();
+    }, [jobId]);
+
+    if (error) {
+      return (
+        <div className="py-16 bg-red-50 text-center">
+          <p className="text-red-600 font-semibold">{error}</p>
+          <button 
+            onClick={onBack}
+            className="mt-4 bg-[#007BFF] text-white px-4 py-2 rounded-lg hover:bg-[#0056b3] transition-colors"
+          >
+            Back to Jobs
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <JobDetail 
+        job={jobData}
+        onBack={onBack}
+      />
+    );
+  };
+
   const renderPage = () => {
     switch (currentPage) {
       case 'home':
@@ -331,47 +468,24 @@ const MainContent = () => {
         return <Companies onCompanyClick={handleCompanyClick} />;
       case 'find-companies':
         return <FindCompanies onCompanyClick={handleCompanyClick} />;
+      case 'browse-companies':
+        return <BrowseCompanies 
+          onCompanyClick={handleCompanyClick}
+          onHomeClick={handleBackClick}
+          onDashboardClick={() => handlePageChange('dashboard')}
+          onAgentAIClick={() => handlePageChange('agent-ai')}
+          onMyApplicationsClick={() => handlePageChange('my-applications')}
+          onTestManagementClick={() => handlePageChange('test-management')}
+          onFindJobsClick={() => handlePageChange('find-jobs')}
+          onProfileClick={() => handlePageChange('profile')}
+          onSettingsClick={() => handlePageChange('settings')}
+          onHelpCenterClick={() => handlePageChange('help-center')}
+        />;
 
                     case 'job-detail':
-        // Mock job data for demonstration
-        const mockJob = {
-          id: parseInt(selectedJobId || '1'),
-          title: 'Social Media Assistant',
-          company: 'Stripe',
-          location: 'Paris, France',
-          type: 'Full-Time',
-          tags: ['Marketing', 'Design'],
-          logo: 'S',
-          logoColor: 'bg-purple-500',
-          match: 95,
-          applied: 5,
-          capacity: 10,
-          salary: '$75k-$85k USD',
-          description: 'Stripe is looking for Social Media Marketing expert to help manage our online networks. You will be responsible for monitoring our social media channels, creating content, finding effective ways to engage the community and incentivize others to engage on our channels.',
-          requirements: [
-            'Community engagement to ensure that is supported and actively represented online',
-            'Focus on social media content development and publication',
-            'Marketing and strategy support',
-            'Stay on top of trends on social media platforms, and suggest content ideas to the team',
-            'Engage with online communities'
-          ],
-          whoYouAre: [
-            'You get energy from people and building the ideal work environment',
-            'You have a sense for beautiful spaces and office experiences',
-            'You are a confident office manager, ready for added responsibilities',
-            'You\'re detail-oriented and creative',
-            'You\'re a growth marketer and know how to run campaigns'
-          ],
-          niceToHaves: [
-            'Fluent in English',
-            'Project management skills',
-            'Copy editing skills'
-          ]
-        };
-        
         return (
-          <JobDetail 
-            job={mockJob}
+          <JobDetailWrapper 
+            jobId={selectedJobId}
             onBack={handleBackClick}
           />
         );
@@ -430,8 +544,6 @@ const MainContent = () => {
           onSettingsClick={() => handlePageChange('settings')}
           onHelpCenterClick={() => handlePageChange('help-center')}
         />;
-      case 'endpoint-tester':
-        return <EndpointTester />;
       case 'settings':
         return <Settings 
           onHomeClick={handleBackClick}

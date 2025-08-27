@@ -35,20 +35,30 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
           ? latestJobsResponse 
           : (latestJobsResponse?.data || latestJobsResponse?.jobs || []);
 
-        // Transform API data to match component interface
+        // Transform API data to match component interface - using real API structure
         const transformJob = (job: any, index: number) => ({
           job_id: job.job_id, // Primary ID from database
-          id: job.id || job._id, // Fallback for legacy data
-          title: job.title || 'Job Title',
-          company: job.company_name || job.company?.name || job.companyName || 'Company',
-          location: job.city_name || job.location || 'Location',
-          type: job.employment_type || job.type || job.jobType || 'Full Time',
-          description: job.description || 'Job description not available.',
-          tags: job.skills?.slice(0, 3) || job.tags?.slice(0, 3) || ['Business'],
-          logo: (job.company_name || job.company?.name || job.companyName || job.title || 'C').charAt(0).toUpperCase(),
+          id: job.id,
+          title: job.title,
+          company: job.company_name,
+          location: [job.city_name, job.district_name]
+            .filter(Boolean)
+            .join(', ') || 'Remote',
+          type: job.employment_type === 'FULL_TIME' ? 'Full-Time' : 
+                job.employment_type === 'PART_TIME' ? 'Part-Time' :
+                job.employment_type === 'CONTRACT' ? 'Contract' :
+                job.employment_type === 'INTERNSHIP' ? 'Internship' :
+                job.employment_type || 'Full-Time',
+          description: job.description,
+          tags: [
+            job.category,
+            job.employment_type === 'FULL_TIME' ? 'Full-Time' : job.employment_type,
+            job.remote_work_option && 'Remote'
+          ].filter(Boolean).slice(0, 3),
+          logo: (job.company_name || job.title)?.charAt(0).toUpperCase() || 'J',
           logoColor: `bg-${['blue', 'green', 'purple', 'red', 'teal', 'orange'][index % 6]}-500 text-white`,
-          applied: job.application_count || job.applicationsCount || job.applied || 0,
-          capacity: job.max_applications || job.openPositions || job.capacity || 1
+          applied: parseInt(job.application_count) || 0,
+          capacity: job.max_applications || 1
         });
 
         // Use first 4 jobs as featured (or could be jobs with featured flag)
@@ -69,9 +79,7 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
     fetchJobs();
   }, []);
 
-  const handleApplyClick = (job: any) => {
-    onJobClick?.(job.id.toString());
-  };
+
 
   const handleCloseApplication = () => {
     setIsApplicationOpen(false);
@@ -118,11 +126,10 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
     }
   };
 
-  const JobCard = ({ job, cardStyle, onJobClick, onApply }: { 
+  const JobCard = ({ job, cardStyle, onJobClick }: { 
     job: any, 
     cardStyle: 'featured' | 'latest',
-    onJobClick?: (jobId: string) => void,
-    onApply?: (job: any) => void
+    onJobClick?: (jobId: string) => void
   }) => {
     const [isFavorited, setIsFavorited] = useState(() => 
       favoritesService.isJobFavorited(job.id)
@@ -292,7 +299,7 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {featuredJobs.map((job) => (
-              <JobCard key={job.id} job={job} cardStyle="featured" onJobClick={onJobClick} onApply={handleApplyClick} />
+              <JobCard key={job.id} job={job} cardStyle="featured" onJobClick={onJobClick} />
             ))}
           </div>
           </div>
@@ -318,7 +325,7 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
 
           <div className="grid md:grid-cols-2 gap-6">
             {latestJobs.map((job) => (
-              <JobCard key={job.id} job={job} cardStyle="latest" onJobClick={onJobClick} onApply={handleApplyClick} />
+              <JobCard key={job.id} job={job} cardStyle="latest" onJobClick={onJobClick} />
             ))}
           </div>
         </div>
