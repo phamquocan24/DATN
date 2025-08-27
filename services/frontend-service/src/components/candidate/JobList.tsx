@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { JobApplication } from './JobApplication';
 import candidateApi from '../../services/candidateApi';
 import favoritesService from '../../services/favoritesService';
+import { isTokenValid } from '../../services/tokenUtils';
 
 interface JobListProps {
   onJobClick?: (jobId: string) => void;
@@ -178,6 +179,13 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
           const jobId = job.job_id || job.id?.toString();
           if (!jobId) return;
 
+          // Check if user is authenticated
+          const token = localStorage.getItem('token');
+          if (!token || !isTokenValid(token)) {
+            setIsFavorited(false);
+            return;
+          }
+
           const response = await candidateApi.checkJobBookmarkStatus(jobId);
           if (response.success && response.data) {
             setIsFavorited(response.data.is_bookmarked);
@@ -215,6 +223,13 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
         const jobId = job.job_id || job.id?.toString();
         if (!jobId) {
           console.error('No job ID available for bookmark');
+          return;
+        }
+
+        // Check authentication before making API call
+        const token = localStorage.getItem('token');
+        if (!token || !isTokenValid(token)) {
+          alert('Bạn cần đăng nhập để sử dụng tính năng này');
           return;
         }
 

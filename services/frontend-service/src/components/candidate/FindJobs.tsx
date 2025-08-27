@@ -4,6 +4,7 @@ import JobDetail from './JobDetail';
 import GroupUnderline from '../../assets/Group.png';
 import candidateApi from '../../services/candidateApi'; // Sử dụng candidateApi
 import favoritesService from '../../services/favoritesService';
+import { isTokenValid } from '../../services/tokenUtils';
 import { 
   batchCalculateAIMatchScores
 } from '../../services/aiMatchingApi';
@@ -46,6 +47,10 @@ interface FindJobsProps {
   onJobClick?: (jobId: string) => void;
 }
 
+// Global bookmark cache to prevent repeated API calls
+const bookmarkCache = new Map<string, { isBookmarked: boolean, timestamp: number }>();
+const CACHE_DURATION = 30000; // 30 seconds
+
 export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState('');
@@ -60,6 +65,12 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
   const [suitableJobs, setSuitableJobs] = useState<Job[]>([]);
   const [suitableJobsLoading, setSuitableJobsLoading] = useState(true);
   const [suitableJobsError, setSuitableJobsError] = useState<string | null>(null);
+  const [suitableJobsPagination, setSuitableJobsPagination] = useState({ 
+    page: 1, 
+    limit: 6, 
+    total: 0, 
+    totalPages: 0 
+  });
   
   // AI Matching states
   const [selectedCVId, setSelectedCVId] = useState<string | null>(null);
@@ -183,6 +194,13 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
         jobsArray = jobsData;
       } else if (jobsData?.data && Array.isArray(jobsData.data)) {
         jobsArray = jobsData.data;
+        // Update pagination total from API response
+        if (jobsData.pagination) {
+          setPagination(prev => ({
+            ...prev,
+            total: jobsData.pagination.total
+          }));
+        }
       } else if (jobsData?.jobs && Array.isArray(jobsData.jobs)) {
         jobsArray = jobsData.jobs;
       }
@@ -275,85 +293,95 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
     }
   }, [selectedCVId, jobs.length]);
 
-  // Fetch suitable jobs (recommendations)
-  useEffect(() => {
-    const fetchSuitableJobs = async () => {
-      try {
-        setSuitableJobsLoading(true);
-        setSuitableJobsError(null);
-        
-        const response = await candidateApi.getRecommendedJobs({ 
-          page: 1, 
-          limit: 6 
-        });
-        
-        if (response && response.data && Array.isArray(response.data)) {
-          const transformedJobs = response.data.map((job: any, index: number) => ({
-            job_id: job.job_id,
-            id: parseInt(job.id || job.job_id) || 0,
-            title: job.title,
-            company: job.company_name || 'Company',
-            location: [job.city_name, job.district_name, job.address]
-              .filter(Boolean)
-              .join(', ') || 'Remote',
-            type: job.employment_type === 'FULL_TIME' ? 'Full-Time' 
-                : job.employment_type === 'PART_TIME' ? 'Part-Time'
-                : job.employment_type === 'CONTRACT' ? 'Contract'
-                : job.employment_type === 'INTERNSHIP' ? 'Internship'
-                : 'Full-Time',
-            tags: [
-              job.category,
-              job.work_arrangement && job.work_arrangement.charAt(0) + job.work_arrangement.slice(1).toLowerCase(),
-              job.featured && 'Featured',
-              `Match: ${Math.round(job.match_score || 85)}%`
-            ].filter(Boolean).slice(0, 3),
-            logo: (job.company_name || job.title)?.charAt(0).toUpperCase() || 'J',
-            logoColor: `bg-${['blue', 'green', 'purple', 'red', 'teal', 'orange'][index % 6]}-500 text-white`,
-            match: Math.round(job.match_score || 85),
-            applied: job.application_count || 0,
-            capacity: job.max_applications || 1,
-            salary: job.salary_min && job.salary_max 
-              ? `${job.salary_min.toLocaleString()} - ${job.salary_max.toLocaleString()} ${job.currency || 'VND'}`
-              : job.salary_min 
-                ? `From ${job.salary_min.toLocaleString()} ${job.currency || 'VND'}`
-                : 'Competitive Salary',
-            description: job.description || 'No description available.',
-            requirements: Array.isArray(job.requirements) 
-              ? job.requirements 
-              : typeof job.requirements === 'string' 
-                ? job.requirements.split('\n').filter((item: string) => item.trim())
-                : ['No requirements listed.'],
-            benefits: Array.isArray(job.benefits) 
-              ? job.benefits
-              : typeof job.benefits === 'string' 
-                ? job.benefits.split('\n').filter((item: string) => item.trim())
-                : ['No benefits listed.'],
-            whoYouAre: Array.isArray(job.responsibilities) 
-              ? job.responsibilities 
-              : typeof job.responsibilities === 'string' 
-                ? job.responsibilities.split('\n').filter((item: string) => item.trim())
-                : ['No responsibilities listed.'],
-            niceToHaves: [
-              job.education_requirements,
-              job.language_requirements?.join(', '),
-              job.required_skills?.length > 0 ? `Skills: ${job.required_skills.join(', ')}` : null
-            ].filter(Boolean)
+  // Fetch suitable jobs (recommendations) - using useCallback to prevent infinite loops
+  const fetchSuitableJobs = useCallback(async () => {
+    try {
+      setSuitableJobsLoading(true);
+      setSuitableJobsError(null);
+      
+      const response = await candidateApi.getRecommendedJobs({ 
+        page: suitableJobsPagination.page, 
+        limit: Math.min(suitableJobsPagination.limit, 50) // Max 50 per page
+      });
+      
+      if (response && response.data && Array.isArray(response.data)) {
+        // Update pagination info from API response
+        if (response.pagination) {
+          setSuitableJobsPagination(prev => ({
+            ...prev,
+            total: response.pagination.total,
+            totalPages: response.pagination.totalPages
           }));
-          setSuitableJobs(transformedJobs);
-        } else {
-          setSuitableJobs([]);
         }
-      } catch (error) {
-        console.error('Failed to fetch suitable jobs:', error);
-        setSuitableJobsError('Failed to load job recommendations');
+        
+        const transformedJobs = response.data.map((job: any, index: number) => ({
+          job_id: job.job_id,
+          id: parseInt(job.id || job.job_id) || 0,
+          title: job.title,
+          company: job.company_name || 'Company',
+          location: [job.city_name, job.district_name, job.address]
+            .filter(Boolean)
+            .join(', ') || 'Remote',
+          type: job.employment_type === 'FULL_TIME' ? 'Full-Time' 
+              : job.employment_type === 'PART_TIME' ? 'Part-Time'
+              : job.employment_type === 'CONTRACT' ? 'Contract'
+              : job.employment_type === 'INTERNSHIP' ? 'Internship'
+              : 'Full-Time',
+          tags: [
+            job.category,
+            job.work_arrangement && job.work_arrangement.charAt(0) + job.work_arrangement.slice(1).toLowerCase(),
+            job.featured && 'Featured',
+            `Match: ${Math.round(job.match_score || 85)}%`
+          ].filter(Boolean).slice(0, 3),
+          logo: (job.company_name || job.title)?.charAt(0).toUpperCase() || 'J',
+          logoColor: `bg-${['blue', 'green', 'purple', 'red', 'teal', 'orange'][index % 6]}-500 text-white`,
+          match: Math.round(job.match_score || 85),
+          applied: job.application_count || 0,
+          capacity: job.max_applications || 1,
+          salary: job.salary_min && job.salary_max 
+            ? `${job.salary_min.toLocaleString()} - ${job.salary_max.toLocaleString()} ${job.currency || 'VND'}`
+            : job.salary_min 
+              ? `From ${job.salary_min.toLocaleString()} ${job.currency || 'VND'}`
+              : 'Competitive Salary',
+          description: job.description || 'No description available.',
+          requirements: Array.isArray(job.requirements) 
+            ? job.requirements 
+            : typeof job.requirements === 'string' 
+              ? job.requirements.split('\n').filter((item: string) => item.trim())
+              : ['No requirements listed.'],
+          benefits: Array.isArray(job.benefits) 
+            ? job.benefits
+            : typeof job.benefits === 'string' 
+              ? job.benefits.split('\n').filter((item: string) => item.trim())
+              : ['No benefits listed.'],
+          whoYouAre: Array.isArray(job.responsibilities) 
+            ? job.responsibilities 
+            : typeof job.responsibilities === 'string' 
+              ? job.responsibilities.split('\n').filter((item: string) => item.trim())
+              : ['No responsibilities listed.'],
+          niceToHaves: [
+            job.education_requirements,
+            job.language_requirements?.join(', '),
+            job.required_skills?.length > 0 ? `Skills: ${job.required_skills.join(', ')}` : null
+          ].filter(Boolean)
+        }));
+        setSuitableJobs(transformedJobs);
+      } else {
         setSuitableJobs([]);
-      } finally {
-        setSuitableJobsLoading(false);
       }
-    };
+    } catch (error) {
+      console.error('Failed to fetch suitable jobs:', error);
+      setSuitableJobsError('Failed to load job recommendations');
+      setSuitableJobs([]);
+    } finally {
+      setSuitableJobsLoading(false);
+    }
+  }, [suitableJobsPagination.page, suitableJobsPagination.limit]);
 
+  // Call fetchSuitableJobs when pagination changes
+  useEffect(() => {
     fetchSuitableJobs();
-  }, []);
+  }, [fetchSuitableJobs]);
 
   const handleFilterChange = (filterType: keyof typeof filters, value: string) => {
     setFilters(prev => ({
@@ -417,6 +445,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
 
   const JobCard = ({ job }: { job: Job }) => {
     const [isJobSaved, setIsJobSaved] = useState(false);
+    const [hasCheckedBookmark, setHasCheckedBookmark] = useState(false);
 
     // Check bookmark status when job loads
     useEffect(() => {
@@ -425,17 +454,43 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
           const jobId = job.job_id || job.id?.toString();
           if (!jobId) return;
 
-          const response = await candidateApi.checkJobBookmarkStatus(jobId);
-          if (response.success && response.data) {
-            setIsJobSaved(response.data.is_bookmarked);
+          // Check if user is authenticated
+          const token = localStorage.getItem('token');
+          if (!token || !isTokenValid(token)) {
+            setIsJobSaved(false);
+            setHasCheckedBookmark(true);
+            return;
+          }
+
+          // Check cache first
+          const cached = bookmarkCache.get(jobId);
+          const now = Date.now();
+          if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+            setIsJobSaved(cached.isBookmarked);
+            setHasCheckedBookmark(true);
+            return;
+          }
+
+          // Only make API call if not cached and user is authenticated
+          if (!hasCheckedBookmark) {
+            const response = await candidateApi.checkJobBookmarkStatus(jobId);
+            if (response.success && response.data) {
+              const isBookmarked = response.data.is_bookmarked;
+              setIsJobSaved(isBookmarked);
+              
+              // Cache the result
+              bookmarkCache.set(jobId, { isBookmarked, timestamp: now });
+            }
+            setHasCheckedBookmark(true);
           }
         } catch (error) {
           console.error('Failed to check bookmark status:', error);
+          setHasCheckedBookmark(true);
         }
       };
       
       checkBookmarkStatus();
-    }, [job.job_id, job.id]);
+    }, [job.job_id, job.id, hasCheckedBookmark]);
 
     // Listen for bookmark changes from other components
     useEffect(() => {
@@ -445,6 +500,10 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
         
         if (changedJobId === currentJobId) {
           setIsJobSaved(isBookmarked);
+          // Update cache
+          if (currentJobId) {
+            bookmarkCache.set(currentJobId, { isBookmarked, timestamp: Date.now() });
+          }
         }
       };
 
@@ -465,11 +524,20 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
           return;
         }
 
+        // Check authentication before making API call
+        const token = localStorage.getItem('token');
+        if (!token || !isTokenValid(token)) {
+          alert('Bạn cần đăng nhập để sử dụng tính năng này');
+          return;
+        }
+
         if (isJobSaved) {
           // Remove bookmark
           const response = await candidateApi.removeJobFromFavorites(jobId);
           if (response.success) {
             setIsJobSaved(false);
+            // Update cache
+            bookmarkCache.set(jobId, { isBookmarked: false, timestamp: Date.now() });
             // Emit event to sync with other components
             window.dispatchEvent(new CustomEvent('bookmarkChanged', {
               detail: { jobId, isBookmarked: false }
@@ -482,6 +550,8 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
           const response = await candidateApi.addJobToFavorites(jobId);
           if (response.success) {
             setIsJobSaved(true);
+            // Update cache
+            bookmarkCache.set(jobId, { isBookmarked: true, timestamp: Date.now() });
             // Emit event to sync with other components
             window.dispatchEvent(new CustomEvent('bookmarkChanged', {
               detail: { jobId, isBookmarked: true }
@@ -900,10 +970,17 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
               {/* New Jobs Section */}
               <div className="mb-8">
                 <div className="flex items-start justify-between mb-6">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">New Jobs</h2>
-                    <p className="text-sm text-gray-500 mt-1">Showing 73 results</p>
-                  </div>
+                                      <div>
+                      <h2 className="text-2xl font-bold text-gray-900">New Jobs</h2>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {isLoading 
+                          ? 'Loading jobs...'
+                          : error 
+                            ? 'Failed to load jobs'
+                            : `Showing ${jobs.length} of ${pagination.total} results`
+                        }
+                      </p>
+                    </div>
                   <div className="flex items-center space-x-4 ml-auto">
                     <div className="flex items-center space-x-2">
                       <span className="text-sm text-gray-500">Sort by:</span>
@@ -943,26 +1020,63 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
                 </div>
               </div>
 
-              {/* Pagination */}
-              <div className="flex items-center justify-center space-x-2 mb-8">
-                <button className="p-2 text-gray-400 hover:text-gray-600">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <button className="w-8 h-8 bg-[#007BFF] text-white rounded font-medium">1</button>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">2</button>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">3</button>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">4</button>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">5</button>
-                <span className="text-gray-400">...</span>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">33</button>
-                <button className="p-2 text-gray-400 hover:text-gray-600">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
+                             {/* New Jobs Pagination */}
+               {pagination.total > pagination.limit && (
+                 <div className="flex items-center justify-center space-x-2 mb-8">
+                   <button 
+                     onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                     disabled={pagination.page === 1}
+                     className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                   >
+                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                     </svg>
+                   </button>
+                   
+                   {/* Page numbers */}
+                   {Array.from({ length: Math.min(5, Math.ceil(pagination.total / pagination.limit)) }, (_, i) => {
+                     const pageNum = Math.max(1, pagination.page - 2) + i;
+                     const totalPages = Math.ceil(pagination.total / pagination.limit);
+                     if (pageNum > totalPages) return null;
+                     
+                     return (
+                       <button
+                         key={pageNum}
+                         onClick={() => setPagination(prev => ({ ...prev, page: pageNum }))}
+                         className={`w-8 h-8 rounded font-medium ${
+                           pageNum === pagination.page
+                             ? 'bg-[#007BFF] text-white'
+                             : 'text-gray-600 hover:bg-gray-100'
+                         }`}
+                       >
+                         {pageNum}
+                       </button>
+                     );
+                   })}
+                   
+                   {Math.ceil(pagination.total / pagination.limit) > 5 && pagination.page < Math.ceil(pagination.total / pagination.limit) - 2 && (
+                     <>
+                       <span className="text-gray-400">...</span>
+                       <button
+                         onClick={() => setPagination(prev => ({ ...prev, page: Math.ceil(pagination.total / pagination.limit) }))}
+                         className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded"
+                       >
+                         {Math.ceil(pagination.total / pagination.limit)}
+                       </button>
+                     </>
+                   )}
+                   
+                   <button 
+                     onClick={() => setPagination(prev => ({ ...prev, page: Math.min(Math.ceil(pagination.total / pagination.limit), prev.page + 1) }))}
+                     disabled={pagination.page === Math.ceil(pagination.total / pagination.limit)}
+                     className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                   >
+                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                     </svg>
+                   </button>
+                 </div>
+               )}
 
               {/* Suitable Jobs Section */}
               <div>
@@ -974,7 +1088,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
                         ? 'Loading recommendations...'
                         : suitableJobsError 
                           ? 'Failed to load recommendations'
-                          : `Showing ${suitableJobs.length} personalized recommendations`
+                          : `Showing ${suitableJobs.length} of ${suitableJobsPagination.total} personalized recommendations`
                       }
                     </p>
                   </div>
@@ -1026,26 +1140,62 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
                 </div>
               </div>
 
-              {/* Pagination */}
-              <div className="flex items-center justify-center space-x-2 mt-8">
-                <button className="p-2 text-gray-400 hover:text-gray-600">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <button className="w-8 h-8 bg-[#007BFF] text-white rounded font-medium">1</button>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">2</button>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">3</button>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">4</button>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">5</button>
-                <span className="text-gray-400">...</span>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">33</button>
-                <button className="p-2 text-gray-400 hover:text-gray-600">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
+              {/* Suitable Jobs Pagination */}
+              {suitableJobsPagination.total > suitableJobsPagination.limit && (
+                <div className="flex items-center justify-center space-x-2 mt-8">
+                  <button 
+                    onClick={() => setSuitableJobsPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                    disabled={suitableJobsPagination.page === 1}
+                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  
+                  {/* Page numbers */}
+                  {Array.from({ length: Math.min(5, suitableJobsPagination.totalPages) }, (_, i) => {
+                    const pageNum = Math.max(1, suitableJobsPagination.page - 2) + i;
+                    if (pageNum > suitableJobsPagination.totalPages) return null;
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setSuitableJobsPagination(prev => ({ ...prev, page: pageNum }))}
+                        className={`w-8 h-8 rounded font-medium ${
+                          pageNum === suitableJobsPagination.page
+                            ? 'bg-[#007BFF] text-white'
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  
+                  {suitableJobsPagination.totalPages > 5 && suitableJobsPagination.page < suitableJobsPagination.totalPages - 2 && (
+                    <>
+                      <span className="text-gray-400">...</span>
+                      <button
+                        onClick={() => setSuitableJobsPagination(prev => ({ ...prev, page: prev.totalPages }))}
+                        className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded"
+                      >
+                        {suitableJobsPagination.totalPages}
+                      </button>
+                    </>
+                  )}
+                  
+                  <button 
+                    onClick={() => setSuitableJobsPagination(prev => ({ ...prev, page: Math.min(prev.totalPages, prev.page + 1) }))}
+                    disabled={suitableJobsPagination.page === suitableJobsPagination.totalPages}
+                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

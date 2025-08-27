@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiArrowLeft, FiCheckCircle, FiBookmark, FiArrowRight, FiShare2, FiEye } from 'react-icons/fi';
 import JobApplication from './JobApplication';
 import candidateApi from '../../services/candidateApi';
+import { isTokenValid } from '../../services/tokenUtils';
 import work1 from '../../assets/work1.png';
 import work2 from '../../assets/work2.png';
 import work3 from '../../assets/work3.png';
@@ -137,6 +138,13 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
             const jobId = job.job_id || job.id?.toString();
             if (!jobId) return;
 
+            // Check if user is authenticated
+            const token = localStorage.getItem('token');
+            if (!token || !isTokenValid(token)) {
+                setIsFavorited(false);
+                return;
+            }
+
             const response = await candidateApi.checkJobBookmarkStatus(jobId);
             if (response.success && response.data) {
                 setIsFavorited(response.data.is_bookmarked);
@@ -152,6 +160,13 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
             const jobId = job.job_id || job.id?.toString();
             if (!jobId) {
                 console.error('No job ID available for bookmark');
+                return;
+            }
+
+            // Check authentication before making API call
+            const token = localStorage.getItem('token');
+            if (!token || !isTokenValid(token)) {
+                alert('Bạn cần đăng nhập để sử dụng tính năng này');
                 return;
             }
 
