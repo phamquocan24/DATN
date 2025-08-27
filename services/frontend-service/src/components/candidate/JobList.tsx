@@ -3,6 +3,7 @@ import { JobApplication } from './JobApplication';
 import candidateApi from '../../services/candidateApi';
 import favoritesService from '../../services/favoritesService';
 import { isTokenValid } from '../../services/tokenUtils';
+import bookmarkCache from '../../services/bookmarkCache';
 
 interface JobListProps {
   onJobClick?: (jobId: string) => void;
@@ -179,19 +180,11 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
           const jobId = job.job_id || job.id?.toString();
           if (!jobId) return;
 
-          // Check if user is authenticated
-          const token = localStorage.getItem('token');
-          if (!token || !isTokenValid(token)) {
-            setIsFavorited(false);
-            return;
-          }
-
-          const response = await candidateApi.checkJobBookmarkStatus(jobId);
-          if (response.success && response.data) {
-            setIsFavorited(response.data.is_bookmarked);
-          }
+          const result = await bookmarkCache.getBookmarkStatus(jobId);
+          setIsFavorited(result.isBookmarked);
         } catch (error) {
           console.error('Failed to check bookmark status:', error);
+          setIsFavorited(false);
         }
       };
       

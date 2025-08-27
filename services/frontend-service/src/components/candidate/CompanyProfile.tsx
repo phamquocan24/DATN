@@ -16,16 +16,16 @@ interface CompanyProfileProps {
 
 
 export const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId, onBack }) => {
+    console.log('CompanyProfile received companyId:', companyId);
+    
     const [isFollowing, setIsFollowing] = useState(false);
     const [companyDetails, setCompanyDetails] = useState<any>(null);
-    const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!companyId) return;
 
     const fetchCompanyProfile = async () => {
-      setIsLoading(true);
       try {
         // Use the correct API endpoint to get company by ID
         const response = await api.get(`/api/v1/companies/${companyId}`);
@@ -38,8 +38,6 @@ export const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId, onBac
       } catch (err: any) {
         setError('Failed to load company profile.');
         console.error('Error fetching company profile:', err);
-      } finally {
-        setIsLoading(false);
       }
     };
 
@@ -47,14 +45,7 @@ export const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId, onBac
   }, [companyId]);
 
 
-  // Display loading state
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#007BFF]"></div>
-      </div>
-    );
-  }
+
 
   // Display error state
   if (error) {

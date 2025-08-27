@@ -4,6 +4,7 @@ import JobDetail from './JobDetail';
 import GroupUnderline from '../../assets/Group.png';
 import candidateApi from '../../services/candidateApi'; // Sử dụng candidateApi
 import { isTokenValid } from '../../services/tokenUtils';
+import bookmarkCache from '../../services/bookmarkCache';
 
 
 interface Job {
@@ -43,9 +44,7 @@ interface FindJobsProps {
   onJobClick?: (jobId: string) => void;
 }
 
-// Global bookmark cache to prevent repeated API calls
-const bookmarkCache = new Map<string, { isBookmarked: boolean, timestamp: number }>();
-const CACHE_DURATION = 30000; // 30 seconds
+// Removed global bookmark cache - now using centralized bookmarkCache service
 
 export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -350,43 +349,18 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
           const jobId = job.job_id || job.id?.toString();
           if (!jobId) return;
 
-          // Check if user is authenticated
-          const token = localStorage.getItem('token');
-          if (!token || !isTokenValid(token)) {
-            setIsJobSaved(false);
-            setHasCheckedBookmark(true);
-            return;
-          }
-
-          // Check cache first
-          const cached = bookmarkCache.get(jobId);
-          const now = Date.now();
-          if (cached && (now - cached.timestamp) < CACHE_DURATION) {
-            setIsJobSaved(cached.isBookmarked);
-            setHasCheckedBookmark(true);
-            return;
-          }
-
-          // Only make API call if not cached and user is authenticated
-          if (!hasCheckedBookmark) {
-            const response = await candidateApi.checkJobBookmarkStatus(jobId);
-            if (response.success && response.data) {
-              const isBookmarked = response.data.is_bookmarked;
-              setIsJobSaved(isBookmarked);
-              
-              // Cache the result
-              bookmarkCache.set(jobId, { isBookmarked, timestamp: now });
-            }
-            setHasCheckedBookmark(true);
-          }
+          const result = await bookmarkCache.getBookmarkStatus(jobId);
+          setIsJobSaved(result.isBookmarked);
+          setHasCheckedBookmark(true);
         } catch (error) {
           console.error('Failed to check bookmark status:', error);
+          setIsJobSaved(false);
           setHasCheckedBookmark(true);
         }
       };
       
       checkBookmarkStatus();
-    }, [job.job_id, job.id, hasCheckedBookmark]);
+    }, [job.job_id, job.id]);
 
     // Listen for bookmark changes from other components
     useEffect(() => {
@@ -398,7 +372,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
           setIsJobSaved(isBookmarked);
           // Update cache
           if (currentJobId) {
-            bookmarkCache.set(currentJobId, { isBookmarked, timestamp: Date.now() });
+            bookmarkCache.setCache(currentJobId, isBookmarked);
           }
         }
       };
@@ -433,7 +407,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
           if (response.success) {
             setIsJobSaved(false);
             // Update cache
-            bookmarkCache.set(jobId, { isBookmarked: false, timestamp: Date.now() });
+            bookmarkCache.setCache(jobId, false);
             // Emit event to sync with other components
             window.dispatchEvent(new CustomEvent('bookmarkChanged', {
               detail: { jobId, isBookmarked: false }
@@ -447,7 +421,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
           if (response.success) {
             setIsJobSaved(true);
             // Update cache
-            bookmarkCache.set(jobId, { isBookmarked: true, timestamp: Date.now() });
+            bookmarkCache.setCache(jobId, true);
             // Emit event to sync with other components
             window.dispatchEvent(new CustomEvent('bookmarkChanged', {
               detail: { jobId, isBookmarked: true }

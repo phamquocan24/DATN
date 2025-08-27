@@ -349,6 +349,8 @@ const MainContent = () => {
             throw new Error('No job data found');
           }
           
+          console.log('Extracted jobDetails:', jobDetails);
+          
           // Parse description to extract different sections
           const parseJobDescription = (description: string) => {
             if (!description) return { mainDesc: '', responsibilities: [], requiredSkills: [], benefits: [] };

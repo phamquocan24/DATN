@@ -3,9 +3,7 @@ import { Footer } from './Footer';
 import GroupUnderline from '../../assets/Group.png';
 import candidateApi from '../../services/candidateApi';
 import { isTokenValid } from '../../services/tokenUtils';
-import { 
-  batchCalculateAIMatchScores
-} from '../../services/aiMatchingApi';
+// Removed AI matching imports - no longer used in favorite jobs
 
 interface Job {
   job_id: string; // Primary ID from database (UUID)
@@ -23,7 +21,6 @@ interface Job {
   logo: string;
   logo_url?: string; // From API response
   logoColor: string;
-  match?: number;
   applied?: number;
   application_count?: number; // From API response
   capacity?: number;
@@ -35,16 +32,6 @@ interface Job {
   isNew?: boolean;
   isSaved?: boolean;
   saved_at?: string; // From API response
-  // AI Matching fields
-  aiMatchScore?: number;
-  matchGrade?: string;
-  isCalculatingMatch?: boolean;
-  detailedScores?: {
-    skills_similarity: number;
-    experience_similarity: number;
-    education_similarity: number;
-    description_similarity: number;
-  };
 }
 
 interface FavoriteJobsProps {
@@ -59,96 +46,12 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'title' | 'company'>('newest');
   const [pagination, setPagination] = useState({ page: 1, limit: 5, total: 0, totalPages: 0 });
-  
-  // AI Matching states
-  const [selectedCVId, setSelectedCVId] = useState<string | null>(null);
 
-  // Load selected CV from localStorage (triggered by Resume component)
-  const loadSelectedCV = useCallback(() => {
-    try {
-      const selectedCV = localStorage.getItem('selectedCVForMatching');
-      if (selectedCV) {
-        const cvData = JSON.parse(selectedCV);
-        setSelectedCVId(cvData.cv_id);
-        console.log('Loaded selected CV for matching:', cvData.full_name);
-      }
-    } catch (error) {
-      console.error('Error loading selected CV:', error);
-    }
-  }, []);
+  // Removed loadSelectedCV function - no longer used
 
-  // Helper function to get match grade
-  const getMatchGrade = (score: number): string => {
-    if (score >= 80) return 'EXCELLENT';
-    if (score >= 70) return 'VERY_GOOD';
-    if (score >= 60) return 'GOOD';
-    if (score >= 50) return 'FAIR';
-    return 'POOR';
-  };
+  // Removed getMatchGrade function - no longer used
 
-  // Function to calculate AI match scores for favorite jobs
-  const calculateAIMatchScoresForFavoriteJobs = async (cvId: string) => {
-    if (!cvId || favoriteJobs.length === 0) return;
-
-    console.log(`Calculating AI match scores for ${favoriteJobs.length} favorite jobs with CV: ${cvId}`);
-
-    try {
-      // Extract job IDs - use job_id (UUID) for API calls
-      const jobIds = favoriteJobs.map(job => job.job_id).filter(Boolean);
-      
-      if (jobIds.length === 0) {
-        console.warn('No valid job IDs found');
-        return;
-      }
-
-      // Set calculating state for all jobs
-      setFilteredJobs(prevJobs => 
-        prevJobs.map(job => ({
-          ...job,
-          isCalculatingMatch: true
-        }))
-      );
-
-      // Calculate batch match scores
-      const batchResult = await batchCalculateAIMatchScores(cvId, jobIds);
-      
-      if (batchResult.success && batchResult.data) {
-        // Update favorite jobs with match scores
-        setFilteredJobs(prevJobs => 
-          prevJobs.map(job => {
-            const matchResult = batchResult.data?.find(result => result.job_id === job.job_id);
-            
-            if (matchResult && !matchResult.error) {
-              return {
-                ...job,
-                aiMatchScore: matchResult.match_score,
-                matchGrade: getMatchGrade(matchResult.match_score),
-                isCalculatingMatch: false,
-                match: matchResult.match_score // Update the existing match field too
-              };
-            }
-            
-            return {
-              ...job,
-              isCalculatingMatch: false
-            };
-          })
-        );
-        
-        console.log(`Successfully calculated match scores for ${batchResult.data.filter(r => !r.error).length} favorite jobs`);
-      }
-    } catch (error) {
-      console.error('Error calculating AI match scores for favorite jobs:', error);
-      
-      // Reset calculating state for all jobs
-      setFilteredJobs(prevJobs => 
-        prevJobs.map(job => ({
-          ...job,
-          isCalculatingMatch: false
-        }))
-      );
-    }
-  };
+  // Removed calculateAIMatchScoresForFavoriteJobs function - no longer used
 
   const [filters, setFilters] = useState({
     employmentType: [] as string[],
@@ -251,8 +154,7 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
 
   useEffect(() => {
     fetchFavoriteJobs();
-    loadSelectedCV();
-  }, [loadSelectedCV]);
+  }, []);
 
   // Listen for bookmark changes from other components
   useEffect(() => {
@@ -276,12 +178,7 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
     };
   }, []);
 
-  // Calculate match scores when favorite jobs are loaded or CV is selected
-  useEffect(() => {
-    if (selectedCVId && filteredJobs.length > 0) {
-      calculateAIMatchScoresForFavoriteJobs(selectedCVId);
-    }
-  }, [selectedCVId, filteredJobs.length]);
+  // Removed AI matching useEffect - no longer used
 
   // Apply filters and search whenever they change
   useEffect(() => {
@@ -449,33 +346,7 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
           {job.type}
         </span>
         
-        {/* AI Match Score Tag */}
-        {selectedCVId && job.aiMatchScore !== undefined && (
-          <span className={`px-3 py-1 text-xs rounded-full font-medium ${
-            job.aiMatchScore >= 80 
-              ? 'bg-green-100 text-green-700'
-              : job.aiMatchScore >= 70 
-              ? 'bg-blue-100 text-blue-700' 
-              : job.aiMatchScore >= 60 
-              ? 'bg-yellow-100 text-yellow-700'
-              : job.aiMatchScore >= 50 
-              ? 'bg-orange-100 text-orange-700'
-              : 'bg-red-100 text-red-700'
-          }`}>
-            Match: {job.aiMatchScore}%
-          </span>
-        )}
-        
-        {/* Calculating Match Tag */}
-        {selectedCVId && job.isCalculatingMatch && (
-          <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
-            <svg className="animate-spin h-3 w-3 inline mr-1" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Calculating Match...
-          </span>
-        )}
+        {/* Removed AI Match Score Tags - no longer used */}
         
         {/* Other tags (filter out old Match tags) */}
         {job.tags.filter(tag => !tag.includes('Match:')).map((tag, index) => (

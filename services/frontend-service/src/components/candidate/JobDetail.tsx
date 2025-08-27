@@ -4,6 +4,7 @@ import JobApplication from './JobApplication';
 import candidateApi from '../../services/candidateApi';
 import { isTokenValid } from '../../services/tokenUtils';
 import { batchCalculateAIMatchScores } from '../../services/aiMatchingApi';
+import bookmarkCache from '../../services/bookmarkCache';
 import work1 from '../../assets/work1.png';
 import work2 from '../../assets/work2.png';
 import work3 from '../../assets/work3.png';
@@ -44,6 +45,8 @@ interface JobDetailProps {
 
 const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: initialStatus }) => {
     const [isApplicationOpen, setIsApplicationOpen] = useState(false);
+    
+
     const [isFavorited, setIsFavorited] = useState(false);
     const [applicationStatus, setApplicationStatus] = useState<string | undefined>(initialStatus);
     const [checkingApplication, setCheckingApplication] = useState(false);
@@ -147,6 +150,10 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
             
             if (changedJobId === currentJobId) {
                 setIsFavorited(isBookmarked);
+                // Update cache
+                if (currentJobId) {
+                    bookmarkCache.setCache(currentJobId, isBookmarked);
+                }
             }
         };
 
@@ -226,20 +233,14 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
             const jobId = job.job_id || job.id?.toString();
             if (!jobId) return;
 
-            // Check if user is authenticated
-            const token = localStorage.getItem('token');
-            if (!token || !isTokenValid(token)) {
-                setIsFavorited(false);
-                return;
-            }
-
-            const response = await candidateApi.checkJobBookmarkStatus(jobId);
-            if (response.success && response.data) {
-                setIsFavorited(response.data.is_bookmarked);
-            }
+            const result = await bookmarkCache.getBookmarkStatus(jobId);
+            setIsFavorited(result.isBookmarked);
+            
+            // Log cache usage for debugging
+            console.log(`Bookmark ${jobId}: ${result.isBookmarked} (${result.fromCache ? 'cache' : 'API'})`);
         } catch (error) {
             console.error('Failed to check bookmark status:', error);
-            // Don't show error to user, just keep default state
+            setIsFavorited(false);
         }
     };
 
@@ -261,12 +262,14 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
             if (isFavorited) {
                 // Remove bookmark
                 const response = await candidateApi.removeJobFromFavorites(jobId);
-                if (response.success) {
-                    setIsFavorited(false);
-                    // Emit event to sync with other components
-                    window.dispatchEvent(new CustomEvent('bookmarkChanged', {
-                        detail: { jobId, isBookmarked: false }
-                    }));
+                            if (response.success) {
+                setIsFavorited(false);
+                // Update cache
+                bookmarkCache.setCache(jobId, false);
+                // Emit event to sync with other components
+                window.dispatchEvent(new CustomEvent('bookmarkChanged', {
+                    detail: { jobId, isBookmarked: false }
+                }));
                 } else if (response.requiresAuth) {
                     alert(response.message || 'Bạn cần đăng nhập để thực hiện thao tác này');
                 }
@@ -275,6 +278,8 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
                 const response = await candidateApi.addJobToFavorites(jobId);
                 if (response.success) {
                     setIsFavorited(true);
+                    // Update cache
+                    bookmarkCache.setCache(jobId, true);
                     // Emit event to sync with other components
                     window.dispatchEvent(new CustomEvent('bookmarkChanged', {
                         detail: { jobId, isBookmarked: true }
@@ -500,10 +505,17 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
                                         job.logo
                                     )}
                                 </div>
-                                <button 
-                                    onClick={() => window.location.href = `/company-profile/${job.company_id}`}
-                                    className="flex items-center gap-2 text-[#007BFF] font-medium hover:underline"
-                                >
+                                                                 <button 
+                                     onClick={() => {
+                                         if (job.company_id) {
+                                             window.location.href = `/company-profile/${job.company_id}`;
+                                         } else {
+                                             console.warn('Company ID not available');
+                                             alert('Company information not available');
+                                         }
+                                     }}
+                                     className="flex items-center gap-2 text-[#007BFF] font-medium hover:underline"
+                                 >
                                     Read more about {job.company} <FiArrowRight />
                                 </button>
                                 <p className="text-gray-600 text-sm leading-relaxed">
@@ -538,10 +550,17 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
                     <div className="bg-white border border-gray-200 rounded-lg p-6 mt-8 shadow-sm">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-semibold text-gray-900">Similar Jobs</h3>
-                            <button 
-                                onClick={() => window.location.href = `/find-jobs?company=${job.company_id}`}
-                                className="text-[#007BFF] text-sm font-medium flex items-center gap-1 hover:underline"
-                            >
+                                                         <button 
+                                 onClick={() => {
+                                     if (job.company_id) {
+                                         window.location.href = `/find-jobs?company=${job.company_id}`;
+                                     } else {
+                                         console.warn('Company ID not available');
+                                         alert('Company information not available');
+                                     }
+                                 }}
+                                 className="text-[#007BFF] text-sm font-medium flex items-center gap-1 hover:underline"
+                             >
                                 Show all jobs <FiArrowRight/>
                             </button>
                         </div>
