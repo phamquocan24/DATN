@@ -384,7 +384,7 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
                                             : aiMatchScore >= 50 ? 'text-orange-600'
                                             : 'text-red-600'
                                         }`}>
-                                            Match: {aiMatchScore}% ({matchGrade})
+                                            Match: {aiMatchScore}%
                                         </span>
                                     ) : selectedCVId ? (
                                         <span className="text-gray-400">No match data</span>
