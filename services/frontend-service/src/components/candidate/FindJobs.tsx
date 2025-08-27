@@ -4,9 +4,6 @@ import JobDetail from './JobDetail';
 import GroupUnderline from '../../assets/Group.png';
 import candidateApi from '../../services/candidateApi'; // Sử dụng candidateApi
 import { isTokenValid } from '../../services/tokenUtils';
-import { 
-  batchCalculateAIMatchScores
-} from '../../services/aiMatchingApi';
 
 
 interface Job {
@@ -56,7 +53,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
+  const [pagination, setPagination] = useState({ page: 1, limit: 5, total: 0 });
   const [currentView, setCurrentView] = useState<'list' | 'detail'>('list');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   
@@ -65,100 +62,13 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
   const [suitableJobsError, setSuitableJobsError] = useState<string | null>(null);
   const [suitableJobsPagination, setSuitableJobsPagination] = useState({ 
     page: 1, 
-    limit: 6, 
+    limit: 5, 
     total: 0, 
     totalPages: 0 
   });
-  
-  // AI Matching states
-  const [selectedCVId, setSelectedCVId] = useState<string | null>(null);
 
-  // Load selected CV from localStorage (triggered by Resume component)
-  const loadSelectedCV = useCallback(() => {
-    try {
-      const selectedCV = localStorage.getItem('selectedCVForMatching');
-      if (selectedCV) {
-        const cvData = JSON.parse(selectedCV);
-        setSelectedCVId(cvData.cv_id);
-        console.log('Loaded selected CV for matching:', cvData.full_name);
-      }
-    } catch (error) {
-      console.error('Error loading selected CV:', error);
-    }
-  }, []);
 
-  // Helper function to get match grade
-  const getMatchGrade = (score: number): string => {
-    if (score >= 80) return 'EXCELLENT';
-    if (score >= 70) return 'VERY_GOOD';
-    if (score >= 60) return 'GOOD';
-    if (score >= 50) return 'FAIR';
-    return 'POOR';
-  };
-
-  // Function to calculate AI match scores for all jobs
-  const calculateAIMatchScoresForJobs = async (cvId: string) => {
-    if (!cvId || jobs.length === 0) return;
-
-    console.log(`Calculating AI match scores for ${jobs.length} jobs with CV: ${cvId}`);
-
-    try {
-      // Extract job IDs
-      const jobIds = jobs.map(job => job.job_id).filter(Boolean);
-      
-      if (jobIds.length === 0) {
-        console.warn('No valid job IDs found');
-        return;
-      }
-
-      // Set calculating state for all jobs
-      setJobs(prevJobs => 
-        prevJobs.map(job => ({
-          ...job,
-          isCalculatingMatch: true
-        }))
-      );
-
-      // Calculate batch match scores
-      const batchResult = await batchCalculateAIMatchScores(cvId, jobIds);
-      
-      if (batchResult.success && batchResult.data) {
-        // Update jobs with match scores
-        setJobs(prevJobs => 
-          prevJobs.map(job => {
-            const matchResult = batchResult.data?.find(result => result.job_id === job.job_id);
-            
-            if (matchResult && !matchResult.error) {
-              return {
-                ...job,
-                aiMatchScore: matchResult.match_score,
-                matchGrade: getMatchGrade(matchResult.match_score),
-                isCalculatingMatch: false,
-                match: matchResult.match_score // Update the existing match field too
-              };
-            }
-            
-            return {
-              ...job,
-              isCalculatingMatch: false
-            };
-          })
-        );
-        
-        console.log(`Successfully calculated match scores for ${batchResult.data.filter(r => !r.error).length} jobs`);
-      }
-    } catch (error) {
-      console.error('Error calculating AI match scores:', error);
-      
-      // Reset calculating state for all jobs
-      setJobs(prevJobs => 
-        prevJobs.map(job => ({
-          ...job,
-          isCalculatingMatch: false
-        }))
-      );
-    }
-  };
+  // Match scores will be calculated only in JobDetail component
 
   const [filters, setFilters] = useState({
     employmentType: [] as string[],
@@ -212,12 +122,22 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
           id: Number(job.id || job._id) || 0, // Ensure it's a number
           title: job.title,
           company: job.company_name || job.company?.name || 'Company',
-          location: job.city_name || job.location || 'Location',
+          location: job.address || job.city_name || job.location || 'Location', // Address next to company
           type: job.employment_type || job.type || 'Full Time',
-          tags: job.skills?.slice(0, 3) || ['Business'],
-          logo: job.company?.name?.charAt(0) || 'C',
-          logoColor: `bg-${['blue', 'green', 'purple', 'red', 'teal'][index % 5]}-500 text-white`,
-          match: 0, // Will be set by AI matching when CV is selected
+          tags: [
+            job.category,
+            job.city_name || job.location, // Category in tags, location moved here
+            job.remote_work_option
+          ].filter(Boolean).slice(0, 3),
+          logo: (job.company_name || job.company?.name || job.title)?.charAt(0).toUpperCase() || 'C',
+          logoColor: [
+            'bg-blue-500 text-white',
+            'bg-green-500 text-white', 
+            'bg-purple-500 text-white',
+            'bg-red-500 text-white',
+            'bg-teal-500 text-white'
+          ][index % 5],
+          match: 0, // Match scores calculated only in JobDetail
           applied: job.applicationsCount || 0,
           capacity: job.openPositions || 1,
           salary: job.salary,
@@ -258,38 +178,12 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
     }
   }, [searchQuery, location, pagination.page, pagination.limit, filters]);
 
-  // Use direct dependencies instead of fetchJobs callback to avoid infinite loops
-  // Load selected CV on component mount
-  useEffect(() => {
-    loadSelectedCV();
-  }, [loadSelectedCV]);
-
-  // Listen for CV selection from Resume component
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'triggerJobMatching') {
-        loadSelectedCV();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [loadSelectedCV]);
-
   // Fetch jobs
   useEffect(() => {
     fetchJobs();
   }, [searchQuery, location, pagination.page, pagination.limit, filters]);
 
-  // Calculate match scores when jobs are loaded or CV is selected
-  useEffect(() => {
-    if (selectedCVId && jobs.length > 0) {
-      calculateAIMatchScoresForJobs(selectedCVId);
-    }
-  }, [selectedCVId, jobs.length]);
+  // Match scores will be calculated only in JobDetail component
 
   // Fetch suitable jobs (recommendations) - using useCallback to prevent infinite loops
   const fetchSuitableJobs = useCallback(async () => {
@@ -311,14 +205,15 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
           }));
         }
         
-        const transformedJobs = response.data.map((job: any, index: number) => ({
+        const transformedJobs = response.data.map((job: any, index: number) => {
+          return {
           job_id: job.job_id,
           id: parseInt(job.id || job.job_id) || 0,
           title: job.title,
           company: job.company_name || 'Company',
-          location: [job.city_name, job.district_name, job.address]
+          location: job.address || [job.city_name, job.district_name]
             .filter(Boolean)
-            .join(', ') || 'Remote',
+            .join(', ') || 'Remote', // Address next to company
           type: job.employment_type === 'FULL_TIME' ? 'Full-Time' 
               : job.employment_type === 'PART_TIME' ? 'Part-Time'
               : job.employment_type === 'CONTRACT' ? 'Contract'
@@ -326,13 +221,19 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
               : 'Full-Time',
           tags: [
             job.category,
-            job.work_arrangement && job.work_arrangement.charAt(0) + job.work_arrangement.slice(1).toLowerCase(),
-            job.featured && 'Featured',
-            `Match: ${Math.round(job.match_score || 85)}%`
+            [job.city_name, job.district_name].filter(Boolean).join(', '), // Location moved here
+            job.remote_work_option
           ].filter(Boolean).slice(0, 3),
-          logo: (job.company_name || job.title)?.charAt(0).toUpperCase() || 'J',
-          logoColor: `bg-${['blue', 'green', 'purple', 'red', 'teal', 'orange'][index % 6]}-500 text-white`,
-          match: Math.round(job.match_score || 85),
+          logo: (job.company_name || job.title || 'Company')?.charAt(0).toUpperCase() || 'C',
+          logoColor: [
+            'bg-blue-500 text-white',
+            'bg-green-500 text-white', 
+            'bg-purple-500 text-white',
+            'bg-red-500 text-white',
+            'bg-teal-500 text-white',
+            'bg-orange-500 text-white'
+          ][index % 6],
+          match: 0, // Match scores calculated only in JobDetail
           applied: job.application_count || 0,
           capacity: job.max_applications || 1,
           salary: job.salary_min && job.salary_max 
@@ -361,7 +262,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
             job.language_requirements?.join(', '),
             job.required_skills?.length > 0 ? `Skills: ${job.required_skills.join(', ')}` : null
           ].filter(Boolean)
-        }));
+        }; });
         setSuitableJobs(transformedJobs);
       } else {
         setSuitableJobs([]);
@@ -597,33 +498,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
             {job.type}
           </span>
           
-          {/* AI Match Score Tag */}
-          {selectedCVId && job.aiMatchScore !== undefined && (
-            <span className={`px-3 py-1 text-xs rounded-full font-medium ${
-              job.aiMatchScore >= 80 
-                ? 'bg-green-100 text-green-700'
-                : job.aiMatchScore >= 70 
-                ? 'bg-blue-100 text-blue-700' 
-                : job.aiMatchScore >= 60 
-                ? 'bg-yellow-100 text-yellow-700'
-                : job.aiMatchScore >= 50 
-                ? 'bg-orange-100 text-orange-700'
-                : 'bg-red-100 text-red-700'
-            }`}>
-              Match: {job.aiMatchScore}%
-            </span>
-          )}
-          
-          {/* Calculating Match Tag */}
-          {selectedCVId && job.isCalculatingMatch && (
-            <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
-              <svg className="animate-spin h-3 w-3 inline mr-1" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Calculating Match...
-            </span>
-          )}
+                  {/* Match scores calculated only in JobDetail */}
           
           {/* Other tags (filter out old Match tags) */}
           {job.tags.filter(tag => !tag.includes('Match:')).map((tag, index) => (
@@ -965,8 +840,8 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
               {/* New Jobs Section */}
               <div className="mb-8">
                 <div className="flex items-start justify-between mb-6">
-                                      <div>
-                      <h2 className="text-2xl font-bold text-gray-900">New Jobs</h2>
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">New Jobs</h2>
                       <p className="text-sm text-gray-500 mt-1">
                         {isLoading 
                           ? 'Loading jobs...'
@@ -975,7 +850,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
                             : `Showing ${jobs.length} of ${pagination.total} results`
                         }
                       </p>
-                    </div>
+                  </div>
                   <div className="flex items-center space-x-4 ml-auto">
                     <div className="flex items-center space-x-2">
                       <span className="text-sm text-gray-500">Sort by:</span>
@@ -1017,16 +892,16 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
 
                              {/* New Jobs Pagination */}
                {pagination.total > pagination.limit && (
-                 <div className="flex items-center justify-center space-x-2 mb-8">
+              <div className="flex items-center justify-center space-x-2 mb-8">
                    <button 
                      onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
                      disabled={pagination.page === 1}
                      className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                    >
-                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                     </svg>
-                   </button>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
                    
                    {/* Page numbers */}
                    {Array.from({ length: Math.min(5, Math.ceil(pagination.total / pagination.limit)) }, (_, i) => {
@@ -1051,7 +926,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
                    
                    {Math.ceil(pagination.total / pagination.limit) > 5 && pagination.page < Math.ceil(pagination.total / pagination.limit) - 2 && (
                      <>
-                       <span className="text-gray-400">...</span>
+                <span className="text-gray-400">...</span>
                        <button
                          onClick={() => setPagination(prev => ({ ...prev, page: Math.ceil(pagination.total / pagination.limit) }))}
                          className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded"
@@ -1066,11 +941,11 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
                      disabled={pagination.page === Math.ceil(pagination.total / pagination.limit)}
                      className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                    >
-                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                     </svg>
-                   </button>
-                 </div>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
                )}
 
               {/* Suitable Jobs Section */}
@@ -1081,7 +956,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
                     <p className="text-sm text-gray-500 mt-1">
                       {suitableJobsError 
                         ? 'Failed to load recommendations'
-                        : `Showing ${suitableJobs.length} of ${suitableJobsPagination.total} personalized recommendations`
+                        : `Showing ${Math.min(suitableJobsPagination.limit, suitableJobs.length)} of ${suitableJobsPagination.total} personalized recommendations`
                       }
                     </p>
                   </div>
@@ -1130,16 +1005,16 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
 
               {/* Suitable Jobs Pagination */}
               {suitableJobsPagination.total > suitableJobsPagination.limit && (
-                <div className="flex items-center justify-center space-x-2 mt-8">
+              <div className="flex items-center justify-center space-x-2 mt-8">
                   <button 
                     onClick={() => setSuitableJobsPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
                     disabled={suitableJobsPagination.page === 1}
                     className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </button>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
                   
                   {/* Page numbers */}
                   {Array.from({ length: Math.min(5, suitableJobsPagination.totalPages) }, (_, i) => {
@@ -1163,7 +1038,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
                   
                   {suitableJobsPagination.totalPages > 5 && suitableJobsPagination.page < suitableJobsPagination.totalPages - 2 && (
                     <>
-                      <span className="text-gray-400">...</span>
+                <span className="text-gray-400">...</span>
                       <button
                         onClick={() => setSuitableJobsPagination(prev => ({ ...prev, page: prev.totalPages }))}
                         className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded"
@@ -1178,11 +1053,11 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
                     disabled={suitableJobsPagination.page === suitableJobsPagination.totalPages}
                     className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </div>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
               )}
             </div>
           </div>

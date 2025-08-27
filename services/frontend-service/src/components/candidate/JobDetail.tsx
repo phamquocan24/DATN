@@ -3,6 +3,7 @@ import { FiArrowLeft, FiCheckCircle, FiBookmark, FiArrowRight, FiShare2, FiEye }
 import JobApplication from './JobApplication';
 import candidateApi from '../../services/candidateApi';
 import { isTokenValid } from '../../services/tokenUtils';
+import { batchCalculateAIMatchScores } from '../../services/aiMatchingApi';
 import work1 from '../../assets/work1.png';
 import work2 from '../../assets/work2.png';
 import work3 from '../../assets/work3.png';
@@ -27,6 +28,10 @@ interface Job {
   benefits?: string[];
   whoYouAre?: string[];
   niceToHaves?: string[];
+  // AI Matching fields
+  aiMatchScore?: number;
+  matchGrade?: string;
+  isCalculatingMatch?: boolean;
 }
 
 
@@ -44,12 +49,95 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
     const [checkingApplication, setCheckingApplication] = useState(false);
     const [companyData, setCompanyData] = useState<any>(null);
     const [similarJobs, setSimilarJobs] = useState<any[]>([]);
+    
+    // AI Matching states
+    const [aiMatchScore, setAiMatchScore] = useState<number | null>(null);
+    const [matchGrade, setMatchGrade] = useState<string>('');
+    const [isCalculatingMatch, setIsCalculatingMatch] = useState(false);
+    const [selectedCVId, setSelectedCVId] = useState<string | null>(null);
+
+    // Helper function to get match grade
+    const getMatchGrade = (score: number): string => {
+        if (score >= 80) return 'EXCELLENT';
+        if (score >= 70) return 'VERY_GOOD';
+        if (score >= 60) return 'GOOD';
+        if (score >= 50) return 'FAIR';
+        return 'POOR';
+    };
+
+    // Load selected CV from localStorage
+    const loadSelectedCV = () => {
+        try {
+            const selectedCV = localStorage.getItem('selectedCVForMatching');
+            if (selectedCV) {
+                const cvData = JSON.parse(selectedCV);
+                setSelectedCVId(cvData.cv_id);
+                console.log('Loaded selected CV for matching:', cvData.full_name);
+            }
+        } catch (error) {
+            console.error('Error loading selected CV:', error);
+        }
+    };
+
+    // Calculate AI match score for this specific job
+    const calculateAIMatchScore = async (cvId: string) => {
+        if (!cvId || !job.job_id) return;
+
+        console.log(`Calculating AI match score for job ${job.job_id} with CV: ${cvId}`);
+
+        try {
+            setIsCalculatingMatch(true);
+
+            // Calculate match score for this job
+            const batchResult = await batchCalculateAIMatchScores(cvId, [job.job_id]);
+            
+            if (batchResult.success && batchResult.data && batchResult.data.length > 0) {
+                const matchResult = batchResult.data[0];
+                
+                if (matchResult && !matchResult.error) {
+                    const score = matchResult.match_score;
+                    setAiMatchScore(score);
+                    setMatchGrade(getMatchGrade(score));
+                    console.log(`Successfully calculated match score: ${score}%`);
+                } else {
+                    console.error('Match calculation error:', matchResult?.error);
+                }
+            }
+        } catch (error) {
+            console.error('Error calculating AI match score:', error);
+        } finally {
+            setIsCalculatingMatch(false);
+        }
+    };
 
     // Check if user has already applied for this job
     useEffect(() => {
         checkApplicationStatus();
         checkBookmarkStatus();
+        loadSelectedCV(); // Load CV when component mounts
     }, [job.job_id, job.id]);
+
+    // Calculate match score when CV is loaded
+    useEffect(() => {
+        if (selectedCVId) {
+            calculateAIMatchScore(selectedCVId);
+        }
+    }, [selectedCVId]);
+
+    // Listen for CV selection changes
+    useEffect(() => {
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'triggerJobMatching' || e.key === 'selectedCVForMatching') {
+                loadSelectedCV();
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+        };
+    }, []);
 
     // Listen for bookmark changes from other components
     useEffect(() => {
@@ -280,7 +368,29 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
                                     <span>&bull;</span>
                                     <span className="flex items-center gap-1.5"><FiEye /> 1.4k seen</span>
                                     <span>&bull;</span>
-                                    <span className="text-green-600">Match: 80%</span>
+                                    {isCalculatingMatch ? (
+                                        <span className="flex items-center gap-1.5 text-gray-500">
+                                            <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Calculating Match...
+                                        </span>
+                                    ) : aiMatchScore !== null ? (
+                                        <span className={`font-medium ${
+                                            aiMatchScore >= 80 ? 'text-green-600' 
+                                            : aiMatchScore >= 70 ? 'text-blue-600'
+                                            : aiMatchScore >= 60 ? 'text-yellow-600'
+                                            : aiMatchScore >= 50 ? 'text-orange-600'
+                                            : 'text-red-600'
+                                        }`}>
+                                            Match: {aiMatchScore}% ({matchGrade})
+                                        </span>
+                                    ) : selectedCVId ? (
+                                        <span className="text-gray-400">No match data</span>
+                                    ) : (
+                                        <span className="text-gray-400">Select CV to see match</span>
+                                    )}
                                 </div>
                             </div>
                         </div>

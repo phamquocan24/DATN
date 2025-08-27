@@ -58,7 +58,7 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'title' | 'company'>('newest');
-  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
+  const [pagination, setPagination] = useState({ page: 1, limit: 5, total: 0, totalPages: 0 });
   
   // AI Matching states
   const [selectedCVId, setSelectedCVId] = useState<string | null>(null);
@@ -165,13 +165,16 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
 
   // Transform API data to Job interface
   const transformJobData = (apiJob: any): Job => {
-    const location = [apiJob.city_name, apiJob.district_name].filter(Boolean).join(', ') || 'Remote';
+    const location = apiJob.address || [apiJob.city_name, apiJob.district_name].filter(Boolean).join(', ') || 'Remote'; // Address next to company
     
     // Create tags array
     const tags = [];
     if (apiJob.category) tags.push(apiJob.category);
-    if (apiJob.work_arrangement) tags.push(apiJob.work_arrangement);
-    if (apiJob.featured) tags.push('Featured');
+    if (apiJob.city_name || apiJob.district_name) {
+      const cityLocation = [apiJob.city_name, apiJob.district_name].filter(Boolean).join(', ');
+      if (cityLocation) tags.push(cityLocation); // Location moved to tags
+    }
+    if (apiJob.remote_work_option) tags.push(apiJob.remote_work_option);
     
     // Create salary string
     let salary = '';
@@ -335,6 +338,9 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
     });
 
     setFilteredJobs(filtered);
+    
+    // Reset to page 1 when filters change
+    setPagination(prev => ({ ...prev, page: 1, total: filtered.length }));
   }, [searchQuery, location, filters, favoriteJobs, sortBy]);
 
   const toggleSavedJob = async (jobId: string) => {
@@ -808,7 +814,7 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
                     <h2 className="text-2xl font-bold text-gray-900">Favorite Jobs</h2>
                     <p className="text-sm text-gray-500 mt-1">
                       {filteredJobs.length > 0 
-                        ? `Showing ${filteredJobs.length} of ${favoriteJobs.length} saved jobs`
+                        ? `Showing ${Math.min(pagination.limit, filteredJobs.length - (pagination.page - 1) * pagination.limit)} of ${filteredJobs.length} saved jobs`
                         : favoriteJobs.length > 0 
                           ? `${favoriteJobs.length} saved jobs (filtered results: 0)`
                           : 'No saved jobs yet'
@@ -850,9 +856,11 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
                       <p className="text-red-500">{error}</p>
                     </div>
                   ) : filteredJobs.length > 0 ? (
-                    filteredJobs.map((job) => (
-                      <JobCard key={job.job_id} job={job} />
-                    ))
+                    filteredJobs
+                      .slice((pagination.page - 1) * pagination.limit, pagination.page * pagination.limit)
+                      .map((job) => (
+                        <JobCard key={job.job_id} job={job} />
+                      ))
                   ) : favoriteJobs.length > 0 ? (
                     <div className="text-center py-8">
                       <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -875,14 +883,61 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
                 </div>
               </div>
 
-              {/* Pagination - Only show if there are jobs */}
-              {filteredJobs.length > 0 && (
+              {/* Pagination - Only show if there are more than 5 jobs */}
+              {filteredJobs.length > pagination.limit && (
                 <div className="flex items-center justify-center space-x-2 mt-8">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-500">
-                      Showing {filteredJobs.length} of {pagination.total} saved job{pagination.total !== 1 ? 's' : ''}
-                    </span>
-                  </div>
+                  <button 
+                    onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                    disabled={pagination.page === 1}
+                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  
+                  {/* Page numbers */}
+                  {Array.from({ length: Math.min(5, Math.ceil(filteredJobs.length / pagination.limit)) }, (_, i) => {
+                    const totalPages = Math.ceil(filteredJobs.length / pagination.limit);
+                    const pageNum = Math.max(1, pagination.page - 2) + i;
+                    if (pageNum > totalPages) return null;
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setPagination(prev => ({ ...prev, page: pageNum }))}
+                        className={`w-8 h-8 rounded font-medium ${
+                          pageNum === pagination.page
+                            ? 'bg-[#007BFF] text-white'
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  
+                  {Math.ceil(filteredJobs.length / pagination.limit) > 5 && pagination.page < Math.ceil(filteredJobs.length / pagination.limit) - 2 && (
+                    <>
+                      <span className="text-gray-400">...</span>
+                      <button
+                        onClick={() => setPagination(prev => ({ ...prev, page: Math.ceil(filteredJobs.length / pagination.limit) }))}
+                        className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded"
+                      >
+                        {Math.ceil(filteredJobs.length / pagination.limit)}
+                      </button>
+                    </>
+                  )}
+                  
+                  <button 
+                    onClick={() => setPagination(prev => ({ ...prev, page: Math.min(Math.ceil(filteredJobs.length / pagination.limit), prev.page + 1) }))}
+                    disabled={pagination.page === Math.ceil(filteredJobs.length / pagination.limit)}
+                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
                 </div>
               )}
             </div>
