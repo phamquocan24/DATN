@@ -41,23 +41,32 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
           id: job.id,
           title: job.title,
           company: job.company_name,
-          location: [job.city_name, job.district_name]
+          location: [job.city_name, job.district_name, job.address]
             .filter(Boolean)
-            .join(', ') || 'Remote',
+            .join(', ') || (job.remote_work_option ? 'Remote' : 'Location TBD'),
           type: job.employment_type === 'FULL_TIME' ? 'Full-Time' : 
                 job.employment_type === 'PART_TIME' ? 'Part-Time' :
                 job.employment_type === 'CONTRACT' ? 'Contract' :
                 job.employment_type === 'INTERNSHIP' ? 'Internship' :
                 job.employment_type || 'Full-Time',
-          description: job.description,
+          description: job.description ? 
+            (job.description.length > 150 ? 
+              job.description.substring(0, 150) + '...' : 
+              job.description) : 
+            'No description available',
           tags: [
             job.category,
-            job.employment_type === 'FULL_TIME' ? 'Full-Time' : job.employment_type,
-            job.remote_work_option && 'Remote'
+            job.employment_type === 'FULL_TIME' ? 'Full-Time' : 
+            job.employment_type === 'PART_TIME' ? 'Part-Time' :
+            job.employment_type === 'CONTRACT' ? 'Contract' :
+            job.employment_type === 'INTERNSHIP' ? 'Internship' : 
+            job.employment_type,
+            job.remote_work_option && 'Remote',
+            job.featured && 'Featured'
           ].filter(Boolean).slice(0, 3),
           logo: (job.company_name || job.title)?.charAt(0).toUpperCase() || 'J',
           logoColor: `bg-${['blue', 'green', 'purple', 'red', 'teal', 'orange'][index % 6]}-500 text-white`,
-          applied: parseInt(job.application_count) || 0,
+          applied: job.application_count || 0,
           capacity: job.max_applications || 1
         });
 

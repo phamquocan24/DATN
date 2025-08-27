@@ -214,26 +214,42 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
                     {/* Left/Main Column */}
                     <div className="lg:col-span-2 space-y-8">
                         <Section title="Description">
-                            <p className="text-gray-600 leading-relaxed">{job.description || "No description provided."}</p>
+                            <div className="text-gray-600 leading-relaxed space-y-3">
+                                {(job.description || "No description provided.").split('\n\n').map((paragraph, index) => (
+                                    <p key={index} className="whitespace-pre-line">
+                                        {paragraph.trim()}
+                                    </p>
+                                ))}
+                            </div>
                         </Section>
 
                         <Section title="Responsibilities">
+                            <ul className="space-y-2 list-inside">
+                                {(job.whoYouAre || []).map((item, index) => <ListItem key={index}>{item}</ListItem>)}
+                            </ul>
+                        </Section>
+
+                        <Section title="Requirements">
                             <ul className="space-y-2 list-inside">
                                 {(job.requirements || []).map((item, index) => <ListItem key={index}>{item}</ListItem>)}
                             </ul>
                         </Section>
 
-                        <Section title="Who You Are">
-                            <ul className="space-y-2 list-inside">
-                                {(job.whoYouAre || []).map((item, index) => <ListItem key={index}>{item}</ListItem>)}
-                            </ul>
-                        </Section>
+                        {job.benefits && job.benefits.length > 0 && (
+                            <Section title="Benefits">
+                                <ul className="space-y-2 list-inside">
+                                    {job.benefits.map((item, index) => <ListItem key={index}>{item}</ListItem>)}
+                                </ul>
+                            </Section>
+                        )}
                         
-                        <Section title="Nice-To-Haves">
-                             <ul className="space-y-2 list-inside">
-                                {(job.niceToHaves || []).map((item, index) => <ListItem key={index}>{item}</ListItem>)}
-                            </ul>
-                        </Section>
+                        {job.niceToHaves && job.niceToHaves.length > 0 && (
+                            <Section title="Nice-To-Haves">
+                                <ul className="space-y-2 list-inside">
+                                    {job.niceToHaves.map((item, index) => <ListItem key={index}>{item}</ListItem>)}
+                                </ul>
+                            </Section>
+                        )}
                     </div>
 
                     {/* Right Column / Sidebar */}

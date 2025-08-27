@@ -349,6 +349,50 @@ const MainContent = () => {
             throw new Error('No job data found');
           }
           
+          // Parse description to extract different sections
+          const parseJobDescription = (description: string) => {
+            if (!description) return { mainDesc: '', responsibilities: [], requiredSkills: [], benefits: [] };
+
+            // Split by double newlines to get sections
+            const sections = description.split('\n\n').filter(Boolean);
+            
+            let mainDesc = '';
+            let responsibilities: string[] = [];
+            let requiredSkills: string[] = [];
+            let benefits: string[] = [];
+            
+            sections.forEach(section => {
+              const trimmedSection = section.trim();
+              
+              if (trimmedSection.includes('Key Responsibilities:') || trimmedSection.includes('Responsibilities:')) {
+                // Extract responsibilities
+                const lines = trimmedSection.split('\n').slice(1); // Skip header line
+                responsibilities = lines
+                  .filter(line => line.trim().startsWith('-'))
+                  .map(line => line.trim().replace(/^-\s*/, ''));
+              } else if (trimmedSection.includes('Required Skills:') || trimmedSection.includes('Skills:')) {
+                // Extract required skills
+                const lines = trimmedSection.split('\n').slice(1); // Skip header line
+                requiredSkills = lines
+                  .filter(line => line.trim().startsWith('-'))
+                  .map(line => line.trim().replace(/^-\s*/, ''));
+              } else if (trimmedSection.includes('Benefits:')) {
+                // Extract benefits
+                const lines = trimmedSection.split('\n').slice(1); // Skip header line
+                benefits = lines
+                  .filter(line => line.trim().startsWith('-'))
+                  .map(line => line.trim().replace(/^-\s*/, ''));
+              } else if (!trimmedSection.includes(':') || sections.indexOf(section) === 0) {
+                // Main description (first section or sections without colons)
+                mainDesc += (mainDesc ? '\n\n' : '') + trimmedSection;
+              }
+            });
+
+            return { mainDesc, responsibilities, requiredSkills, benefits };
+          };
+
+          const { mainDesc, responsibilities, requiredSkills, benefits } = parseJobDescription(jobDetails.description || '');
+
           // Transform API data to match JobDetail component interface - using real API structure
           const transformedJob = {
             job_id: jobDetails.job_id,
@@ -357,7 +401,7 @@ const MainContent = () => {
             company: jobDetails.company_name,
             location: [jobDetails.city_name, jobDetails.district_name, jobDetails.address]
               .filter(Boolean)
-              .join(', ') || 'Remote',
+              .join(', ') || (jobDetails.remote_work_option ? 'Remote' : 'Location TBD'),
             type: jobDetails.employment_type === 'FULL_TIME' ? 'Full-Time' : 
                   jobDetails.employment_type === 'PART_TIME' ? 'Part-Time' :
                   jobDetails.employment_type === 'CONTRACT' ? 'Contract' :
@@ -365,42 +409,47 @@ const MainContent = () => {
                   jobDetails.employment_type || 'Full-Time',
             tags: [
               jobDetails.category,
-              jobDetails.employment_type === 'FULL_TIME' ? 'Full-Time' : jobDetails.employment_type,
+              jobDetails.employment_type === 'FULL_TIME' ? 'Full-Time' : 
+              jobDetails.employment_type === 'PART_TIME' ? 'Part-Time' :
+              jobDetails.employment_type === 'CONTRACT' ? 'Contract' :
+              jobDetails.employment_type === 'INTERNSHIP' ? 'Internship' : 
+              jobDetails.employment_type,
               jobDetails.remote_work_option && 'Remote',
               jobDetails.featured && 'Featured'
             ].filter(Boolean),
             logo: (jobDetails.company_name || jobDetails.title)?.charAt(0).toUpperCase() || 'J',
             logoColor: 'bg-blue-500 text-white',
             match: 85, // Default match score since not provided in API
-            applied: parseInt(jobDetails.application_count) || 0,
+            applied: jobDetails.application_count || 0,
             capacity: jobDetails.max_applications || 1,
             salary: jobDetails.salary_min && jobDetails.salary_max 
               ? `${jobDetails.salary_min.toLocaleString()} - ${jobDetails.salary_max.toLocaleString()} ${jobDetails.currency || 'VND'}`
               : jobDetails.salary_min 
                 ? `From ${jobDetails.salary_min.toLocaleString()} ${jobDetails.currency || 'VND'}`
                 : 'Competitive Salary',
-            description: jobDetails.description,
+            description: mainDesc || jobDetails.description,
             requirements: jobDetails.requirements 
               ? (typeof jobDetails.requirements === 'string' 
-                  ? jobDetails.requirements.split('\n').filter(Boolean)
+                  ? jobDetails.requirements.split('.').filter((line: string) => line.trim()).map((line: string) => line.trim() + '.')
                   : jobDetails.requirements)
-              : [],
-            benefits: jobDetails.benefits 
-              ? (typeof jobDetails.benefits === 'string' 
-                  ? jobDetails.benefits.split('\n').filter(Boolean)
-                  : jobDetails.benefits)
-              : [],
-            whoYouAre: jobDetails.responsibilities 
-              ? (typeof jobDetails.responsibilities === 'string' 
-                  ? jobDetails.responsibilities.split('\n').filter(Boolean)
-                  : jobDetails.responsibilities)
-              : [],
-            niceToHaves: jobDetails.education_requirements || jobDetails.language_requirements
-              ? [
-                  jobDetails.education_requirements,
-                  jobDetails.language_requirements
-                ].filter(Boolean)
-              : []
+              : requiredSkills.length > 0 ? requiredSkills : [],
+            benefits: benefits.length > 0 ? benefits : 
+              (jobDetails.benefits 
+                ? (typeof jobDetails.benefits === 'string' 
+                    ? jobDetails.benefits.split('\n').filter(Boolean).map((line: string) => line.trim())
+                    : jobDetails.benefits)
+                : []),
+            whoYouAre: responsibilities.length > 0 ? responsibilities :
+              (jobDetails.responsibilities 
+                ? (typeof jobDetails.responsibilities === 'string' 
+                    ? jobDetails.responsibilities.split('\n').filter(Boolean).map((line: string) => line.trim())
+                    : jobDetails.responsibilities)
+                : []),
+            niceToHaves: [
+              jobDetails.education_requirements,
+              jobDetails.language_requirements,
+              jobDetails.required_skills?.length > 0 ? `Skills: ${jobDetails.required_skills.join(', ')}` : null
+            ].filter(Boolean)
           };
           
           setJobData(transformedJob);
