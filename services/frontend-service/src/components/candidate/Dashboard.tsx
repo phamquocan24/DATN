@@ -141,7 +141,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     fetchApplicationsData();
   }, []);
 
-  // Fetch suggested jobs data using AI service
+  // Fetch suggested jobs data using Business Service recommendations
   useEffect(() => {
     const fetchSuggestedJobs = async () => {
       try {
@@ -152,56 +152,71 @@ const Dashboard: React.FC<DashboardProps> = ({
         const userProfile = JSON.parse(localStorage.getItem('userInfo') || '{}');
         
         if (userProfile.user_id) {
-          // Use AI service for job recommendations
-          const aiResponse = await getAIJobRecommendations(userProfile.user_id, 10);
-          
-          if (aiResponse.success && aiResponse.data) {
-            // Transform AI response to match the expected Job interface
-            const transformedJobs = aiResponse.data.recommendations.map((job: any) => ({
-              job_id: job.job_id,
-              id: job.job_id,
-              title: job.title,
-              company: job.group,
-              location: 'Various', // AI service doesn't provide location yet
-              type: 'Full-Time', // Default type
-              tags: [
-                'AI Recommended',
-                `Match: ${Math.round(job.overall_similarity * 100)}%`
-              ],
-              logo: (job.group || 'C').charAt(0).toUpperCase(),
-              logoColor: 'bg-green-500 text-white', // Green for AI recommendations
-              match: Math.round(job.overall_similarity * 100),
-              applied: 0,
-              capacity: 10,
-              salary: 'Competitive'
-            }));
-            setSuggestedJobs(transformedJobs);
-          } else {
-            // Fallback to business service if AI service fails
-            console.warn('AI recommendations failed, falling back to business service');
-            const response = await candidateApi.getJobRecommendations({ 
+          // Use Business Service recommendations as primary source
+          try {
+            const response = await candidateApi.getRecommendedJobs({ 
               page: 1, 
-              limit: 10 
+              limit: 6 
             });
             
-            if (response && response.data) {
-              const transformedJobs = response.data.map((job: any) => ({
-                job_id: job.job_id || job.id,
-                id: job.id,
+            if (response && response.data && Array.isArray(response.data)) {
+              const transformedJobs = response.data.map((job: any, index: number) => ({
+                job_id: job.job_id,
+                id: parseInt(job.id || job.job_id) || 0,
                 title: job.title,
-                company: job.company_name || job.company,
-                location: job.location,
-                type: job.employment_type || job.type || 'Full-Time',
+                company: job.company_name || 'Company',
+                location: [job.city_name, job.district_name, job.address]
+                  .filter(Boolean)
+                  .join(', ') || 'Remote',
+                type: job.employment_type === 'FULL_TIME' ? 'Full-Time' 
+                    : job.employment_type === 'PART_TIME' ? 'Part-Time'
+                    : job.employment_type === 'CONTRACT' ? 'Contract'
+                    : job.employment_type === 'INTERNSHIP' ? 'Internship'
+                    : 'Full-Time',
                 tags: [
-                  ...(job.skills || []).slice(0, 2),
-                  `Match: ${job.match_score || 0}%`
+                  job.category,
+                  job.work_arrangement && job.work_arrangement.charAt(0) + job.work_arrangement.slice(1).toLowerCase(),
+                  job.featured && 'Featured',
+                  `Match: ${Math.round(job.match_score || 85)}%`
+                ].filter(Boolean).slice(0, 3),
+                logo: (job.company_name || job.title)?.charAt(0).toUpperCase() || 'J',
+                logoColor: `bg-${['blue', 'green', 'purple', 'red', 'teal', 'orange'][index % 6]}-500 text-white`,
+                match: Math.round(job.match_score || 85),
+                applied: job.application_count || 0,
+                capacity: job.max_applications || 1,
+                salary: job.salary_min && job.salary_max 
+                  ? `${job.salary_min.toLocaleString()} - ${job.salary_max.toLocaleString()} ${job.currency || 'VND'}`
+                  : job.salary_min 
+                    ? `From ${job.salary_min.toLocaleString()} ${job.currency || 'VND'}`
+                    : 'Competitive Salary'
+              }));
+              setSuggestedJobs(transformedJobs);
+            } else {
+              throw new Error('No data received from business service');
+            }
+          } catch (businessError) {
+            // Fallback to AI service if business service fails
+            console.warn('Business service recommendations failed, falling back to AI service:', businessError);
+            const aiResponse = await getAIJobRecommendations(userProfile.user_id, 6);
+            
+            if (aiResponse.success && aiResponse.data) {
+              const transformedJobs = aiResponse.data.recommendations.map((job: any) => ({
+                job_id: job.job_id,
+                id: job.job_id,
+                title: job.title,
+                company: job.group,
+                location: 'Various',
+                type: 'Full-Time',
+                tags: [
+                  'AI Recommended',
+                  `Match: ${Math.round(job.overall_similarity * 100)}%`
                 ],
-                logo: (job.company_name || job.company || 'C').charAt(0).toUpperCase(),
-                logoColor: 'bg-blue-500 text-white',
-                match: job.match_score || 0,
-                applied: job.applications_count || 0,
-                capacity: job.max_applications || 10,
-                salary: job.salary_range || job.salary
+                logo: (job.group || 'C').charAt(0).toUpperCase(),
+                logoColor: 'bg-green-500 text-white',
+                match: Math.round(job.overall_similarity * 100),
+                applied: 0,
+                capacity: 10,
+                salary: 'Competitive'
               }));
               setSuggestedJobs(transformedJobs);
             } else {

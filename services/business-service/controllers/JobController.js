@@ -2313,6 +2313,40 @@ class JobController {
     }
   }
 
+  /**
+   * GET /api/v1/jobs/:id/bookmark-status - Check if job is bookmarked
+   * Requires: CANDIDATE role
+   */
+  async checkJobBookmarkStatus(req, res) {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required'
+        });
+      }
+
+      const { id: jobId } = req.params;
+      
+      const isBookmarked = await this.bookmarkModel.isJobBookmarked(req.user.user_id, jobId);
+
+      res.json({
+        success: true,
+        data: {
+          job_id: jobId,
+          is_bookmarked: isBookmarked
+        }
+      });
+    } catch (error) {
+      logger.error('Failed to check bookmark status:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to check bookmark status',
+        error: error.message
+      });
+    }
+  }
+
   // Normalize search parameters to handle both frontend formats
   normalizeSearchParams(params) {
     const normalized = { ...params };
@@ -2385,6 +2419,7 @@ router.put('/:id', authenticateToken, requireRole(['RECRUITER', 'HR', 'ADMIN']),
 router.patch('/:id/status', authenticateToken, requireRole(['RECRUITER', 'HR', 'ADMIN']), jobController.updateJobStatus.bind(jobController));
 router.delete('/:id', authenticateToken, requireRole(['RECRUITER', 'HR', 'ADMIN']), jobController.deleteJob.bind(jobController));
 router.get('/company/:companyId', jobController.getJobsByCompany.bind(jobController));
+router.get('/:id/bookmark-status', authenticateToken, requireRole(['CANDIDATE']), jobController.checkJobBookmarkStatus.bind(jobController));
 router.post('/:id/bookmark', authenticateToken, requireRole(['CANDIDATE']), jobController.addJobBookmark.bind(jobController));
 router.delete('/:id/bookmark', authenticateToken, requireRole(['CANDIDATE']), jobController.removeJobBookmark.bind(jobController));
 

@@ -56,6 +56,11 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
   const [currentView, setCurrentView] = useState<'list' | 'detail'>('list');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   
+  // Suitable Jobs (Recommendations) states
+  const [suitableJobs, setSuitableJobs] = useState<Job[]>([]);
+  const [suitableJobsLoading, setSuitableJobsLoading] = useState(true);
+  const [suitableJobsError, setSuitableJobsError] = useState<string | null>(null);
+  
   // AI Matching states
   const [selectedCVId, setSelectedCVId] = useState<string | null>(null);
 
@@ -270,6 +275,86 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
     }
   }, [selectedCVId, jobs.length]);
 
+  // Fetch suitable jobs (recommendations)
+  useEffect(() => {
+    const fetchSuitableJobs = async () => {
+      try {
+        setSuitableJobsLoading(true);
+        setSuitableJobsError(null);
+        
+        const response = await candidateApi.getRecommendedJobs({ 
+          page: 1, 
+          limit: 6 
+        });
+        
+        if (response && response.data && Array.isArray(response.data)) {
+          const transformedJobs = response.data.map((job: any, index: number) => ({
+            job_id: job.job_id,
+            id: parseInt(job.id || job.job_id) || 0,
+            title: job.title,
+            company: job.company_name || 'Company',
+            location: [job.city_name, job.district_name, job.address]
+              .filter(Boolean)
+              .join(', ') || 'Remote',
+            type: job.employment_type === 'FULL_TIME' ? 'Full-Time' 
+                : job.employment_type === 'PART_TIME' ? 'Part-Time'
+                : job.employment_type === 'CONTRACT' ? 'Contract'
+                : job.employment_type === 'INTERNSHIP' ? 'Internship'
+                : 'Full-Time',
+            tags: [
+              job.category,
+              job.work_arrangement && job.work_arrangement.charAt(0) + job.work_arrangement.slice(1).toLowerCase(),
+              job.featured && 'Featured',
+              `Match: ${Math.round(job.match_score || 85)}%`
+            ].filter(Boolean).slice(0, 3),
+            logo: (job.company_name || job.title)?.charAt(0).toUpperCase() || 'J',
+            logoColor: `bg-${['blue', 'green', 'purple', 'red', 'teal', 'orange'][index % 6]}-500 text-white`,
+            match: Math.round(job.match_score || 85),
+            applied: job.application_count || 0,
+            capacity: job.max_applications || 1,
+            salary: job.salary_min && job.salary_max 
+              ? `${job.salary_min.toLocaleString()} - ${job.salary_max.toLocaleString()} ${job.currency || 'VND'}`
+              : job.salary_min 
+                ? `From ${job.salary_min.toLocaleString()} ${job.currency || 'VND'}`
+                : 'Competitive Salary',
+            description: job.description || 'No description available.',
+            requirements: Array.isArray(job.requirements) 
+              ? job.requirements 
+              : typeof job.requirements === 'string' 
+                ? job.requirements.split('\n').filter((item: string) => item.trim())
+                : ['No requirements listed.'],
+            benefits: Array.isArray(job.benefits) 
+              ? job.benefits
+              : typeof job.benefits === 'string' 
+                ? job.benefits.split('\n').filter((item: string) => item.trim())
+                : ['No benefits listed.'],
+            whoYouAre: Array.isArray(job.responsibilities) 
+              ? job.responsibilities 
+              : typeof job.responsibilities === 'string' 
+                ? job.responsibilities.split('\n').filter((item: string) => item.trim())
+                : ['No responsibilities listed.'],
+            niceToHaves: [
+              job.education_requirements,
+              job.language_requirements?.join(', '),
+              job.required_skills?.length > 0 ? `Skills: ${job.required_skills.join(', ')}` : null
+            ].filter(Boolean)
+          }));
+          setSuitableJobs(transformedJobs);
+        } else {
+          setSuitableJobs([]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch suitable jobs:', error);
+        setSuitableJobsError('Failed to load job recommendations');
+        setSuitableJobs([]);
+      } finally {
+        setSuitableJobsLoading(false);
+      }
+    };
+
+    fetchSuitableJobs();
+  }, []);
+
   const handleFilterChange = (filterType: keyof typeof filters, value: string) => {
     setFilters(prev => ({
       ...prev,
@@ -331,37 +416,83 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
   );
 
   const JobCard = ({ job }: { job: Job }) => {
-    const [isJobSaved, setIsJobSaved] = useState(() => 
-      favoritesService.isJobFavorited(Number(job.id) || 0)
-    );
+    const [isJobSaved, setIsJobSaved] = useState(false);
 
-    const handleBookmarkClick = (e: React.MouseEvent) => {
-      e.stopPropagation();
+    // Check bookmark status when job loads
+    useEffect(() => {
+      const checkBookmarkStatus = async () => {
+        try {
+          const jobId = job.job_id || job.id?.toString();
+          if (!jobId) return;
+
+          const response = await candidateApi.checkJobBookmarkStatus(jobId);
+          if (response.success && response.data) {
+            setIsJobSaved(response.data.is_bookmarked);
+          }
+        } catch (error) {
+          console.error('Failed to check bookmark status:', error);
+        }
+      };
       
-      // Check current state before toggling
-      const isCurrentlySaved = isJobSaved;
-      
-      const favoriteJob = {
-        id: Number(job.id) || 0,
-        title: job.title,
-        company: job.company,
-        location: job.location,
-        type: job.type,
-        tags: job.tags || [],
-        logo: job.logo,
-        logoColor: job.logoColor,
-        applied: job.applied,
-        capacity: job.capacity,
-        salary: job.salary,
-        match: job.match
+      checkBookmarkStatus();
+    }, [job.job_id, job.id]);
+
+    // Listen for bookmark changes from other components
+    useEffect(() => {
+      const handleBookmarkChange = (event: CustomEvent) => {
+        const { jobId: changedJobId, isBookmarked } = event.detail;
+        const currentJobId = job.job_id || job.id?.toString();
+        
+        if (changedJobId === currentJobId) {
+          setIsJobSaved(isBookmarked);
+        }
       };
 
-      const success = favoritesService.toggleFavorite(favoriteJob);
-      if (success) {
-        setIsJobSaved(favoritesService.isJobFavorited(Number(job.id) || 0));
-        
-        const action = isCurrentlySaved ? 'removed from' : 'added to';
-        console.log(`Job "${job.title}" ${action} favorites`);
+      window.addEventListener('bookmarkChanged', handleBookmarkChange as EventListener);
+      
+      return () => {
+        window.removeEventListener('bookmarkChanged', handleBookmarkChange as EventListener);
+      };
+    }, [job.job_id, job.id]);
+
+    const handleBookmarkClick = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      
+      try {
+        const jobId = job.job_id || job.id?.toString();
+        if (!jobId) {
+          console.error('No job ID available for bookmark');
+          return;
+        }
+
+        if (isJobSaved) {
+          // Remove bookmark
+          const response = await candidateApi.removeJobFromFavorites(jobId);
+          if (response.success) {
+            setIsJobSaved(false);
+            // Emit event to sync with other components
+            window.dispatchEvent(new CustomEvent('bookmarkChanged', {
+              detail: { jobId, isBookmarked: false }
+            }));
+          } else if (response.requiresAuth) {
+            alert(response.message || 'Bạn cần đăng nhập để thực hiện thao tác này');
+          }
+        } else {
+          // Add bookmark
+          const response = await candidateApi.addJobToFavorites(jobId);
+          if (response.success) {
+            setIsJobSaved(true);
+            // Emit event to sync with other components
+            window.dispatchEvent(new CustomEvent('bookmarkChanged', {
+              detail: { jobId, isBookmarked: true }
+            }));
+          } else if (response.requiresAuth) {
+            alert(response.message || 'Bạn cần đăng nhập để lưu công việc này');
+          }
+        }
+      } catch (error: any) {
+        console.error('Failed to toggle bookmark:', error);
+        alert('Có lỗi xảy ra khi thực hiện thao tác. Vui lòng thử lại.');
       }
     };
 
@@ -838,7 +969,14 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
                 <div className="flex items-start justify-between mb-6">
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900">Suitable Jobs</h2>
-                    <p className="text-sm text-gray-500 mt-1">Showing 73 results</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {suitableJobsLoading 
+                        ? 'Loading recommendations...'
+                        : suitableJobsError 
+                          ? 'Failed to load recommendations'
+                          : `Showing ${suitableJobs.length} personalized recommendations`
+                      }
+                    </p>
                   </div>
                   <div className="flex items-center space-x-4 ml-auto">
                     <div className="flex items-center space-x-2">
@@ -865,9 +1003,26 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
                 </div>
 
                 <div className="space-y-4">
-                  {jobs.slice(5, 10).map((job) => (
-                    <JobCard key={job.id} job={job} />
-                  ))}
+                  {suitableJobsLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                      <p className="mt-2 text-gray-500">Loading personalized recommendations...</p>
+                    </div>
+                  ) : suitableJobsError ? (
+                    <div className="text-center py-8">
+                      <p className="text-red-500">{suitableJobsError}</p>
+                      <p className="text-gray-500 mt-2">Please try again or login to see personalized recommendations</p>
+                    </div>
+                  ) : suitableJobs.length > 0 ? (
+                    suitableJobs.map((job) => (
+                      <JobCard key={job.job_id || job.id} job={job} />
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500">No personalized recommendations available</p>
+                      <p className="text-gray-400 text-sm mt-2">Complete your profile to get better job recommendations</p>
+                    </div>
+                  )}
                 </div>
               </div>
 

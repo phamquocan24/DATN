@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiArrowLeft, FiCheckCircle, FiHeart, FiArrowRight, FiShare2, FiEye } from 'react-icons/fi';
+import { FiArrowLeft, FiCheckCircle, FiBookmark, FiArrowRight, FiShare2, FiEye } from 'react-icons/fi';
 import JobApplication from './JobApplication';
 import candidateApi from '../../services/candidateApi';
 import work1 from '../../assets/work1.png';
@@ -47,6 +47,25 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
     // Check if user has already applied for this job
     useEffect(() => {
         checkApplicationStatus();
+        checkBookmarkStatus();
+    }, [job.job_id, job.id]);
+
+    // Listen for bookmark changes from other components
+    useEffect(() => {
+        const handleBookmarkChange = (event: CustomEvent) => {
+            const { jobId: changedJobId, isBookmarked } = event.detail;
+            const currentJobId = job.job_id || job.id?.toString();
+            
+            if (changedJobId === currentJobId) {
+                setIsFavorited(isBookmarked);
+            }
+        };
+
+        window.addEventListener('bookmarkChanged', handleBookmarkChange as EventListener);
+        
+        return () => {
+            window.removeEventListener('bookmarkChanged', handleBookmarkChange as EventListener);
+        };
     }, [job.job_id, job.id]);
 
     // Fetch company data and similar jobs
@@ -112,8 +131,59 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
       checkApplicationStatus();
     };
 
-    const handleFavoriteClick = () => {
-        setIsFavorited(!isFavorited);
+    // Check bookmark status
+    const checkBookmarkStatus = async () => {
+        try {
+            const jobId = job.job_id || job.id?.toString();
+            if (!jobId) return;
+
+            const response = await candidateApi.checkJobBookmarkStatus(jobId);
+            if (response.success && response.data) {
+                setIsFavorited(response.data.is_bookmarked);
+            }
+        } catch (error) {
+            console.error('Failed to check bookmark status:', error);
+            // Don't show error to user, just keep default state
+        }
+    };
+
+    const handleFavoriteClick = async () => {
+        try {
+            const jobId = job.job_id || job.id?.toString();
+            if (!jobId) {
+                console.error('No job ID available for bookmark');
+                return;
+            }
+
+            if (isFavorited) {
+                // Remove bookmark
+                const response = await candidateApi.removeJobFromFavorites(jobId);
+                if (response.success) {
+                    setIsFavorited(false);
+                    // Emit event to sync with other components
+                    window.dispatchEvent(new CustomEvent('bookmarkChanged', {
+                        detail: { jobId, isBookmarked: false }
+                    }));
+                } else if (response.requiresAuth) {
+                    alert(response.message || 'Bạn cần đăng nhập để thực hiện thao tác này');
+                }
+            } else {
+                // Add bookmark
+                const response = await candidateApi.addJobToFavorites(jobId);
+                if (response.success) {
+                    setIsFavorited(true);
+                    // Emit event to sync with other components
+                    window.dispatchEvent(new CustomEvent('bookmarkChanged', {
+                        detail: { jobId, isBookmarked: true }
+                    }));
+                } else if (response.requiresAuth) {
+                    alert(response.message || 'Bạn cần đăng nhập để lưu công việc này');
+                }
+            }
+        } catch (error: any) {
+            console.error('Failed to toggle bookmark:', error);
+            alert('Có lỗi xảy ra khi thực hiện thao tác. Vui lòng thử lại.');
+        }
     };
 
 
@@ -203,8 +273,8 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
                             <button className="p-3 text-gray-500 hover:text-[#007BFF] transition-colors">
                                 <FiShare2 className="w-6 h-6" />
                             </button>
-                            <button onClick={handleFavoriteClick} className={`p-3 transition-colors ${isFavorited ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}>
-                                <FiHeart className={`w-6 h-6 ${isFavorited ? 'fill-current' : ''}`} />
+                            <button onClick={handleFavoriteClick} className={`p-3 transition-colors ${isFavorited ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'}`}>
+                                <FiBookmark className={`w-6 h-6 ${isFavorited ? 'fill-current' : ''}`} />
                             </button>
                             <button 
                                 onClick={applicationStatus || checkingApplication ? undefined : handleApplyClick}

@@ -110,9 +110,52 @@ export const candidateApi = {
     }
   },
 
+  checkJobBookmarkStatus: async (jobId: string) => {
+    try {
+      const response = await apiClient.get(`/api/v1/jobs/${jobId}/bookmark-status`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Failed to check bookmark status:', error);
+      
+      // If user is not authenticated, return not bookmarked
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        return { 
+          success: true, 
+          data: { 
+            job_id: jobId, 
+            is_bookmarked: false 
+          } 
+        };
+      }
+      
+      throw error;
+    }
+  },
+
   getJobStats: async () => {
     const response = await apiClient.get('/api/v1/jobs/stats');
     return response.data;
+  },
+
+  getRecommendedJobs: async (options?: {
+    page?: number;
+    limit?: number;
+  }) => {
+    try {
+      const response = await apiClient.get('/api/v1/jobs/recommendations', { params: options });
+      return response.data;
+    } catch (error: any) {
+      console.error('Failed to get recommended jobs:', error);
+      
+      // If user is not authenticated, return empty recommendations
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        console.warn('User not authenticated for recommendations, returning empty array');
+        return { data: [] };
+      }
+      
+      // For other errors, still return empty array to prevent UI breaks
+      return { data: [] };
+    }
   },
 
   // Application Management - Business Service API

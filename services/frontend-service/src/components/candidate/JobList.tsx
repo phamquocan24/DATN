@@ -169,42 +169,83 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
     cardStyle: 'featured' | 'latest',
     onJobClick?: (jobId: string) => void
   }) => {
-    const [isFavorited, setIsFavorited] = useState(() => 
-      favoritesService.isJobFavorited(job.id)
-    );
+    const [isFavorited, setIsFavorited] = useState(false);
 
-    const handleFavoriteClick = (e: React.MouseEvent) => {
-      e.stopPropagation();
+    // Check bookmark status when job loads
+    useEffect(() => {
+      const checkBookmarkStatus = async () => {
+        try {
+          const jobId = job.job_id || job.id?.toString();
+          if (!jobId) return;
+
+          const response = await candidateApi.checkJobBookmarkStatus(jobId);
+          if (response.success && response.data) {
+            setIsFavorited(response.data.is_bookmarked);
+          }
+        } catch (error) {
+          console.error('Failed to check bookmark status:', error);
+        }
+      };
       
-      // Check current state before toggling
-      const isCurrentlyFavorited = isFavorited;
-      
-      const favoriteJob = {
-        id: job.id,
-        title: job.title,
-        company: job.company,
-        location: job.location,
-        type: job.type,
-        tags: job.tags || [],
-        logo: job.logo,
-        logoColor: job.logoColor,
-        description: job.description,
-        applied: job.applied,
-        capacity: job.capacity,
-        salary: job.salary,
-        match: job.match
+      checkBookmarkStatus();
+    }, [job.job_id, job.id]);
+
+    // Listen for bookmark changes from other components
+    useEffect(() => {
+      const handleBookmarkChange = (event: CustomEvent) => {
+        const { jobId: changedJobId, isBookmarked } = event.detail;
+        const currentJobId = job.job_id || job.id?.toString();
+        
+        if (changedJobId === currentJobId) {
+          setIsFavorited(isBookmarked);
+        }
       };
 
-      const success = favoritesService.toggleFavorite(favoriteJob);
-      if (success) {
-        setIsFavorited(favoritesService.isJobFavorited(job.id));
-        
-        // Show user feedback
-        const action = isCurrentlyFavorited ? 'removed from' : 'added to';
-        console.log(`Job "${job.title}" ${action} favorites`);
-        
-        // Optional: You can add a toast notification here
-        // toast.success(`Job ${action} favorites!`);
+      window.addEventListener('bookmarkChanged', handleBookmarkChange as EventListener);
+      
+      return () => {
+        window.removeEventListener('bookmarkChanged', handleBookmarkChange as EventListener);
+      };
+    }, [job.job_id, job.id]);
+
+    const handleFavoriteClick = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      
+      try {
+        const jobId = job.job_id || job.id?.toString();
+        if (!jobId) {
+          console.error('No job ID available for bookmark');
+          return;
+        }
+
+        if (isFavorited) {
+          // Remove bookmark
+          const response = await candidateApi.removeJobFromFavorites(jobId);
+          if (response.success) {
+            setIsFavorited(false);
+            // Emit event to sync with other components
+            window.dispatchEvent(new CustomEvent('bookmarkChanged', {
+              detail: { jobId, isBookmarked: false }
+            }));
+          } else if (response.requiresAuth) {
+            alert(response.message || 'Bạn cần đăng nhập để thực hiện thao tác này');
+          }
+        } else {
+          // Add bookmark
+          const response = await candidateApi.addJobToFavorites(jobId);
+          if (response.success) {
+            setIsFavorited(true);
+            // Emit event to sync with other components
+            window.dispatchEvent(new CustomEvent('bookmarkChanged', {
+              detail: { jobId, isBookmarked: true }
+            }));
+          } else if (response.requiresAuth) {
+            alert(response.message || 'Bạn cần đăng nhập để lưu công việc này');
+          }
+        }
+      } catch (error: any) {
+        console.error('Failed to toggle bookmark:', error);
+        alert('Có lỗi xảy ra khi thực hiện thao tác. Vui lòng thử lại.');
       }
     };
 
