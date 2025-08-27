@@ -3,7 +3,6 @@ import { Footer } from './Footer';
 import JobDetail from './JobDetail';
 import GroupUnderline from '../../assets/Group.png';
 import candidateApi from '../../services/candidateApi'; // Sử dụng candidateApi
-import favoritesService from '../../services/favoritesService';
 import { isTokenValid } from '../../services/tokenUtils';
 import { 
   batchCalculateAIMatchScores
@@ -63,7 +62,6 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
   
   // Suitable Jobs (Recommendations) states
   const [suitableJobs, setSuitableJobs] = useState<Job[]>([]);
-  const [suitableJobsLoading, setSuitableJobsLoading] = useState(true);
   const [suitableJobsError, setSuitableJobsError] = useState<string | null>(null);
   const [suitableJobsPagination, setSuitableJobsPagination] = useState({ 
     page: 1, 
@@ -296,7 +294,6 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
   // Fetch suitable jobs (recommendations) - using useCallback to prevent infinite loops
   const fetchSuitableJobs = useCallback(async () => {
     try {
-      setSuitableJobsLoading(true);
       setSuitableJobsError(null);
       
       const response = await candidateApi.getRecommendedJobs({ 
@@ -373,8 +370,6 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
       console.error('Failed to fetch suitable jobs:', error);
       setSuitableJobsError('Failed to load job recommendations');
       setSuitableJobs([]);
-    } finally {
-      setSuitableJobsLoading(false);
     }
   }, [suitableJobsPagination.page, suitableJobsPagination.limit]);
 
@@ -1084,11 +1079,9 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900">Suitable Jobs</h2>
                     <p className="text-sm text-gray-500 mt-1">
-                      {suitableJobsLoading 
-                        ? 'Loading recommendations...'
-                        : suitableJobsError 
-                          ? 'Failed to load recommendations'
-                          : `Showing ${suitableJobs.length} of ${suitableJobsPagination.total} personalized recommendations`
+                      {suitableJobsError 
+                        ? 'Failed to load recommendations'
+                        : `Showing ${suitableJobs.length} of ${suitableJobsPagination.total} personalized recommendations`
                       }
                     </p>
                   </div>
@@ -1117,12 +1110,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
                 </div>
 
                 <div className="space-y-4">
-                  {suitableJobsLoading ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-                      <p className="mt-2 text-gray-500">Loading personalized recommendations...</p>
-                    </div>
-                  ) : suitableJobsError ? (
+                  {suitableJobsError ? (
                     <div className="text-center py-8">
                       <p className="text-red-500">{suitableJobsError}</p>
                       <p className="text-gray-500 mt-2">Please try again or login to see personalized recommendations</p>

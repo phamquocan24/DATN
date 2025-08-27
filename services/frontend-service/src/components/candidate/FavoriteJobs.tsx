@@ -1,27 +1,40 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Footer } from './Footer';
 import GroupUnderline from '../../assets/Group.png';
-import favoritesService, { FavoriteJob } from '../../services/favoritesService';
+import candidateApi from '../../services/candidateApi';
+import { isTokenValid } from '../../services/tokenUtils';
 import { 
   batchCalculateAIMatchScores
 } from '../../services/aiMatchingApi';
 
 interface Job {
-  id: number;
-  job_id?: string; // Add job_id for AI matching
+  job_id: string; // Primary ID from database (UUID)
+  id?: number; // Legacy support for AI matching
   title: string;
   company: string;
+  company_name?: string; // From API response
   location: string;
+  city_name?: string; // From API response
+  district_name?: string; // From API response
   type: string;
+  employment_type?: string; // From API response
+  work_arrangement?: string; // From API response
   tags: string[];
   logo: string;
+  logo_url?: string; // From API response
   logoColor: string;
   match?: number;
   applied?: number;
+  application_count?: number; // From API response
   capacity?: number;
+  max_applications?: number; // From API response
   salary?: string;
+  salary_min?: number; // From API response
+  salary_max?: number; // From API response
+  currency?: string; // From API response
   isNew?: boolean;
   isSaved?: boolean;
+  saved_at?: string; // From API response
   // AI Matching fields
   aiMatchScore?: number;
   matchGrade?: string;
@@ -41,11 +54,11 @@ interface FavoriteJobsProps {
 export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState('');
-  const [favoriteJobs, setFavoriteJobs] = useState<FavoriteJob[]>([]);
-  const [filteredJobs, setFilteredJobs] = useState<FavoriteJob[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [favoriteJobs, setFavoriteJobs] = useState<Job[]>([]);
+  const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'title' | 'company'>('newest');
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
   
   // AI Matching states
   const [selectedCVId, setSelectedCVId] = useState<string | null>(null);
@@ -80,8 +93,8 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
     console.log(`Calculating AI match scores for ${favoriteJobs.length} favorite jobs with CV: ${cvId}`);
 
     try {
-      // Extract job IDs - use string ID as job_id for compatibility
-      const jobIds = favoriteJobs.map(job => job.id.toString()).filter(Boolean);
+      // Extract job IDs - use job_id (UUID) for API calls
+      const jobIds = favoriteJobs.map(job => job.job_id).filter(Boolean);
       
       if (jobIds.length === 0) {
         console.warn('No valid job IDs found');
@@ -103,7 +116,7 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
         // Update favorite jobs with match scores
         setFilteredJobs(prevJobs => 
           prevJobs.map(job => {
-            const matchResult = batchResult.data?.find(result => result.job_id === job.id.toString());
+            const matchResult = batchResult.data?.find(result => result.job_id === job.job_id);
             
             if (matchResult && !matchResult.error) {
               return {
@@ -150,18 +163,86 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
     salaryRange: false
   });
 
-  const fetchFavoriteJobs = () => {
-    setIsLoading(true);
+  // Transform API data to Job interface
+  const transformJobData = (apiJob: any): Job => {
+    const location = [apiJob.city_name, apiJob.district_name].filter(Boolean).join(', ') || 'Remote';
+    
+    // Create tags array
+    const tags = [];
+    if (apiJob.category) tags.push(apiJob.category);
+    if (apiJob.work_arrangement) tags.push(apiJob.work_arrangement);
+    if (apiJob.featured) tags.push('Featured');
+    
+    // Create salary string
+    let salary = '';
+    if (apiJob.salary_min && apiJob.salary_max) {
+      salary = `${apiJob.salary_min.toLocaleString()} - ${apiJob.salary_max.toLocaleString()} ${apiJob.currency || 'VND'}`;
+    } else if (apiJob.salary_min) {
+      salary = `From ${apiJob.salary_min.toLocaleString()} ${apiJob.currency || 'VND'}`;
+    }
+
+    return {
+      job_id: apiJob.job_id,
+      id: parseInt(apiJob.job_id.replace(/-/g, '').substring(0, 8), 16), // Convert UUID to number for AI matching
+      title: apiJob.title,
+      company: apiJob.company_name,
+      company_name: apiJob.company_name,
+      location: location,
+      city_name: apiJob.city_name,
+      district_name: apiJob.district_name,
+      type: apiJob.employment_type || 'Full-time',
+      employment_type: apiJob.employment_type,
+      work_arrangement: apiJob.work_arrangement,
+      tags: tags,
+      logo: apiJob.company_name?.charAt(0).toUpperCase() || 'C',
+      logo_url: apiJob.logo_url,
+      logoColor: 'bg-blue-100 text-blue-600',
+      applied: apiJob.application_count || 0,
+      application_count: apiJob.application_count,
+      capacity: apiJob.max_applications || 100,
+      max_applications: apiJob.max_applications,
+      salary: salary,
+      salary_min: apiJob.salary_min,
+      salary_max: apiJob.salary_max,
+      currency: apiJob.currency,
+      saved_at: apiJob.saved_at,
+      isSaved: true
+    };
+  };
+
+  const fetchFavoriteJobs = async () => {
+    setError(null);
+    
     try {
-      const favorites = favoritesService.getFavoriteJobs();
-      setFavoriteJobs(favorites);
-      setFilteredJobs(favorites);
-      setError(null);
-    } catch (err) {
-      setError('Failed to load favorite jobs.');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
+      // Check if user is authenticated
+      const token = localStorage.getItem('token');
+      if (!token || !isTokenValid(token)) {
+        setFavoriteJobs([]);
+        setFilteredJobs([]);
+        setError('Please login to view your saved jobs');
+        return;
+      }
+
+      const response = await candidateApi.getFavoriteJobs();
+      
+      if (response.success && response.data) {
+        const transformedJobs = response.data.map(transformJobData);
+        setFavoriteJobs(transformedJobs);
+        setFilteredJobs(transformedJobs);
+        
+        // Update pagination if available
+        if (response.pagination) {
+          setPagination(response.pagination);
+        }
+      } else {
+        setFavoriteJobs([]);
+        setFilteredJobs([]);
+      }
+    } catch (err: any) {
+      console.error('Failed to load favorite jobs:', err);
+      setError('Failed to load favorite jobs. Please try again.');
+      setFavoriteJobs([]);
+      setFilteredJobs([]);
     }
   };
 
@@ -170,30 +251,27 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
     loadSelectedCV();
   }, [loadSelectedCV]);
 
-  // Listen for changes in localStorage to refresh favorites
+  // Listen for bookmark changes from other components
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'favoriteJobs') {
-        fetchFavoriteJobs();
-      }
-      if (e.key === 'triggerJobMatching') {
-        loadSelectedCV();
-      }
-    };
-
-    const handleFocusChange = () => {
-      // Refresh when window gains focus (in case localStorage changed in another tab)
+    const handleBookmarkChange = () => {
+      // Refresh favorites when bookmark status changes
       fetchFavoriteJobs();
     };
 
-    window.addEventListener('storage', handleStorageChange);
+    const handleFocusChange = () => {
+      // Refresh when window gains focus
+      fetchFavoriteJobs();
+    };
+
+    // Listen for custom bookmark events
+    window.addEventListener('bookmarkChanged', handleBookmarkChange as EventListener);
     window.addEventListener('focus', handleFocusChange);
 
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('bookmarkChanged', handleBookmarkChange as EventListener);
       window.removeEventListener('focus', handleFocusChange);
     };
-  }, [loadSelectedCV]);
+  }, []);
 
   // Calculate match scores when favorite jobs are loaded or CV is selected
   useEffect(() => {
@@ -204,34 +282,87 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
 
   // Apply filters and search whenever they change
   useEffect(() => {
-    let filtered = favoritesService.getFavoriteJobs();
+    let filtered = [...favoriteJobs];
 
     // Apply search query
     if (searchQuery.trim()) {
-      filtered = favoritesService.searchFavorites(searchQuery);
+      const searchTerm = searchQuery.toLowerCase();
+      filtered = filtered.filter(job => 
+        job.title.toLowerCase().includes(searchTerm) ||
+        job.company.toLowerCase().includes(searchTerm) ||
+        job.location.toLowerCase().includes(searchTerm) ||
+        job.tags.some(tag => tag.toLowerCase().includes(searchTerm))
+      );
     }
 
-    // Apply filters
-    filtered = favoritesService.getFilteredFavorites({
-      employmentType: filters.employmentType.length > 0 ? filters.employmentType : undefined,
-      categories: filters.categories.length > 0 ? filters.categories : undefined,
-      location: location.trim() || undefined
-    });
+    // Apply location filter
+    if (location.trim()) {
+      const locationFilter = location.toLowerCase();
+      filtered = filtered.filter(job =>
+        job.location.toLowerCase().includes(locationFilter)
+      );
+    }
+
+    // Apply employment type filter
+    if (filters.employmentType.length > 0) {
+      filtered = filtered.filter(job => 
+        filters.employmentType.includes(job.type.toLowerCase()) ||
+        filters.employmentType.includes(job.employment_type?.toLowerCase() || '')
+      );
+    }
+
+    // Apply category filter
+    if (filters.categories.length > 0) {
+      filtered = filtered.filter(job =>
+        job.tags.some(tag => filters.categories.includes(tag.toLowerCase()))
+      );
+    }
 
     // Sort by selected option
-    filtered = favoritesService.sortFavorites(filtered, sortBy);
+    filtered = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.saved_at || '').getTime() - new Date(a.saved_at || '').getTime();
+        case 'oldest':
+          return new Date(a.saved_at || '').getTime() - new Date(b.saved_at || '').getTime();
+        case 'title':
+          return a.title.localeCompare(b.title);
+        case 'company':
+          return a.company.localeCompare(b.company);
+        default:
+          return 0;
+      }
+    });
 
     setFilteredJobs(filtered);
   }, [searchQuery, location, filters, favoriteJobs, sortBy]);
 
-  const toggleSavedJob = (jobId: number) => {
-    const success = favoritesService.removeFromFavorites(jobId);
-    if (success) {
-      // Refresh the favorites list
-      fetchFavoriteJobs();
-      console.log(`Job removed from favorites`);
-    } else {
-      console.error(`Failed to remove job ${jobId} from favorites`);
+  const toggleSavedJob = async (jobId: string) => {
+    try {
+      // Check authentication
+      const token = localStorage.getItem('token');
+      if (!token || !isTokenValid(token)) {
+        alert('Please login to manage your saved jobs');
+        return;
+      }
+
+      const response = await candidateApi.removeJobFromFavorites(jobId);
+      if (response.success) {
+        // Refresh the favorites list
+        fetchFavoriteJobs();
+        console.log(`Job removed from favorites`);
+        
+        // Emit event to sync with other components
+        window.dispatchEvent(new CustomEvent('bookmarkChanged', {
+          detail: { jobId, isBookmarked: false }
+        }));
+      } else {
+        console.error(`Failed to remove job ${jobId} from favorites:`, response.message);
+        alert('Failed to remove job from favorites. Please try again.');
+      }
+    } catch (error: any) {
+      console.error(`Failed to remove job ${jobId} from favorites:`, error);
+      alert('Failed to remove job from favorites. Please try again.');
     }
   };
 
@@ -279,7 +410,7 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
   const JobCard = ({ job }: { job: Job }) => (
     <div 
       className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group cursor-pointer text-left"
-      onClick={() => onJobClick?.(job.id.toString())}
+      onClick={() => onJobClick?.(job.job_id)}
     >
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3">
@@ -296,7 +427,7 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
         <button 
           onClick={(e) => {
             e.stopPropagation();
-            toggleSavedJob(job.id);
+            toggleSavedJob(job.job_id);
           }}
           className="p-2 rounded-lg text-blue-500 hover:bg-blue-50 transition-colors"
           title="Remove from favorites"
@@ -343,7 +474,7 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
         {/* Other tags (filter out old Match tags) */}
         {job.tags.filter(tag => !tag.includes('Match:')).map((tag, index) => (
           <span 
-            key={`${job.id}-tag-${index}`}
+            key={`${job.job_id}-tag-${index}`}
             className="px-3 py-1 text-xs rounded-full font-medium bg-yellow-100 text-yellow-700"
           >
             {tag}
@@ -352,13 +483,20 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
       </div>
 
       <div className="flex items-center justify-between">
-        <span className="text-sm text-gray-500">
-          {job.applied} applied of {job.capacity} capacity
-        </span>
+        <div className="text-left">
+          <div className="text-sm text-gray-500">
+            {job.applied} applied of {job.capacity} capacity
+          </div>
+          {job.salary && (
+            <div className="text-sm font-medium text-gray-900 mt-1">
+              {job.salary}
+            </div>
+          )}
+        </div>
         <button 
           onClick={(e) => {
             e.stopPropagation();
-            onJobClick?.(job.id.toString());
+            onJobClick?.(job.job_id);
           }}
           className="bg-[#007BFF] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#0056b3] transition-colors"
         >
@@ -707,18 +845,13 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
                 </div>
 
                 <div className="space-y-4">
-                  {isLoading ? (
-                    <div className="flex justify-center items-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#007BFF]"></div>
-                      <span className="ml-2 text-gray-600">Loading favorite jobs...</span>
-                    </div>
-                  ) : error ? (
+                  {error ? (
                     <div className="text-center py-8">
                       <p className="text-red-500">{error}</p>
                     </div>
                   ) : filteredJobs.length > 0 ? (
                     filteredJobs.map((job) => (
-                      <JobCard key={job.id} job={job} />
+                      <JobCard key={job.job_id} job={job} />
                     ))
                   ) : favoriteJobs.length > 0 ? (
                     <div className="text-center py-8">
@@ -747,7 +880,7 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
                 <div className="flex items-center justify-center space-x-2 mt-8">
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-gray-500">
-                      Showing all {filteredJobs.length} favorite job{filteredJobs.length !== 1 ? 's' : ''}
+                      Showing {filteredJobs.length} of {pagination.total} saved job{pagination.total !== 1 ? 's' : ''}
                     </span>
                   </div>
                 </div>
