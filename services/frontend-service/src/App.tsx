@@ -397,6 +397,7 @@ const MainContent = () => {
           const transformedJob = {
             job_id: jobDetails.job_id,
             id: jobDetails.id || parseInt(jobId),
+            company_id: jobDetails.company_id,
             title: jobDetails.title,
             company: jobDetails.company_name,
             location: [jobDetails.city_name, jobDetails.district_name, jobDetails.address]

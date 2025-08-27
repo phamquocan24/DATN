@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FiArrowLeft, FiCheckCircle, FiHeart, FiUmbrella, FiTrendingUp, FiUsers, FiHome, FiTruck, FiGift, FiArrowRight, FiShare2, FiEye } from 'react-icons/fi';
+import { FiArrowLeft, FiCheckCircle, FiHeart, FiArrowRight, FiShare2, FiEye } from 'react-icons/fi';
 import JobApplication from './JobApplication';
 import candidateApi from '../../services/candidateApi';
-import nomadLogo from '../../assets/Nomad.png'; 
 import work1 from '../../assets/work1.png';
 import work2 from '../../assets/work2.png';
 import work3 from '../../assets/work3.png';
@@ -10,6 +9,7 @@ import work3 from '../../assets/work3.png';
 interface Job {
   job_id: string; // Primary ID (UUID from database)
   id?: number;    // Fallback for legacy data
+  company_id?: string; // Company ID for API calls
   title: string;
   company: string;
   location: string;
@@ -28,15 +28,7 @@ interface Job {
   niceToHaves?: string[];
 }
 
-interface SimilarJob {
-    id: number;
-    title: string;
-    company: string;
-    location: string;
-    tags: string[];
-    logo: string;
-    logoColor: string;
-}
+
 
 interface JobDetailProps {
   job: Job;
@@ -49,11 +41,40 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
     const [isFavorited, setIsFavorited] = useState(false);
     const [applicationStatus, setApplicationStatus] = useState<string | undefined>(initialStatus);
     const [checkingApplication, setCheckingApplication] = useState(false);
+    const [companyData, setCompanyData] = useState<any>(null);
+    const [similarJobs, setSimilarJobs] = useState<any[]>([]);
 
     // Check if user has already applied for this job
     useEffect(() => {
         checkApplicationStatus();
     }, [job.job_id, job.id]);
+
+    // Fetch company data and similar jobs
+    useEffect(() => {
+        const fetchCompanyAndJobs = async () => {
+            if (!job.company_id) return;
+
+            try {
+                // Fetch company data
+                const companyResponse = await candidateApi.getCompanyById(job.company_id);
+                const companyInfo = companyResponse.data || companyResponse;
+                setCompanyData(companyInfo);
+
+                // Fetch similar jobs from the same company
+                const jobsResponse = await candidateApi.getCompanyJobs(job.company_id);
+                const jobs = jobsResponse.data || jobsResponse;
+                // Filter out current job and take first 4
+                const filteredJobs = Array.isArray(jobs) 
+                    ? jobs.filter((j: any) => j.job_id !== job.job_id).slice(0, 4)
+                    : [];
+                setSimilarJobs(filteredJobs);
+            } catch (error) {
+                console.error('Error fetching company data or similar jobs:', error);
+            }
+        };
+
+        fetchCompanyAndJobs();
+    }, [job.company_id, job.job_id]);
 
     const checkApplicationStatus = async () => {
         setCheckingApplication(true);
@@ -95,15 +116,7 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
         setIsFavorited(!isFavorited);
     };
 
-    const perks = [
-        { icon: <FiHeart />, title: "Full Healthcare" },
-        { icon: <FiUmbrella />, title: "Unlimited Vacation" },
-        { icon: <FiTrendingUp />, title: "Skill Development" },
-        { icon: <FiUsers />, title: "Team Summits" },
-        { icon: <FiHome />, title: "Remote Working" },
-        { icon: <FiTruck />, title: "Commuter Benefits" },
-        { icon: <FiGift />, title: "We give back" },
-    ];
+
 
     const getStatusButtonStyle = (status?: string) => {
         switch (status) {
@@ -151,12 +164,7 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
         }
     };
 
-    const similarJobs: SimilarJob[] = [
-        { id: 10, title: 'Social Media Assistant', company: 'Netlify', location: 'Paris, France', tags: ['Full-Time', 'Marketing', 'Design'], logo: 'N', logoColor: 'bg-teal-500' },
-        { id: 11, title: 'Brand Designer', company: 'Dropbox', location: 'San Fransisco, USA', tags: ['Full-Time', 'Marketing', 'Design'], logo: 'D', logoColor: 'bg-blue-500' },
-        { id: 12, title: 'Interactive Developer', company: 'Terraform', location: 'Hamburg, Germany', tags: ['Full-Time', 'Marketing', 'Design'], logo: 'T', logoColor: 'bg-indigo-500' },
-        { id: 13, title: 'HR Manager', company: 'Packer', location: 'Lucern, Switzerland', tags: ['Full-Time', 'Marketing', 'Design'], logo: 'P', logoColor: 'bg-red-500' }
-    ];
+
     
 
     return (
@@ -283,36 +291,39 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
                     </div>
                 </div>
 
-                {/* Divider and Perks section */}
-                <div className="border-t border-gray-200 mt-8 pt-8">
-                    <Section title="Perks & Benefits">
-                        <p className="text-gray-600 mb-6">This job comes with several perks and benefits</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                            {perks.map(perk => (
-                                <div key={perk.title} className="flex items-start text-left gap-4">
-                                    <div className="text-blue-500 text-3xl">{perk.icon}</div>
-                                    <div>
-                                        <h4 className="font-semibold mb-1">{perk.title}</h4>
-                                        <p className="text-sm text-gray-600">We believe in thriving communities and that starts with our team being happy and healthy.</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </Section>
-                </div>
+
 
                 {/* About Company Section */}
                 <div className="border-t border-gray-200 mt-8 pt-8">
                     <Section title={`About ${job.company}`}>
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                             <div className="lg:col-span-1 space-y-4">
-                                <img src={nomadLogo} alt="Nomad Logo" className="w-16 h-16"/>
-                                <a href="#" className="flex items-center gap-2 text-[#007BFF] font-medium hover:underline">
+                                <div className={`w-16 h-16 rounded-lg flex items-center justify-center font-bold text-2xl ${job.logoColor}`}>
+                                    {companyData?.logo_url ? (
+                                        <img src={companyData.logo_url} alt={`${job.company} Logo`} className="w-16 h-16 rounded-lg object-cover"/>
+                                    ) : (
+                                        job.logo
+                                    )}
+                                </div>
+                                <button 
+                                    onClick={() => window.location.href = `/company-profile/${job.company_id}`}
+                                    className="flex items-center gap-2 text-[#007BFF] font-medium hover:underline"
+                                >
                                     Read more about {job.company} <FiArrowRight />
-                                </a>
+                                </button>
                                 <p className="text-gray-600 text-sm leading-relaxed">
-                                    {job.company} is a technology company that builds economic infrastructure for the internet. Businesses of every size—from new startups to public companies—use our software to accept payments and manage their businesses online.
+                                    {companyData?.description || `${job.company} is a technology company that builds economic infrastructure for the internet. Businesses of every size—from new startups to public companies—use our software to accept payments and manage their businesses online.`}
                                 </p>
+                                {companyData?.website && (
+                                    <a 
+                                        href={companyData.website} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="text-[#007BFF] text-sm hover:underline"
+                                    >
+                                        Visit company website
+                                    </a>
+                                )}
                             </div>
                             <div className="lg:col-span-2 flex gap-4 h-80">
                                 <div className="w-2/3">
@@ -328,17 +339,28 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
                 </div>
 
                 {/* Similar Jobs Section */}
-                <div className="bg-white border border-gray-200 rounded-lg p-6 mt-8 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-[#007BFF] cursor-pointer">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-semibold text-gray-900">Similar Jobs</h3>
-                        <button className="text-[#007BFF] text-sm font-medium flex items-center gap-1 hover:underline">
-                            Show all jobs <FiArrowRight/>
-                        </button>
+                {similarJobs.length > 0 && (
+                    <div className="bg-white border border-gray-200 rounded-lg p-6 mt-8 shadow-sm">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">Similar Jobs</h3>
+                            <button 
+                                onClick={() => window.location.href = `/find-jobs?company=${job.company_id}`}
+                                className="text-[#007BFF] text-sm font-medium flex items-center gap-1 hover:underline"
+                            >
+                                Show all jobs <FiArrowRight/>
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {similarJobs.map((sJob: any) => (
+                                <SimilarJobCard 
+                                    key={sJob.job_id || sJob.id} 
+                                    job={sJob} 
+                                    onJobClick={(jobId) => window.location.href = `/job-detail?id=${jobId}`}
+                                />
+                            ))}
+                        </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {similarJobs.map(sJob => <SimilarJobCard key={sJob.id} job={sJob} />)}
-                    </div>
-                </div>
+                )}
 
                 <JobApplication 
                     isOpen={isApplicationOpen}
@@ -350,7 +372,7 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
     );
 };
 
-const SimilarJobCard: React.FC<{ job: SimilarJob }> = ({ job }) => {
+const SimilarJobCard: React.FC<{ job: any; onJobClick: (jobId: string) => void }> = ({ job, onJobClick }) => {
     const getTagStyle = (tag: string) => {
         switch (tag) {
           case 'Full-Time':
@@ -364,16 +386,39 @@ const SimilarJobCard: React.FC<{ job: SimilarJob }> = ({ job }) => {
         }
     };
 
+    // Transform job data from API
+    const transformedJob = {
+        job_id: job.job_id,
+        title: job.title,
+        company: job.company_name,
+        location: [job.city_name, job.district_name].filter(Boolean).join(', ') || 'Remote',
+        type: job.employment_type === 'FULL_TIME' ? 'Full-Time' : 
+              job.employment_type === 'PART_TIME' ? 'Part-Time' :
+              job.employment_type === 'CONTRACT' ? 'Contract' :
+              job.employment_type === 'INTERNSHIP' ? 'Internship' :
+              job.employment_type || 'Full-Time',
+        logo: (job.company_name || job.title)?.charAt(0).toUpperCase() || 'J',
+        logoColor: 'bg-blue-500',
+        tags: [
+            job.employment_type === 'FULL_TIME' ? 'Full-Time' : job.employment_type,
+            job.category,
+            job.remote_work_option && 'Remote'
+        ].filter(Boolean).slice(0, 3)
+    };
+
     return (
-        <div className="border border-gray-200 rounded-lg p-4 flex items-start gap-4 hover:bg-gray-50 hover:border-[#007BFF] transition-all duration-300 cursor-pointer hover:shadow-lg hover:-translate-y-1">
-            <div className={`w-12 h-12 ${job.logoColor} text-white flex-shrink-0 flex items-center justify-center rounded-md text-xl font-bold`}>
-                {job.logo}
+        <div 
+            className="border border-gray-200 rounded-lg p-4 flex items-start gap-4 hover:bg-gray-50 hover:border-[#007BFF] transition-all duration-300 cursor-pointer hover:shadow-lg hover:-translate-y-1"
+            onClick={() => onJobClick(transformedJob.job_id)}
+        >
+            <div className={`w-12 h-12 ${transformedJob.logoColor} text-white flex-shrink-0 flex items-center justify-center rounded-md text-xl font-bold`}>
+                {transformedJob.logo}
             </div>
             <div className="text-left">
-                <h4 className="font-semibold text-gray-900 text-base">{job.title}</h4>
-                <p className="text-sm text-gray-500 my-1">{job.company} • {job.location}</p>
+                <h4 className="font-semibold text-gray-900 text-base">{transformedJob.title}</h4>
+                <p className="text-sm text-gray-500 my-1">{transformedJob.company} • {transformedJob.location}</p>
                 <div className="flex flex-wrap gap-2 text-xs mt-2">
-                    {job.tags.map((tag, j) => (
+                    {transformedJob.tags.map((tag, j) => (
                         <span key={j} className={`px-2 py-1 rounded-full font-medium ${getTagStyle(tag)}`}>
                             {tag}
                         </span>

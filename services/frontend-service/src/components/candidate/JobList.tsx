@@ -54,13 +54,9 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
               job.description.substring(0, 150) + '...' : 
               job.description) : 
             'No description available',
+          // Tags for both featured and latest jobs - only category, remote, and featured
           tags: [
             job.category,
-            job.employment_type === 'FULL_TIME' ? 'Full-Time' : 
-            job.employment_type === 'PART_TIME' ? 'Part-Time' :
-            job.employment_type === 'CONTRACT' ? 'Contract' :
-            job.employment_type === 'INTERNSHIP' ? 'Internship' : 
-            job.employment_type,
             job.remote_work_option && 'Remote',
             job.featured && 'Featured'
           ].filter(Boolean).slice(0, 3),
@@ -117,21 +113,54 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
 
   const getTagColor = (tag: string) => {
     switch (tag.toLowerCase()) {
+      // Employment Types
+      case 'full-time':
       case 'full time':
         return 'bg-green-100 text-green-700';
-      case 'marketing':
+      case 'part-time':
+      case 'part time':
+        return 'bg-blue-100 text-blue-700';
+      case 'contract':
+        return 'bg-purple-100 text-purple-700';
+      case 'internship':
         return 'bg-orange-100 text-orange-700';
+      
+      // Work Options
+      case 'remote':
+        return 'bg-teal-100 text-teal-700';
+      case 'hybrid':
+        return 'bg-indigo-100 text-indigo-700';
+      case 'onsite':
+      case 'on-site':
+        return 'bg-gray-100 text-gray-700';
+      
+      // Categories
+      case 'marketing':
+        return 'bg-pink-100 text-pink-700';
       case 'design':
         return 'bg-yellow-100 text-yellow-700';
+      case 'business':
+        return 'bg-violet-100 text-violet-700';
+      case 'technology':
+      case 'tech':
+        return 'bg-red-100 text-red-700';
+      case 'engineering':
+        return 'bg-slate-100 text-slate-700';
+      case 'sales':
+        return 'bg-emerald-100 text-emerald-700';
+      case 'hr':
+      case 'human resources':
+        return 'bg-rose-100 text-rose-700';
+      case 'finance':
+        return 'bg-amber-100 text-amber-700';
+      
+      // Special Tags
       case 'feature':
       case 'featured':
         return 'bg-[#007BFF]/10 text-[#007BFF]';
-      case 'business':
-        return 'bg-purple-100 text-purple-700';
-      case 'technology':
-        return 'bg-red-100 text-red-700';
+      
       default:
-        return 'bg-gray-100 text-gray-700';
+        return 'bg-gray-100 text-gray-600';
     }
   };
 
