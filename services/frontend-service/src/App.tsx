@@ -171,6 +171,27 @@ const MainContent = () => {
   
   useEffect(() => {
     const currentPath = location.pathname;
+    
+    // Handle dynamic routes
+    if (currentPath.startsWith('/candidate/job-detail/') || currentPath.startsWith('/job-detail/')) {
+      const jobId = currentPath.split('/').pop();
+      if (jobId) {
+        setSelectedJobId(jobId);
+        setCurrentPage('job-detail');
+      }
+      return;
+    }
+    
+    if (currentPath.startsWith('/candidate/company-profile/') || currentPath.startsWith('/company-profile/')) {
+      const companyId = currentPath.split('/').pop();
+      if (companyId) {
+        setSelectedCompanyId(companyId);
+        setCurrentPage('company-profile');
+      }
+      return;
+    }
+    
+    // Handle static routes
     const page = pathToPage[currentPath];
     if (page) {
       setCurrentPage(page);
@@ -278,12 +299,14 @@ const MainContent = () => {
 
   const handleJobClick = (jobId: string) => {
     setSelectedJobId(jobId);
-    handlePageChange('job-detail');
+    navigate(`/candidate/job-detail/${jobId}`);
+    setCurrentPage('job-detail');
   };
 
   const handleCompanyClick = (companyId: string) => {
     setSelectedCompanyId(companyId);
-    handlePageChange('company-profile');
+    navigate(`/candidate/company-profile/${companyId}`);
+    setCurrentPage('company-profile');
   };
 
   const handleBackClick = () => {

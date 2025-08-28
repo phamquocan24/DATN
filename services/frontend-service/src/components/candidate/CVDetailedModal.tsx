@@ -317,6 +317,7 @@ const CVDetailedModal: React.FC<CVDetailedModalProps> = ({ resume, onClose }) =>
                       className="border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer"
                       onClick={() => {
                         if (score.job_id) {
+                          onClose(); // Close modal before navigation
                           navigate(`/candidate/job-detail/${score.job_id}`);
                         }
                       }}

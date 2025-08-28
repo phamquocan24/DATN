@@ -455,6 +455,7 @@ export const CVDetailModal: React.FC<CVDetailModalProps> = ({ isOpen, onClose, r
                   className="border border-gray-200 rounded-xl p-4 hover:bg-gray-50 hover:border-blue-300 transition-all cursor-pointer"
                   onClick={() => {
                     if (match.job_id) {
+                      onClose(); // Close modal before navigation
                       navigate(`/candidate/job-detail/${match.job_id}`);
                     }
                   }}
