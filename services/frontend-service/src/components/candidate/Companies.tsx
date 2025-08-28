@@ -1,21 +1,11 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Footer } from './Footer';
 import { CTA } from './CTA';
 import GroupUnderline from '../../assets/Group.png';
 import { FiArrowRight, FiArrowLeft } from 'react-icons/fi';
 import { companyApi, Company as ApiCompany } from '../../services/companyApi';
 
-interface Company {
-  id: number;
-  name: string;
-  location: string;
-  description: string;
-  jobs: number;
-  logo: string;
-  logoColor: string;
-  category: string;
-  isFavorite?: boolean;
-}
+
 
 interface CompaniesProps {
   onCompanyClick?: (companyId: string) => void;
@@ -25,100 +15,112 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState('Florence, Italy');
   const [activeCategory, setActiveCategory] = useState('Design');
-  const [favoriteCompanies, setFavoriteCompanies] = useState<number[]>([1]);
+
   const [apiCompanies, setApiCompanies] = useState<ApiCompany[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Recommended Companies
-  const recommendedCompanies: Company[] = [
-    {
-      id: 1,
-      name: 'Nomad',
-      location: 'Paris, France',
-      description: 'Nomad is located in Paris, France. Nomad has generated $728.8M in sales (USD).',
-      jobs: 3,
-      logo: 'N',
-      logoColor: 'bg-green-500 text-white',
-      category: 'Design',
-      isFavorite: true
-    },
-    {
-      id: 2,
-      name: 'Discord',
-      location: 'San Francisco, USA',
-      description: "We'd love to work with someone like you. We care about creating a delightful experience.",
-      jobs: 3,
-      logo: 'D',
-      logoColor: 'bg-purple-500 text-white',
-      category: 'Technology'
-    },
-    {
-      id: 3,
-      name: 'Maze',
-      location: 'Berlin, Germany',
-      description: "We're a passionate bunch working from all over the world to build the future of rapid testing together.",
-      jobs: 3,
-      logo: 'M',
-      logoColor: 'bg-[#007BFF] text-white',
-      category: 'Design'
-    },
-    {
-      id: 4,
-      name: 'Udacity',
-      location: 'Mountain View, USA',
-      description: 'Udacity is the trusted market leader of online university that teaches the actual programming skills.',
-      jobs: 3,
-      logo: 'U',
-      logoColor: 'bg-[#007BFF] text-white',
-      category: 'Education'
-    },
-    {
-      id: 5,
-      name: 'Webflow',
-      location: 'San Francisco, USA',
-      description: 'Webflow is the leading visual development and hosting platform built from the ground up for the mobile age.',
-      jobs: 3,
-      logo: 'W',
-      logoColor: 'bg-[#007BFF] text-white',
-      category: 'Technology'
-    },
-    {
-      id: 6,
-      name: 'Foundation',
-      location: 'New York, USA',
-      description: 'Foundation helps creators mint and auction their digital artworks as NFTs on the Ethereum blockchain.',
-      jobs: 3,
-      logo: 'F',
-      logoColor: 'bg-black text-white',
-      category: 'Crypto'
-    }
-  ];
+  // State for recommended companies from API
+  const [recommendedCompanies, setRecommendedCompanies] = useState<ApiCompany[]>([]);
 
-  // Companies by category
-  const categories = [
-    { name: 'Design', count: 24, active: true },
-    { name: 'Fintech', count: 12, active: false },
-    { name: 'Hosting', count: 8, active: false },
-    { name: 'Business Service', count: 15, active: false },
-    { name: 'Development', count: 18, active: false },
-    { name: 'Marketing', count: 10, active: false },
-    { name: 'Education', count: 22, active: false },
-    { name: 'Crypto', count: 7, active: false },
-  ];
+  // State for categories from API
+  const [categories, setCategories] = useState<{name: string, count: number, active: boolean}[]>([]);
 
-  const designCompanies = [
-    { name: 'Pentagram', logo: 'P', logoColor: 'bg-red-500 text-white', jobs: 3 },
-    { name: 'Wolff Olins', logo: 'WO', logoColor: 'bg-black text-white', jobs: 4 },
-    { name: 'Clay', logo: 'C', logoColor: 'bg-black text-white', jobs: 3 },
-    { name: 'MediaMonks', logo: 'MM', logoColor: 'bg-black text-white', jobs: 5 },
-    { name: 'Packer', logo: 'P', logoColor: 'bg-red-400 text-white', jobs: 3 },
-    { name: 'Square', logo: 'S', logoColor: 'bg-black text-white', jobs: 3 },
-    { name: 'Divy', logo: 'D', logoColor: 'bg-gray-800 text-white', jobs: 3 },
-    { name: 'WebFlow', logo: 'W', logoColor: 'bg-[#007BFF] text-white', jobs: 5 }
-  ];
+  // State for companies by selected category
+  const [companiesByCategory, setCompaniesByCategory] = useState<ApiCompany[]>([]);
 
-  // Fetch companies from API
+  // Fetch recommended companies from API
+  useEffect(() => {
+    const fetchRecommendedCompanies = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await companyApi.getAllCompanies({
+          page: 1,
+          limit: 6,
+          verified_only: true // Get verified companies as recommended
+        });
+        
+        if (response.success) {
+          setRecommendedCompanies(response.data || []);
+        }
+      } catch (error: any) {
+        console.error('Error fetching recommended companies:', error);
+        setError(error.message || 'Failed to fetch recommended companies');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRecommendedCompanies();
+  }, []);
+
+  // Fetch categories (industries) from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await companyApi.getAllCompanies({
+          page: 1,
+          limit: 1000 // Get all companies to analyze industries
+        });
+        
+        if (response.success) {
+          const companies = response.data || [];
+          const industryMap = new Map<string, number>();
+          
+          companies.forEach((company: ApiCompany) => {
+            if (company.industry) {
+              const count = industryMap.get(company.industry) || 0;
+              industryMap.set(company.industry, count + 1);
+            }
+          });
+
+          const categoriesFromAPI = Array.from(industryMap.entries()).map(([name, count], index) => ({
+            name,
+            count,
+            active: index === 0 // First category is active by default
+          }));
+
+          setCategories(categoriesFromAPI);
+          
+          // Set first category as active and fetch its companies
+          if (categoriesFromAPI.length > 0) {
+            setActiveCategory(categoriesFromAPI[0].name);
+          }
+        }
+      } catch (error: any) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  // Fetch companies by selected category
+  useEffect(() => {
+    const fetchCompaniesByCategory = async () => {
+      if (!activeCategory) return;
+      
+      try {
+        const response = await companyApi.getAllCompanies({
+          page: 1,
+          limit: 24,
+          industry: activeCategory
+        });
+        
+        if (response.success) {
+          setCompaniesByCategory(response.data || []);
+        }
+      } catch (error: any) {
+        console.error('Error fetching companies by category:', error);
+      }
+    };
+
+    fetchCompaniesByCategory();
+  }, [activeCategory]);
+
+  // Fetch general companies for search
   useEffect(() => {
     const fetchCompanies = async () => {
       try {
@@ -144,87 +146,14 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
       }
     };
 
-    fetchCompanies();
+    if (searchQuery) {
+      fetchCompanies();
+    }
   }, [searchQuery]);
 
-  const toggleFavorite = (companyId: number) => {
-    setFavoriteCompanies(prev => 
-      prev.includes(companyId) 
-        ? prev.filter(id => id !== companyId)
-        : [...prev, companyId]
-    );
-  };
 
-  const CompanyCard = ({ company, showDescription = true }: { company: Company, showDescription?: boolean }) => (
-    <div 
-      className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 group cursor-pointer text-left transform"
-      onClick={() => onCompanyClick?.(company.id.toString())}
-    >
-      <div className="flex items-start justify-between mb-4">
-        <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold ${company.logoColor}`}>
-          {company.logo}
-        </div>
-        <span className="text-sm text-[#007BFF] bg-[#007BFF]/10 px-3 py-1 rounded-full">
-            {company.jobs} Jobs
-        </span>
-      </div>
 
-      <h3 className="font-semibold text-gray-900 group-hover:text-[#007BFF] transition-colors text-lg mb-2">
-        {company.name}
-      </h3>
 
-      {showDescription && (
-        <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-          {company.description}
-        </p>
-      )}
-
-      <div className="flex items-center justify-between">
-        <div className="flex space-x-2">
-          <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full font-medium border border-yellow-200">
-            Business Service
-          </span>
-           {company.category !== 'Design' && 
-             <span className="px-3 py-1 bg-red-100 text-red-700 text-xs rounded-full font-medium border border-red-200">
-                {company.category}
-            </span>
-           }
-        </div>
-        <button 
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleFavorite(company.id);
-          }}
-          className={`p-2 rounded-lg transition-colors ${
-            favoriteCompanies.includes(company.id) 
-              ? 'text-blue-500 hover:bg-blue-50' 
-              : 'text-gray-400 hover:bg-gray-100'
-          }`}
-        >
-          <svg className="w-5 h-5" fill={favoriteCompanies.includes(company.id) ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-          </svg>
-        </button>
-      </div>
-    </div>
-  );
-
-  const SmallCompanyCard = ({ company }: { company: any }) => (
-    <div 
-      className="bg-white border border-gray-200 rounded-lg p-4 hover:border-[#007BFF]/30 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group text-center cursor-pointer transform"
-      onClick={() => onCompanyClick?.(company.id?.toString() || company.name)}
-    >
-      <div className={`w-24 h-24 rounded-full flex items-center justify-center font-bold ${company.logoColor} mx-auto mb-4 text-3xl`}>
-        {company.logo}
-      </div>
-      <h3 className="font-semibold text-gray-900 group-hover:text-[#007BFF] transition-colors mb-3">
-        {company.name}
-      </h3>
-      <span className="text-sm text-[#007BFF] bg-[#007BFF]/10 px-3 py-1 rounded-full">
-        {company.jobs} Jobs
-      </span>
-    </div>
-  );
 
   const ApiCompanyCard = ({ company }: { company: ApiCompany }) => (
     <div 
@@ -248,31 +177,35 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
         {company.company_description || 'No description available'}
       </p>
 
-      <div className="flex items-center justify-between">
-        <div className="flex space-x-2">
-          {company.industry && (
-            <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium border border-blue-200">
-              {company.industry}
-            </span>
-          )}
-          {company.company_size && (
-            <span className="px-3 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium border border-green-200">
-              {company.company_size}
-            </span>
-          )}
-        </div>
-        <button 
-          onClick={(e) => {
-            e.stopPropagation();
-            // TODO: Add bookmark functionality for API companies
-          }}
-          className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-blue-500 transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-          </svg>
-        </button>
+      <div className="flex space-x-2">
+        {company.industry && (
+          <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium border border-blue-200">
+            {company.industry}
+          </span>
+        )}
+        {company.company_size && (
+          <span className="px-3 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium border border-green-200">
+            {company.company_size}
+          </span>
+        )}
       </div>
+    </div>
+  );
+
+  const SmallApiCompanyCard = ({ company }: { company: ApiCompany }) => (
+    <div 
+      className="bg-white border border-gray-200 rounded-lg p-4 hover:border-[#007BFF]/30 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group text-center cursor-pointer transform"
+      onClick={() => onCompanyClick?.(company.company_id)}
+    >
+      <div className={`w-24 h-24 rounded-full flex items-center justify-center font-bold bg-blue-500 text-white mx-auto mb-4 text-3xl`}>
+        {company.company_name?.charAt(0).toUpperCase() || 'C'}
+      </div>
+      <h3 className="font-semibold text-gray-900 group-hover:text-[#007BFF] transition-colors text-lg mb-2">
+        {company.company_name}
+      </h3>
+      <span className="text-sm text-[#007BFF] bg-[#007BFF]/10 px-3 py-1 rounded-full">
+        0 Jobs
+      </span>
     </div>
   );
 
@@ -331,9 +264,71 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
             </svg>
         );
+      case 'Information Technology':
+        return (
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        );
+      case 'E-commerce':
+        return (
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l-1 7a2 2 0 01-2 2H8a2 2 0 01-2-2L5 9z" />
+          </svg>
+        );
+      case 'Transportation Technology':
+        return (
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+          </svg>
+        );
+      case 'Conglomerate Technology':
+        return (
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
+        );
+      case 'Banking & Finance':
+        return (
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        );
+      case 'Software Development':
+        return (
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+          </svg>
+        );
+      case 'Digital Marketing':
+        return (
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+          </svg>
+        );
+      case 'Human Resources Technology':
+        return (
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+        );
       default:
-        return null;
+        return (
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
+        );
     }
+  };
+
+  const getSmallCategoryIcon = (categoryName: string) => {
+    const icon = getCategoryIcon(categoryName);
+    if (!icon) return null;
+    
+    // Clone the icon element and change size from w-8 h-8 to w-5 h-5
+    return React.cloneElement(icon, {
+      className: icon.props.className.replace('w-8 h-8', 'w-5 h-5')
+    });
   };
 
   const [categoryPage, setCategoryPage] = useState(0);
@@ -481,8 +476,8 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
             </div>
           )}
 
-          {/* Recommended Companies - Only show if no API companies */}
-          {apiCompanies.length === 0 && !loading && (
+          {/* Recommended Companies - Only show if no search query */}
+          {!searchQuery && recommendedCompanies.length > 0 && (
             <div className="mb-16">
               <div className="mb-8 text-left">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Recommended Companies</h2>
@@ -491,7 +486,7 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
 
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {recommendedCompanies.map((company) => (
-                  <CompanyCard key={company.id} company={company} />
+                  <ApiCompanyCard key={company.company_id} company={company} />
                 ))}
               </div>
             </div>
@@ -565,21 +560,31 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
                 {/* Results count */}
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3 text-gray-600">
-                        <svg className="w-5 h-5 text-[#007BFF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
-                        </svg>
+                        <div className="text-[#007BFF]">
+                            {getSmallCategoryIcon(activeCategory) || (
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                                </svg>
+                            )}
+                        </div>
                         <p>
-                            Showing <span className="text-gray-900 font-medium">24 Results</span>
+                            Showing <span className="text-gray-900 font-medium">{companiesByCategory.length} Results</span>
                         </p>
                     </div>
                 </div>
 
                 {/* Companies Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-                    {designCompanies.map((company, index) => (
-                    <SmallCompanyCard key={index} company={company} />
-                    ))}
-                </div>
+                {companiesByCategory.length > 0 ? (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+                      {companiesByCategory.map((company) => (
+                      <SmallApiCompanyCard key={company.company_id} company={company} />
+                      ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No companies found in {activeCategory} category</p>
+                  </div>
+                )}
 
                 {/* View more link */}
                 <div className="text-left">
