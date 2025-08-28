@@ -6,6 +6,9 @@ const { authenticateToken, requireRole } = require('../modules/auth');
 const winston = require('winston');
 const axios = require('axios');
 const FormData = require('form-data');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 // Create cvModel instance
 const cvModel = new CV();
@@ -28,6 +31,44 @@ const logger = winston.createLogger({
 
 // AI Extraction Service Configuration
 const AI_EXTRACTION_SERVICE_URL = process.env.AI_EXTRACTION_SERVICE_URL || 'http://localhost:8003';
+
+// File upload configuration
+const uploadPath = path.join(__dirname, '../uploads/cvs');
+
+// Ensure upload directory exists
+if (!fs.existsSync(uploadPath)) {
+  fs.mkdirSync(uploadPath, { recursive: true });
+}
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename: timestamp-randomstring-originalname
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const fileExtension = path.extname(file.originalname);
+    const baseName = path.basename(file.originalname, fileExtension);
+    cb(null, `${uniqueSuffix}-${baseName}${fileExtension}`);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Check file type
+    const allowedMimes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF, DOC, and DOCX files are allowed'), false);
+    }
+  }
+});
 
 // Helper function to auto-extract CV content
 async function extractCVContentAsync(cvId, cvFileUrl) {
@@ -97,8 +138,8 @@ const createCVSchema = Joi.object({
     'string.max': 'CV title must not exceed 200 characters',
     'any.required': 'CV title is required'
   }),
-  cv_file_url: Joi.string().uri().required().messages({
-    'string.uri': 'CV file URL must be a valid URL',
+  cv_file_url: Joi.string().min(1).required().messages({
+    'string.min': 'CV file URL cannot be empty',
     'any.required': 'CV file URL is required'
   }),
   cv_file_name: Joi.string().max(255).required().messages({
@@ -112,7 +153,7 @@ const createCVSchema = Joi.object({
 
 const updateCVSchema = Joi.object({
   cv_title: Joi.string().min(2).max(200).optional(),
-  cv_file_url: Joi.string().uri().optional(),
+  cv_file_url: Joi.string().min(1).optional(),
   cv_file_name: Joi.string().max(255).optional(),
   cv_file_size: Joi.number().integer().positive().optional(),
   cv_file_type: Joi.string().valid('pdf', 'doc', 'docx').optional()
@@ -409,11 +450,165 @@ router.get('/', authenticateToken, async (req, res) => {
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
+/**
+ * @swagger
+ * /api/v1/cvs/upload:
+ *   post:
+ *     tags: [CVs]
+ *     summary: Upload CV file
+ *     description: Upload a CV file and get the file path for creating a CV record
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - cv_file
+ *             properties:
+ *               cv_file:
+ *                 type: string
+ *                 format: binary
+ *                 description: CV file (PDF, DOC, or DOCX, max 5MB)
+ *     responses:
+ *       200:
+ *         description: File uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: File uploaded successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     file_path:
+ *                       type: string
+ *                       example: "/uploads/cvs/1703123456789-123456789-john_doe_cv.pdf"
+ *                     file_name:
+ *                       type: string
+ *                       example: "john_doe_cv.pdf"
+ *                     file_size:
+ *                       type: number
+ *                       example: 2048576
+ *                     file_type:
+ *                       type: string
+ *                       example: "pdf"
+ *       400:
+ *         description: Bad request (invalid file, too large, etc.)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       403:
+ *         description: Forbidden - candidates only
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+// Upload CV file (Candidates only)
+router.post('/upload', authenticateToken, requireRole(['CANDIDATE']), upload.single('cv_file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded',
+        code: 'NO_FILE'
+      });
+    }
+
+    const file = req.file;
+    
+    // Get file extension and type
+    const fileExtension = path.extname(file.originalname).toLowerCase();
+    let fileType = '';
+    
+    switch (fileExtension) {
+      case '.pdf':
+        fileType = 'pdf';
+        break;
+      case '.doc':
+        fileType = 'doc';
+        break;
+      case '.docx':
+        fileType = 'docx';
+        break;
+      default:
+        fileType = 'pdf'; // Default fallback
+    }
+
+    // Return relative path for database storage
+    const relativePath = `/uploads/cvs/${file.filename}`;
+
+    logger.info('CV file uploaded successfully', {
+      user_id: req.user.user_id,
+      file_name: file.originalname,
+      file_size: file.size,
+      file_path: relativePath
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'File uploaded successfully',
+      data: {
+        file_path: relativePath,
+        file_name: file.originalname,
+        file_size: file.size,
+        file_type: fileType
+      }
+    });
+
+  } catch (error) {
+    logger.error('Failed to upload CV file:', {
+      user_id: req.user?.user_id,
+      error: error.message,
+      stack: error.stack
+    });
+
+    // Clean up uploaded file if error occurs
+    if (req.file && fs.existsSync(req.file.path)) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (unlinkError) {
+        logger.error('Failed to clean up uploaded file:', unlinkError.message);
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'Failed to upload file',
+      code: 'UPLOAD_ERROR'
+    });
+  }
+});
+
 // Create CV (Candidates only)
 router.post('/', authenticateToken, requireRole(['CANDIDATE']), async (req, res) => {
   try {
+    // Debug: Log the incoming request body
+    console.log('📝 CV Creation Request:', {
+      body: req.body,
+      hasFileUrl: !!req.body.cv_file_url,
+      fileUrl: req.body.cv_file_url
+    });
+
     const { error, value } = createCVSchema.validate(req.body);
     if (error) {
+      console.error('❌ CV Creation Validation Error:', error.details[0]);
       return res.status(400).json({
         success: false,
         error: error.details[0].message,

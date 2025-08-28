@@ -49,9 +49,9 @@ interface Resume {
   address: string;
   objective: string;
   file?: File;
-  fileBase64?: string; // Store file as base64 for persistence
   fileName?: string; // Store original file name
   fileType?: string; // Store original file type
+  filePath?: string; // Server file path (stored in database)
   extractedData?: CVExtractResponse;
   uploadedAt: Date;
   matchingScore?: number; // Điểm matching với JD mẫu (deprecated)
@@ -63,33 +63,15 @@ interface Resume {
 }
 
 // Helper functions for file persistence
-const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = error => reject(error);
-  });
-};
 
-const base64ToFile = (base64: string, fileName: string, fileType: string): File => {
-  const arr = base64.split(',');
-  const mime = arr[0].match(/:(.*?);/)?.[1] || fileType;
-  const bstr = atob(arr[1]);
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n);
-  }
-  return new File([u8arr], fileName, { type: mime });
-};
+// Removed base64ToFile function - files now stored on server
 
 // Helper function to save resumes to localStorage (excluding File objects)
 const saveResumesToLocalStorage = (resumes: Resume[]) => {
   const resumesToSave = resumes.map(resume => ({
     ...resume,
     file: undefined // Remove File object for localStorage storage
-    // Keep fileBase64, fileName, fileType for recreation
+    // Keep fileName, fileType, filePath for reference
   }));
   localStorage.setItem('userResumes', JSON.stringify(resumesToSave));
 };
@@ -125,18 +107,9 @@ export const Resume: React.FC = () => {
         const savedResumes = localStorage.getItem('userResumes');
         if (savedResumes) {
           const parsedResumes = JSON.parse(savedResumes);
-          // Recreate File objects from base64 data where available
-          const resumesWithFiles = parsedResumes.map((resume: Resume) => {
-            if (resume.fileBase64 && resume.fileName && resume.fileType && !resume.file) {
-              try {
-                resume.file = base64ToFile(resume.fileBase64, resume.fileName, resume.fileType);
-              } catch (error) {
-                console.warn('Failed to recreate file for resume:', resume.id, error);
-              }
-            }
-            return resume;
-          });
-          setResumes(resumesWithFiles);
+          // Note: Files are now stored on server (filePath), not as base64 in localStorage
+          // localStorage only contains resume metadata for UI persistence
+          setResumes(parsedResumes);
         }
       } catch (err) {
         console.error('Error loading saved resumes:', err);
@@ -207,16 +180,17 @@ export const Resume: React.FC = () => {
     if (resume.file && resume.file instanceof File) {
       setSelectedResume(resume);
       setIsEnhanceModalOpen(true);
-    } else if (resume.fileBase64 && resume.fileName && resume.fileType) {
-      // Recreate File object from base64 data
+    } else if (resume.fileName && resume.fileType && resume.filePath) {
+      // For CVs stored on server, create a placeholder file reference
       try {
-        const recreatedFile = base64ToFile(resume.fileBase64, resume.fileName, resume.fileType);
-        const resumeWithFile = { ...resume, file: recreatedFile };
+        // Create a placeholder file object for enhancement (actual file is on server)
+        const placeholderFile = new File([''], resume.fileName, { type: resume.fileType });
+        const resumeWithFile = { ...resume, file: placeholderFile };
         setSelectedResume(resumeWithFile);
         setIsEnhanceModalOpen(true);
       } catch (error) {
-        console.error('Failed to recreate file from base64:', error);
-        alert("Unable to recreate CV file for enhancement. Please re-upload your CV.");
+        console.error('Failed to create placeholder file for enhancement:', error);
+        alert("Unable to prepare CV file for enhancement. Please re-upload your CV.");
       }
     } else {
       alert("CV file is not available for enhancement. Please re-upload your CV to use the enhancement feature. Note: CV files are only available for enhancement during the current session after upload.");
@@ -388,17 +362,46 @@ export const Resume: React.FC = () => {
 
 
 
-  const handleDeleteResume = (resumeId: string) => {
-    const updatedResumes = resumes.filter(resume => resume.id !== resumeId);
-    setResumes(updatedResumes);
-    
-    // Update localStorage
-    saveResumesToLocalStorage(updatedResumes);
-    
-    // Close dropdown
+  const handleDeleteResume = async (resumeId: string) => {
+    // Show confirmation dialog
+    if (!confirm('Are you sure you want to delete this CV? This action cannot be undone.')) {
+      return;
+    }
+
+    // Close dropdown first
     setOpenDropdownId(null);
-    
-    console.log('Resume deleted:', resumeId);
+
+    try {
+      // Find the resume to get the CV ID
+      const resume = resumes.find(r => r.id === resumeId);
+      if (!resume || !resume.cv_id) {
+        // If no CV ID, just remove from localStorage (legacy data)
+        const updatedResumes = resumes.filter(resume => resume.id !== resumeId);
+        setResumes(updatedResumes);
+        saveResumesToLocalStorage(updatedResumes);
+        console.log('Resume deleted from localStorage:', resumeId);
+        return;
+      }
+
+      // Call API to delete CV from database
+      const result = await candidateApi.deleteCV(resume.cv_id);
+      
+      if (result.success) {
+        // Remove from local state and localStorage
+        const updatedResumes = resumes.filter(resume => resume.id !== resumeId);
+        setResumes(updatedResumes);
+        saveResumesToLocalStorage(updatedResumes);
+        
+        alert('CV deleted successfully');
+        console.log('CV deleted from database:', resume.cv_id);
+      } else {
+        alert(result.message || 'Failed to delete CV');
+        console.error('Failed to delete CV:', result.message);
+      }
+    } catch (error) {
+      console.error('Error deleting CV:', error);
+      alert('An error occurred while deleting the CV');
+    }
   };
 
   const handleCalculateJobMatches = async (resume: Resume) => {
@@ -456,8 +459,8 @@ export const Resume: React.FC = () => {
           handleSubmit(file);
         }, i * 1000); // 1 second delay between each upload
       } else {
-        alert(`File ${file.name}: Please select a PDF file under 5MB`);
-        setError(`File ${file.name}: Please select a PDF file under 5MB`);
+        alert(`File ${file.name}: Please select a PDF file under 10MB`);
+        setError(`File ${file.name}: Please select a PDF file under 10MB`);
       }
     }
     
@@ -485,8 +488,8 @@ export const Resume: React.FC = () => {
           handleSubmit(file);
         }, i * 1000); // 1 second delay between each upload
       } else {
-        alert(`File ${file.name}: Please select a PDF file under 5MB`);
-        setError(`File ${file.name}: Please select a PDF file under 5MB`);
+        alert(`File ${file.name}: Please select a PDF file under 10MB`);
+        setError(`File ${file.name}: Please select a PDF file under 10MB`);
       }
     }
   };
@@ -512,65 +515,53 @@ export const Resume: React.FC = () => {
       const extractedData = await cvApi.extractCV(file);
       setExtractedInfo(extractedData);
 
-      // Automatically save CV data to database
-      const cvTitle = extractedData.full_name 
-        ? `${extractedData.full_name}'s CV - ${new Date().toLocaleDateString()}`
-        : `CV - ${new Date().toLocaleDateString()}`;
-      
-      // Create a temporary file URL (in production, this should be uploaded to a file storage service)
-      const fileUrl = URL.createObjectURL(file);
-      
-      // Determine file type based on file extension and MIME type
-      const getFileType = (file: File): 'pdf' | 'doc' | 'docx' => {
-        const fileName = file.name.toLowerCase();
-        const mimeType = file.type.toLowerCase();
-        
-        if (fileName.endsWith('.pdf') || mimeType.includes('pdf')) {
-          return 'pdf';
-        } else if (fileName.endsWith('.docx') || mimeType.includes('wordprocessingml')) {
-          return 'docx';
-        } else if (fileName.endsWith('.doc') || mimeType.includes('msword')) {
-          return 'doc';
-        } else {
-          // Default to pdf if unknown
-          return 'pdf';
-        }
-      };
-
-      const cvData = {
-        cv_title: cvTitle,
-        cv_file_url: fileUrl, // In production, upload file and get real URL
-        cv_file_name: file.name,
-        cv_file_size: file.size,
-        cv_file_type: getFileType(file),
-        is_primary: false
-      };
-
       try {
-        const savedCV = await candidateApi.saveExtractedCV(cvData);
-        console.log('CV saved to database:', savedCV);
-        
-        // Get the CV ID from the response
-        const cvId = savedCV.data?.cv?.cv_id || Date.now().toString();
-        
+        // Upload file to server and get file path
+        const uploadResult = await candidateApi.uploadCVFile(file);
+        if (!uploadResult.success) {
+          throw new Error(uploadResult.message || 'Failed to upload file');
+        }
+
+        // Debug: Log upload result
+        console.log('📁 Upload result:', uploadResult);
+
+        // Create CV record in database with file path
+        const cvData = {
+          cv_title: extractedData.full_name || 'CV',
+          cv_file_url: uploadResult.file_path!,
+          cv_file_name: uploadResult.file_name || file.name,
+          cv_file_size: uploadResult.file_size || file.size,
+          cv_file_type: (uploadResult.file_type as 'pdf' | 'doc' | 'docx') || 
+                       (file.name.toLowerCase().endsWith('.pdf') ? 'pdf' as const : 
+                        file.name.toLowerCase().endsWith('.docx') ? 'docx' as const :
+                        file.name.toLowerCase().endsWith('.doc') ? 'doc' as const : 'pdf' as const),
+          is_primary: false
+        };
+
+        // Debug: Log cvData being sent to API
+        console.log('💾 CV data to save:', cvData);
+
+        const createResult = await candidateApi.saveExtractedCV(cvData);
+        if (!createResult.success) {
+          console.error('❌ Failed to save CV:', createResult);
+          throw new Error('Failed to save CV to database');
+        }
+
+        // Use the CV ID from database response
+        const dbCvId = createResult.data?.cv?.cv_id || Date.now().toString();
+        const candidateId = createResult.data?.cv?.candidate_id;
+
         // Save CV content (parsed data) to database for AI service
         try {
-          await candidateApi.saveCVContent(cvId, extractedData);
+          await candidateApi.saveCVContent(dbCvId, extractedData);
           console.log('CV content saved to database for AI service');
         } catch (contentError) {
           console.warn('Failed to save CV content, but CV file was saved:', contentError);
         }
         
-        // Create resume object with saved CV data
-        const resumeId = cvId;
-        const candidateId = savedCV.data?.cv?.candidate_id;
-        
-        // Convert file to base64 for persistence
-        const fileBase64 = await fileToBase64(file);
-        
         const newResume: Resume = {
-          id: resumeId,
-          cv_id: cvId,
+          id: dbCvId,
+          cv_id: dbCvId,
           candidate_id: candidateId,
           full_name: extractedData.full_name || 'Unknown',
           email: extractedData.email || '',
@@ -578,9 +569,9 @@ export const Resume: React.FC = () => {
           address: extractedData.address || '',
           objective: extractedData.objective || '',
           file: file,
-          fileBase64: fileBase64,
           fileName: file.name,
           fileType: file.type,
+          filePath: uploadResult.file_path,
           extractedData: extractedData,
           uploadedAt: new Date(),
           matchingScore: 0,
@@ -589,22 +580,22 @@ export const Resume: React.FC = () => {
           hasJobMatches: false
         };
 
-        // Add to resumes list and save to localStorage
+        // Add to resumes list (still keep in memory for UI)
         const updatedResumes = [...resumes, newResume];
         setResumes(updatedResumes);
         
-        // Save to localStorage but exclude File objects (they can't be serialized)
+        // Still save to localStorage for UI persistence (file is now stored on server, not as base64)
+        // localStorage is used only for resume metadata and UI state
         saveResumesToLocalStorage(updatedResumes);
 
         // Calculate AI match scores with all available jobs in background
         setTimeout(async () => {
           try {
-            // Get candidate_id from the saved CV response
-            const candidateId = savedCV.data?.cv?.candidate_id;
+            // Use candidateId from the create result
             
             if (candidateId) {
               console.log('Starting AI match calculation for candidate:', candidateId);
-              await calculateAIMatchScoresForCV(cvId, candidateId);
+              await calculateAIMatchScoresForCV(dbCvId, candidateId);
             } else {
               console.warn('No candidate_id found in CV response');
             }
@@ -612,7 +603,7 @@ export const Resume: React.FC = () => {
             // Update to stop loading state
             setResumes(prevResumes => {
               const updatedList = prevResumes.map(r => 
-                r.id === resumeId ? { ...r, isCalculatingMatch: false } : r
+                r.id === dbCvId ? { ...r, isCalculatingMatch: false } : r
               );
               saveResumesToLocalStorage(updatedList);
               return updatedList;
@@ -623,7 +614,7 @@ export const Resume: React.FC = () => {
             // Update to stop loading state even if calculation failed
             setResumes(prevResumes => {
               const updatedList = prevResumes.map(r => 
-                r.id === resumeId ? { ...r, isCalculatingMatch: false } : r
+                r.id === dbCvId ? { ...r, isCalculatingMatch: false } : r
               );
               saveResumesToLocalStorage(updatedList);
               return updatedList;
@@ -795,7 +786,7 @@ export const Resume: React.FC = () => {
               }}
               className="bg-[#007BFF] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#0056b3] transition-colors"
               title={
-                (resume.file instanceof File) || (resume.fileBase64 && resume.fileName) 
+                (resume.file instanceof File) || (resume.fileName && resume.filePath) 
                   ? "Enhance this resume with AI" 
                   : "Re-upload CV to enable enhancement"
               }
@@ -817,7 +808,7 @@ export const Resume: React.FC = () => {
               }}
               className="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-600 transition-colors"
               title={
-                (resume.file instanceof File) || (resume.fileBase64 && resume.fileName) 
+                (resume.file instanceof File) || (resume.fileName && resume.filePath) 
                   ? "Enhance this resume with AI" 
                   : "Re-upload CV to enable enhancement"
               }
@@ -912,7 +903,7 @@ export const Resume: React.FC = () => {
                 <p>No resumes uploaded yet. Upload your first CV below!</p>
                 {availableJobs.length === 0 && (
                   <p className="text-sm text-yellow-600 mt-2">
-                    ⚠️ Note: Job matching may not be available. Please ensure your profile is complete.
+                    Note: Job matching may not be available. Please ensure your profile is complete.
                   </p>
                 )}
               </div>
@@ -975,7 +966,7 @@ export const Resume: React.FC = () => {
                     Click to upload or drag and drop
                   </p>
                   <p className="text-gray-500 text-sm">
-                    PDF files max size 5MB each. Multiple files supported.
+                    PDF files max size 10MB each. Multiple files supported.
                   </p>
                 </div>
               )}

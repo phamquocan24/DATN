@@ -160,7 +160,7 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
   useEffect(() => {
     const handleBookmarkChange = () => {
       // Refresh favorites when bookmark status changes
-      fetchFavoriteJobs();
+        fetchFavoriteJobs();
     };
 
     const handleFocusChange = () => {
@@ -251,15 +251,15 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
 
       const response = await candidateApi.removeJobFromFavorites(jobId);
       if (response.success) {
-        // Refresh the favorites list
-        fetchFavoriteJobs();
-        console.log(`Job removed from favorites`);
+      // Refresh the favorites list
+      fetchFavoriteJobs();
+      console.log(`Job removed from favorites`);
         
         // Emit event to sync with other components
         window.dispatchEvent(new CustomEvent('bookmarkChanged', {
           detail: { jobId, isBookmarked: false }
         }));
-      } else {
+    } else {
         console.error(`Failed to remove job ${jobId} from favorites:`, response.message);
         alert('Failed to remove job from favorites. Please try again.');
       }
@@ -362,7 +362,7 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
       <div className="flex items-center justify-between">
         <div className="text-left">
           <div className="text-sm text-gray-500">
-            {job.applied} applied of {job.capacity} capacity
+          {job.applied} applied of {job.capacity} capacity
           </div>
           {job.salary && (
             <div className="text-sm font-medium text-gray-900 mt-1">
@@ -731,7 +731,7 @@ export const FavoriteJobs: React.FC<FavoriteJobsProps> = ({ onJobClick }) => {
                       .slice((pagination.page - 1) * pagination.limit, pagination.page * pagination.limit)
                       .map((job) => (
                         <JobCard key={job.job_id} job={job} />
-                      ))
+                    ))
                   ) : favoriteJobs.length > 0 ? (
                     <div className="text-center py-8">
                       <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

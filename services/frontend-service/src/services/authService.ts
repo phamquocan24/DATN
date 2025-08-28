@@ -52,6 +52,13 @@ class AuthService {
 
   // Store auth data
   setAuthData(token: string, refreshToken: string, user: User): void {
+    console.log('🔑 Setting auth data:', {
+      tokenKey: this.tokenKey,
+      hasToken: !!token,
+      tokenLength: token?.length || 0,
+      hasRefreshToken: !!refreshToken,
+      userId: user?.user_id
+    });
     localStorage.setItem(this.tokenKey, token);
     localStorage.setItem(this.refreshTokenKey, refreshToken);
     localStorage.setItem(this.userKey, JSON.stringify(user));
@@ -95,6 +102,18 @@ class AuthService {
         // Handle both token formats - direct access_token or tokens object
         const accessToken = access_token || tokens?.access_token;
         const refreshToken = tokens?.refresh_token || '';
+        
+        console.log('🚀 Login successful, storing auth data:', {
+          hasAccessToken: !!accessToken,
+          hasRefreshToken: !!refreshToken,
+          hasUser: !!user,
+          responseStructure: {
+            hasDirectAccessToken: !!access_token,
+            hasTokensObject: !!tokens,
+            tokensKeys: tokens ? Object.keys(tokens) : []
+          }
+        });
+        
         this.setAuthData(accessToken, refreshToken, user);
         return response.data;
       }

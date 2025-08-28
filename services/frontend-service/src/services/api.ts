@@ -13,6 +13,16 @@ apiClient.interceptors.request.use((config: any) => {
   // Get access token from localStorage
   const accessToken = localStorage.getItem('token') || '';
   
+  // Debug logging (remove in production)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('API Request interceptor:', {
+      url: config.url,
+      hasToken: !!accessToken,
+      tokenLength: accessToken.length,
+      tokenValid: accessToken ? isTokenValid(accessToken) : false
+    });
+  }
+  
   // Add API prefix for endpoints that don't have it
   if (config.url && !config.url.startsWith('/api/') && !config.url.startsWith('/health')) {
     // Add /api/v1/ prefix for business endpoints
@@ -31,11 +41,18 @@ apiClient.interceptors.request.use((config: any) => {
   if (!isAuthEndpoint && accessToken && accessToken.length > 0) {
     if (isTokenValid(accessToken)) {
       headers.Authorization = `Bearer ${accessToken}`;
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ Token added to request headers');
+      }
     } else {
       // Token is expired or invalid, clear it
-      console.warn('Token expired, clearing auth data');
+      console.warn('❌ Token expired, clearing auth data');
       clearAuthData();
       // Don't add Authorization header for expired token
+    }
+  } else if (!isAuthEndpoint) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('⚠️ No valid token for protected endpoint:', config.url);
     }
   }
   

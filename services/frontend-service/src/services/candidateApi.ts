@@ -267,7 +267,7 @@ export const candidateApi = {
   },
 
   updateProfile: async (profileData: any) => {
-    const response = await apiClient.put('/api/v1/users/profile', profileData);
+    const response = await apiClient.put('/api/v1/user/profile', profileData);
     return response.data;
   },
 
@@ -310,6 +310,40 @@ export const candidateApi = {
     return response.data;
   },
 
+  // Upload file and get file path
+  uploadCVFile: async (file: File): Promise<{ success: boolean; file_path?: string; file_name?: string; file_size?: number; file_type?: string; message?: string }> => {
+    try {
+      const formData = new FormData();
+      formData.append('cv_file', file);
+      
+      const response = await apiClient.post('/api/v1/cvs/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
+      // Flatten the response structure to match expected interface
+      if (response.data.success && response.data.data) {
+        return {
+          success: true,
+          file_path: response.data.data.file_path,
+          file_name: response.data.data.file_name,
+          file_size: response.data.data.file_size,
+          file_type: response.data.data.file_type,
+          message: response.data.message
+        };
+      }
+      
+      return response.data;
+    } catch (error: any) {
+      console.error('Failed to upload CV file:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to upload file'
+      };
+    }
+  },
+
   saveExtractedCV: async (cvData: {
     cv_title: string;
     cv_file_url: string;
@@ -318,8 +352,22 @@ export const candidateApi = {
     cv_file_type?: 'pdf' | 'doc' | 'docx';
     is_primary?: boolean;
   }) => {
-    const response = await apiClient.post('/cvs', cvData);
+    const response = await apiClient.post('/api/v1/cvs', cvData);
     return response.data;
+  },
+
+  // Delete CV
+  deleteCV: async (cvId: string): Promise<{ success: boolean; message?: string }> => {
+    try {
+      const response = await apiClient.delete(`/api/v1/cvs/${cvId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Failed to delete CV:', error);
+      return {
+        success: false,
+        message: error.response?.data?.error || 'Failed to delete CV'
+      };
+    }
   },
 
 
@@ -437,11 +485,6 @@ export const candidateApi = {
   // Set CV as primary
   setPrimaryCV: async (cvId: string) => {
     const response = await apiClient.post(`/cvs/${cvId}/set-primary`);
-    return response.data;
-  },
-
-  deleteCV: async (cvId: string) => {
-    const response = await apiClient.delete(`/cvs/${cvId}`);
     return response.data;
   },
 
