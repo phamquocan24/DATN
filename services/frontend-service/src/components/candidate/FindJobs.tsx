@@ -10,6 +10,7 @@ import bookmarkCache from '../../services/bookmarkCache';
 interface Job {
   job_id: string; // Primary ID (UUID from database)
   id?: number;    // Fallback for legacy data
+  company_id?: string; // Company ID for API calls
   title: string;
   company: string;
   location: string;
@@ -42,11 +43,12 @@ interface Job {
 
 interface FindJobsProps {
   onJobClick?: (jobId: string) => void;
+  onCompanyClick?: (companyId: string) => void;
 }
 
 // Removed global bookmark cache - now using centralized bookmarkCache service
 
-export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
+export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState('');
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -119,6 +121,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
         return {
           job_id: job.job_id, // Primary ID from database
           id: Number(job.id || job._id) || 0, // Ensure it's a number
+          company_id: job.company_id,
           title: job.title,
           company: job.company_name || job.company?.name || 'Company',
           location: job.address || job.city_name || job.location || 'Location', // Address next to company
@@ -509,6 +512,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick }) => {
       <JobDetail 
         job={selectedJob}
         onBack={handleBackToList}
+        onCompanyClick={onCompanyClick}
       />
     );
   }

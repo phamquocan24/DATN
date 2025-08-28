@@ -11,6 +11,11 @@ export const candidateApi = {
   getJobById: async (jobId: string, includeStats?: boolean) => {
     const params = includeStats ? { include_stats: includeStats } : {};
     const response = await apiClient.get(`/api/v1/jobs/${jobId}`, { params });
+    console.log('🔍 Raw API Response for getJobById:', response.data);
+    console.log('🔍 Job Data from API:', response.data.data);
+    if (response.data.data) {
+      console.log('🔍 Company ID in API response:', response.data.data.company_id);
+    }
     return response.data;
   },
 

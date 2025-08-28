@@ -40,10 +40,11 @@ interface Job {
 interface JobDetailProps {
   job: Job;
   onBack: () => void;
+  onCompanyClick?: (companyId: string) => void;
   applicationStatus?: 'PENDING' | 'REVIEWING' | 'SHORTLISTED' | 'INTERVIEWING' | 'TESTING' | 'OFFERED' | 'HIRED' | 'REJECTED';
 }
 
-const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: initialStatus }) => {
+const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, onCompanyClick, applicationStatus: initialStatus }) => {
     const [isApplicationOpen, setIsApplicationOpen] = useState(false);
     
 
@@ -55,18 +56,10 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
     
     // AI Matching states
     const [aiMatchScore, setAiMatchScore] = useState<number | null>(null);
-    const [matchGrade, setMatchGrade] = useState<string>('');
     const [isCalculatingMatch, setIsCalculatingMatch] = useState(false);
     const [selectedCVId, setSelectedCVId] = useState<string | null>(null);
 
-    // Helper function to get match grade
-    const getMatchGrade = (score: number): string => {
-        if (score >= 80) return 'EXCELLENT';
-        if (score >= 70) return 'VERY_GOOD';
-        if (score >= 60) return 'GOOD';
-        if (score >= 50) return 'FAIR';
-        return 'POOR';
-    };
+
 
     // Load selected CV from localStorage
     const loadSelectedCV = () => {
@@ -100,7 +93,6 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
                 if (matchResult && !matchResult.error) {
                     const score = matchResult.match_score;
                     setAiMatchScore(score);
-                    setMatchGrade(getMatchGrade(score));
                     console.log(`Successfully calculated match score: ${score}%`);
                 } else {
                     console.error('Match calculation error:', matchResult?.error);
@@ -505,19 +497,16 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
                                         job.logo
                                     )}
                                 </div>
-                                                                 <button 
-                                     onClick={() => {
-                                         if (job.company_id) {
-                                             window.location.href = `/company-profile/${job.company_id}`;
-                                         } else {
-                                             console.warn('Company ID not available');
-                                             alert('Company information not available');
-                                         }
-                                     }}
-                                     className="flex items-center gap-2 text-[#007BFF] font-medium hover:underline"
-                                 >
-                                    Read more about {job.company} <FiArrowRight />
-                                </button>
+
+                                
+                                {job.company_id && onCompanyClick && (
+                                    <button 
+                                        onClick={() => onCompanyClick(job.company_id!)}
+                                        className="flex items-center gap-2 text-[#007BFF] font-medium hover:underline"
+                                    >
+                                       Read more about {job.company} <FiArrowRight />
+                                    </button>
+                                )}
                                 <p className="text-gray-600 text-sm leading-relaxed">
                                     {companyData?.description || `${job.company} is a technology company that builds economic infrastructure for the internet. Businesses of every size—from new startups to public companies—use our software to accept payments and manage their businesses online.`}
                                 </p>
@@ -550,19 +539,16 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, applicationStatus: i
                     <div className="bg-white border border-gray-200 rounded-lg p-6 mt-8 shadow-sm">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-semibold text-gray-900">Similar Jobs</h3>
-                                                         <button 
-                                 onClick={() => {
-                                     if (job.company_id) {
-                                         window.location.href = `/find-jobs?company=${job.company_id}`;
-                                     } else {
-                                         console.warn('Company ID not available');
-                                         alert('Company information not available');
-                                     }
-                                 }}
-                                 className="text-[#007BFF] text-sm font-medium flex items-center gap-1 hover:underline"
-                             >
-                                Show all jobs <FiArrowRight/>
-                            </button>
+
+                            
+                            {job.company_id && onCompanyClick && (
+                                <button 
+                                    onClick={() => onCompanyClick(job.company_id!)}
+                                    className="text-[#007BFF] text-sm font-medium flex items-center gap-1 hover:underline"
+                                >
+                                   Show all jobs <FiArrowRight/>
+                               </button>
+                            )}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {similarJobs.map((sJob: any) => (

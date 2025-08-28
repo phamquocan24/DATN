@@ -358,9 +358,12 @@ const MainContent = () => {
           const response = await candidateApi.getJobById(jobId);
           console.log('Job Details API Response:', response);
           
-          // Handle different response structures - API returns array, take first item if array
+          // Handle different response structures - API returns nested structure
           let jobDetails;
-          if (response.data && Array.isArray(response.data)) {
+          if (response.data && response.data.data) {
+            // Standard API response structure: { success: true, data: {...} }
+            jobDetails = response.data.data;
+          } else if (response.data && Array.isArray(response.data)) {
             jobDetails = response.data[0]; // Take first job from array
           } else if (response.data) {
             jobDetails = response.data;
@@ -372,7 +375,14 @@ const MainContent = () => {
             throw new Error('No job data found');
           }
           
-          console.log('Extracted jobDetails:', jobDetails);
+          console.log('🔍 DEBUGGING API RESPONSE EXTRACTION:');
+          console.log('   Raw response:', response);
+          console.log('   response.data:', response.data);
+          console.log('   response.data.data:', response.data?.data);
+          console.log('   Extracted jobDetails:', jobDetails);
+          console.log('   Company ID from API:', jobDetails.company_id);
+          console.log('   Company ID type:', typeof jobDetails.company_id);
+          console.log('   Full jobDetails structure:', JSON.stringify(jobDetails, null, 2));
           
           // Parse description to extract different sections
           const parseJobDescription = (description: string) => {
@@ -478,6 +488,12 @@ const MainContent = () => {
             ].filter(Boolean)
           };
           
+          console.log('🔍 DEBUGGING TRANSFORMATION:');
+          console.log('   Original jobDetails.company_id:', jobDetails.company_id);
+          console.log('   Transformed job for JobDetail:', transformedJob);
+          console.log('   Company ID in transformed job:', transformedJob.company_id);
+          console.log('   Company ID type in transformed job:', typeof transformedJob.company_id);
+          console.log('   Company ID truthy in transformed job:', !!transformedJob.company_id);
           setJobData(transformedJob);
         } catch (err: any) {
           console.error('Error fetching job details:', err);
@@ -502,10 +518,16 @@ const MainContent = () => {
       );
     }
 
+    console.log('🔍 DEBUGGING JobDetailWrapper RENDER:');
+    console.log('   jobData passed to JobDetail:', jobData);
+    console.log('   jobData.company_id:', jobData.company_id);
+    console.log('   handleCompanyClick function:', handleCompanyClick);
+    
     return (
       <JobDetail 
         job={jobData}
         onBack={onBack}
+        onCompanyClick={handleCompanyClick}
       />
     );
   };
@@ -523,7 +545,7 @@ const MainContent = () => {
           </>
         );
       case 'find-jobs':
-        return <FindJobs onJobClick={handleJobClick} />;
+        return <FindJobs onJobClick={handleJobClick} onCompanyClick={handleCompanyClick} />;
 
       case 'agent-ai':
         return <AgentAI 
