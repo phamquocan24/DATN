@@ -163,7 +163,8 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
             ? job.benefits 
             : typeof job.benefits === 'string' 
               ? job.benefits.split('\n').filter((item: string) => item.trim())
-              : ['Competitive salary', 'Health insurance', 'Flexible working hours']
+              : ['Competitive salary', 'Health insurance', 'Flexible working hours'],
+          view_count: job.view_count || 0
         };
       }));
 

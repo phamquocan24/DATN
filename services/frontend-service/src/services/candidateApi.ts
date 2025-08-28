@@ -19,6 +19,18 @@ export const candidateApi = {
     return response.data;
   },
 
+  incrementJobViewCount: async (jobId: string) => {
+    try {
+      const response = await apiClient.post(`/api/v1/jobs/${jobId}/view`);
+      console.log('View count incremented for job:', jobId, response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Failed to increment view count:', error);
+      // Don't throw error to avoid breaking the job detail view
+      return { success: false, error: error.message };
+    }
+  },
+
   searchJobs: async (searchParams: any) => {
     // Clean empty parameters to avoid validation errors
     const cleanParams = Object.fromEntries(

@@ -29,6 +29,7 @@ interface Job {
   benefits?: string[];
   whoYouAre?: string[];
   niceToHaves?: string[];
+  view_count?: number; // View count from database
   // AI Matching fields
   aiMatchScore?: number;
   matchGrade?: string;
@@ -55,6 +56,7 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, onJobClick, onCompan
     const [companyData, setCompanyData] = useState<any>(null);
     const [similarJobs, setSimilarJobs] = useState<any[]>([]);
     const [showShareToast, setShowShareToast] = useState(false);
+    const [viewCount, setViewCount] = useState<number>(0);
     
     // AI Matching states
     const [aiMatchScore, setAiMatchScore] = useState<number | null>(null);
@@ -106,6 +108,24 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, onJobClick, onCompan
             setIsCalculatingMatch(false);
         }
     };
+
+    // Initialize view count from job data and increment it
+    useEffect(() => {
+        // Set initial view count from job data
+        setViewCount(job.view_count || 0);
+
+        // Increment view count when job detail is viewed
+        const incrementViewCount = async () => {
+            if (job.job_id) {
+                const result = await candidateApi.incrementJobViewCount(job.job_id);
+                if (result.success && result.data) {
+                    setViewCount(result.data.view_count);
+                }
+            }
+        };
+
+        incrementViewCount();
+    }, [job.job_id, job.view_count]);
 
     // Check if user has already applied for this job
     useEffect(() => {
@@ -409,7 +429,12 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, onJobClick, onCompan
                                     <span>&bull;</span>
                                     <span>{job.type}</span>
                                     <span>&bull;</span>
-                                    <span className="flex items-center gap-1.5"><FiEye /> 1.4k seen</span>
+                                    <span className="flex items-center gap-1.5">
+                                        <FiEye /> 
+                                        {viewCount > 0 ? (
+                                            viewCount >= 1000 ? `${(viewCount / 1000).toFixed(1)}k seen` : `${viewCount} seen`
+                                        ) : '0 seen'}
+                                    </span>
                                     <span>&bull;</span>
                                     {isCalculatingMatch ? (
                                         <span className="flex items-center gap-1.5 text-gray-500">

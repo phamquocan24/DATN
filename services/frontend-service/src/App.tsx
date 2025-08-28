@@ -485,7 +485,8 @@ const MainContent = () => {
               jobDetails.education_requirements,
               jobDetails.language_requirements,
               jobDetails.required_skills?.length > 0 ? `Skills: ${jobDetails.required_skills.join(', ')}` : null
-            ].filter(Boolean)
+            ].filter(Boolean),
+            view_count: jobDetails.view_count || 0
           };
           
           console.log('🔍 DEBUGGING TRANSFORMATION:');

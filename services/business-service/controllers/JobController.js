@@ -377,6 +377,86 @@ class JobController {
 
   /**
    * @swagger
+   * /api/v1/jobs/{id}/view:
+   *   post:
+   *     summary: Increment job view count
+   *     description: Increment the view count for a specific job
+   *     tags: [Jobs]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *         description: Job ID
+   *         example: "123e4567-e89b-12d3-a456-426614174000"
+   *     responses:
+   *       200:
+   *         description: View count incremented successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: true
+   *                 message:
+   *                   type: string
+   *                   example: View count incremented successfully
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     view_count:
+   *                       type: number
+   *                       example: 42
+   *       404:
+   *         description: Job not found
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       500:
+   *         description: Server error
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   */
+  async incrementViewCount(req, res) {
+    try {
+      const { id } = req.params;
+
+      // Increment view count in database
+      const result = await this.jobModel.incrementViewCount(id);
+
+      if (!result) {
+        return res.status(404).json({
+          success: false,
+          message: 'Job not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'View count incremented successfully',
+        data: {
+          view_count: result.view_count
+        }
+      });
+    } catch (error) {
+      logger.error('Failed to increment view count:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to increment view count',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * @swagger
    * /api/v1/jobs/{id}:
    *   put:
    *     summary: Update job posting
@@ -2412,6 +2492,9 @@ router.get('/bookmarked', authenticateToken, requireRole(['CANDIDATE']), jobCont
 
 // Generic :id route (must come after all specific routes)
 router.get('/:id', jobController.getJobById.bind(jobController));
+
+// View count route (must come before other :id routes)
+router.post('/:id/view', jobController.incrementViewCount.bind(jobController));
 
 // Other authenticated routes
 router.post('/', authenticateToken, requireRole(['RECRUITER', 'HR', 'ADMIN']), jobController.createJob.bind(jobController));
