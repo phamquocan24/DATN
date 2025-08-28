@@ -512,6 +512,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
       <JobDetail 
         job={selectedJob}
         onBack={handleBackToList}
+        onJobClick={onJobClick}
         onCompanyClick={onCompanyClick}
       />
     );

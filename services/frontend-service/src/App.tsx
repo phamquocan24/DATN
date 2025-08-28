@@ -527,6 +527,7 @@ const MainContent = () => {
       <JobDetail 
         job={jobData}
         onBack={onBack}
+        onJobClick={handleJobClick}
         onCompanyClick={handleCompanyClick}
       />
     );

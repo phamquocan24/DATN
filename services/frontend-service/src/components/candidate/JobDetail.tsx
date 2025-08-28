@@ -40,11 +40,12 @@ interface Job {
 interface JobDetailProps {
   job: Job;
   onBack: () => void;
+  onJobClick?: (jobId: string) => void;
   onCompanyClick?: (companyId: string) => void;
   applicationStatus?: 'PENDING' | 'REVIEWING' | 'SHORTLISTED' | 'INTERVIEWING' | 'TESTING' | 'OFFERED' | 'HIRED' | 'REJECTED';
 }
 
-const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, onCompanyClick, applicationStatus: initialStatus }) => {
+const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, onJobClick, onCompanyClick, applicationStatus: initialStatus }) => {
     const [isApplicationOpen, setIsApplicationOpen] = useState(false);
     
 
@@ -555,7 +556,7 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, onCompanyClick, appl
                                 <SimilarJobCard 
                                     key={sJob.job_id || sJob.id} 
                                     job={sJob} 
-                                    onJobClick={(jobId) => window.location.href = `/job-detail?id=${jobId}`}
+                                    onJobClick={onJobClick || (() => console.warn('onJobClick not provided'))}
                                 />
                             ))}
                         </div>
@@ -609,7 +610,15 @@ const SimilarJobCard: React.FC<{ job: any; onJobClick: (jobId: string) => void }
     return (
         <div 
             className="border border-gray-200 rounded-lg p-4 flex items-start gap-4 hover:bg-gray-50 hover:border-[#007BFF] transition-all duration-300 cursor-pointer hover:shadow-lg hover:-translate-y-1"
-            onClick={() => onJobClick(transformedJob.job_id)}
+            onClick={() => {
+                console.log('Similar job clicked:', transformedJob.job_id);
+                console.log('Job data:', job);
+                if (transformedJob.job_id) {
+                    onJobClick(transformedJob.job_id);
+                } else {
+                    console.error('No job_id found in similar job:', job);
+                }
+            }}
         >
             <div className={`w-12 h-12 ${transformedJob.logoColor} text-white flex-shrink-0 flex items-center justify-center rounded-md text-xl font-bold`}>
                 {transformedJob.logo}
