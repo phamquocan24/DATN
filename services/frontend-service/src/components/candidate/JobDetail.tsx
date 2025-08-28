@@ -54,6 +54,7 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, onJobClick, onCompan
     const [checkingApplication, setCheckingApplication] = useState(false);
     const [companyData, setCompanyData] = useState<any>(null);
     const [similarJobs, setSimilarJobs] = useState<any[]>([]);
+    const [showShareToast, setShowShareToast] = useState(false);
     
     // AI Matching states
     const [aiMatchScore, setAiMatchScore] = useState<number | null>(null);
@@ -237,6 +238,50 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, onJobClick, onCompan
         }
     };
 
+    const handleShareClick = async () => {
+        try {
+            // Generate the shareable link
+            const shareUrl = `${window.location.origin}/candidate/job-detail/${job.job_id}`;
+            console.log('Sharing job with URL:', shareUrl);
+            
+            // Try to use the modern Web Share API first (mobile-friendly)
+            if (navigator.share) {
+                console.log('Using Web Share API');
+                await navigator.share({
+                    title: `${job.title} at ${job.company}`,
+                    text: `Check out this job opportunity: ${job.title} at ${job.company}`,
+                    url: shareUrl
+                });
+            } else {
+                console.log('Using Clipboard API fallback');
+                // Fallback to clipboard API
+                await navigator.clipboard.writeText(shareUrl);
+                
+                // Show success feedback
+                setShowShareToast(true);
+                setTimeout(() => setShowShareToast(false), 3000);
+            }
+        } catch (error) {
+            console.error('Error sharing job:', error);
+            
+            // Ultimate fallback - try to copy to clipboard manually
+            try {
+                const textArea = document.createElement('textarea');
+                textArea.value = `${window.location.origin}/candidate/job-detail/${job.job_id}`;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                
+                setShowShareToast(true);
+                setTimeout(() => setShowShareToast(false), 3000);
+            } catch (fallbackError) {
+                console.error('Fallback copy failed:', fallbackError);
+                alert('Unable to copy link. Please manually copy this URL: ' + `${window.location.origin}/candidate/job-detail/${job.job_id}`);
+            }
+        }
+    };
+
     const handleFavoriteClick = async () => {
         try {
             const jobId = job.job_id || job.id?.toString();
@@ -393,7 +438,11 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, onJobClick, onCompan
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
-                            <button className="p-3 text-gray-500 hover:text-[#007BFF] transition-colors">
+                            <button 
+                                onClick={handleShareClick}
+                                className="p-3 text-gray-500 hover:text-[#007BFF] transition-colors"
+                                title="Share this job"
+                            >
                                 <FiShare2 className="w-6 h-6" />
                             </button>
                             <button onClick={handleFavoriteClick} className={`p-3 transition-colors ${isFavorited ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'}`}>
@@ -568,6 +617,16 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, onJobClick, onCompan
                     onClose={handleCloseApplication}
                     job={job}
                 />
+
+                {/* Share Toast Notification */}
+                {showShareToast && (
+                    <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 transform transition-all duration-300 ease-out animate-bounce">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Job link copied to clipboard!
+                    </div>
+                )}
             </div>
         </>
     );

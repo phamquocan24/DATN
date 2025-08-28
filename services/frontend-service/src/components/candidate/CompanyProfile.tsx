@@ -21,6 +21,7 @@ export const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId, onBac
     const [isFollowing, setIsFollowing] = useState(false);
     const [companyDetails, setCompanyDetails] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
+    const [showShareToast, setShowShareToast] = useState(false);
 
   useEffect(() => {
     if (!companyId) return;
@@ -44,8 +45,49 @@ export const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId, onBac
     fetchCompanyProfile();
   }, [companyId]);
 
-
-
+  const handleShareClick = async () => {
+    try {
+        // Generate the shareable link  
+        const shareUrl = `${window.location.origin}/candidate/company-profile/${companyId}`;
+        console.log('Sharing company with URL:', shareUrl);
+        
+        // Try to use the modern Web Share API first (mobile-friendly)
+        if (navigator.share) {
+            console.log('Using Web Share API');
+            await navigator.share({
+                title: `${companyDetails?.company_name || 'Company'} Profile`,
+                text: `Check out this company profile: ${companyDetails?.company_name || 'Company'}`,
+                url: shareUrl
+            });
+        } else {
+            console.log('Using Clipboard API fallback');
+            // Fallback to clipboard API
+            await navigator.clipboard.writeText(shareUrl);
+            
+            // Show success feedback
+            setShowShareToast(true);
+            setTimeout(() => setShowShareToast(false), 3000);
+        }
+    } catch (error) {
+        console.error('Error sharing company:', error);
+        
+        // Ultimate fallback - try to copy to clipboard manually
+        try {
+            const textArea = document.createElement('textarea');
+            textArea.value = `${window.location.origin}/candidate/company-profile/${companyId}`;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            setShowShareToast(true);
+            setTimeout(() => setShowShareToast(false), 3000);
+        } catch (fallbackError) {
+            console.error('Fallback copy failed:', fallbackError);
+            alert('Unable to copy link. Please manually copy this URL: ' + `${window.location.origin}/candidate/company-profile/${companyId}`);
+        }
+    }
+  };
 
   // Display error state
   if (error) {
@@ -122,7 +164,11 @@ export const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId, onBac
                     )}
                 </div>
                 <div className="flex items-center gap-2">
-                    <button className="p-2 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors">
+                    <button 
+                        onClick={handleShareClick}
+                        className="p-2 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors"
+                        title="Share this company profile"
+                    >
                         <FiShare2 className="w-5 h-5 text-gray-600"/>
                     </button>
               <button 
@@ -288,6 +334,15 @@ export const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId, onBac
         </div>
       </div>
 
+      {/* Share Toast Notification */}
+      {showShareToast && (
+          <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 transform transition-all duration-300 ease-out animate-bounce">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Company profile link copied to clipboard!
+          </div>
+      )}
 
       <Footer />
     </div>
