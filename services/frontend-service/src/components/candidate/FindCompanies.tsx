@@ -1,27 +1,18 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Footer } from './Footer';
 import GroupUnderline from '../../assets/Group.png';
 import { companyApi, Company as ApiCompany } from '../../services/companyApi';
 
-interface Company {
-  id: number;
-  name: string;
-  description: string;
-  logo: string;
-  logoColor: string;
-  jobs: number;
-  tags: string[];
-  isSaved?: boolean;
-}
+
 
 interface FindCompaniesProps {
   onCompanyClick?: (companyId: string) => void;
 }
 
 export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick }) => {
-  const [searchQuery, setSearchQuery] = useState('Fintech');
+  const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState('Florence, Italy');
-  const [savedCompanies, setSavedCompanies] = useState<number[]>([]);
+
   const [filters, setFilters] = useState({
     industry: [] as string[],
     companySize: [] as string[]
@@ -33,90 +24,134 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick }) 
   const [apiCompanies, setApiCompanies] = useState<ApiCompany[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [industries, setIndustries] = useState<{name: string, count: number}[]>([]);
+  const [companySizes, setCompanySizes] = useState<{name: string, count: number}[]>([]);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCompanies, setTotalCompanies] = useState(0);
+  const companiesPerPage = 6;
 
-  const companies: Company[] = [
-    {
-      id: 1,
-      name: 'Stripe',
-      description: 'Stripe is a software platform for starting and running internet businesses. Millions of businesses rely on Stripe\'s software tools...',
-      logo: 'S',
-      logoColor: 'bg-[#007BFF] text-white',
-      jobs: 7,
-      tags: ['Business', 'Payment gateway']
-    },
-    {
-      id: 2,
-      name: 'Truebill',
-      description: 'Take control of your money. Truebill develops a mobile app that helps consumers take control of their financial...',
-      logo: 'T',
-      logoColor: 'bg-[#007BFF] text-white',
-      jobs: 7,
-      tags: ['Business']
-    },
-    {
-      id: 3,
-      name: 'Square',
-      description: 'Square builds common business tools in unconventional ways so more people can start, run, and grow their businesses.',
-      logo: 'S',
-      logoColor: 'bg-black text-white',
-      jobs: 7,
-      tags: ['Business', 'Blockchain']
-    },
-    {
-      id: 4,
-      name: 'Coinbase',
-      description: 'Coinbase is a digital currency wallet and platform where merchants and consumers can transact with new digital currencies.',
-      logo: 'C',
-      logoColor: 'bg-[#007BFF] text-white',
-      jobs: 7,
-      tags: ['Business', 'Blockchain']
-    },
-    {
-      id: 5,
-      name: 'Robinhood',
-      description: 'Robinhood is lowering barriers, removing fees, and providing greater access to financial information.',
-      logo: 'R',
-      logoColor: 'bg-black text-white',
-      jobs: 7,
-      tags: ['Business']
-    },
-    {
-      id: 6,
-      name: 'Kraken',
-      description: 'Based in San Francisco, Kraken is the world\'s largest global bitcoin exchange in euro volume and liquidity.',
-      logo: 'K',
-      logoColor: 'bg-purple-600 text-white',
-      jobs: 7,
-      tags: ['Business', 'Blockchain']
-    },
-    {
-      id: 7,
-      name: 'Revolut',
-      description: 'When Revolut was founded in 2015, we had a vision to build a sustainable, digital alternative to traditional big banks.',
-      logo: 'R',
-      logoColor: 'bg-gray-800 text-white',
-      jobs: 7,
-      tags: ['Business']
-    },
-    {
-      id: 8,
-      name: 'Divvy',
-      description: 'Divvy is a secure financial platform for businesses to manage payments and subscriptions.',
-      logo: 'D',
-      logoColor: 'bg-black text-white',
-      jobs: 7,
-      tags: ['Business', 'Blockchain']
+  // Fetch companies from API
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await companyApi.getAllCompanies({
+          page: currentPage,
+          limit: companiesPerPage,
+          search: searchQuery || undefined,
+          industry: filters.industry.length > 0 ? filters.industry.join(',') : undefined,
+          company_size: filters.companySize.length > 0 ? filters.companySize.join(',') : undefined
+        });
+        
+        if (response.success) {
+          setApiCompanies(response.data || []);
+          
+          // Update pagination info from API response
+          const pagination = response.pagination;
+          if (pagination) {
+            setTotalPages(pagination.totalPages || 1);
+            setTotalCompanies(pagination.total || 0);
+          } else {
+            // Fallback calculation if pagination not provided
+            const total = response.data?.length || 0;
+            setTotalPages(Math.ceil(total / companiesPerPage));
+            setTotalCompanies(total);
+          }
+        } else {
+          setError('Failed to fetch companies');
+        }
+      } catch (err: any) {
+        console.error('Error fetching companies:', err);
+        setError(err.message || 'An error occurred while fetching companies');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCompanies();
+  }, [searchQuery, currentPage, filters]);
+
+  // Reset page to 1 when search query or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filters]);
+
+  // Fetch industries from API
+  useEffect(() => {
+    const fetchIndustries = async () => {
+      try {
+        const response = await companyApi.getAllCompanies({
+          page: 1,
+          limit: 1000
+        });
+        
+        if (response.success) {
+          const companies = response.data || [];
+          const industryMap = new Map<string, number>();
+          
+          companies.forEach((company: ApiCompany) => {
+            if (company.industry) {
+              const count = industryMap.get(company.industry) || 0;
+              industryMap.set(company.industry, count + 1);
+            }
+          });
+
+          const industriesFromAPI = Array.from(industryMap.entries()).map(([name, count]) => ({
+            name,
+            count
+          }));
+
+          setIndustries(industriesFromAPI);
+
+          // Generate company sizes
+          const sizeMap = new Map<string, number>();
+          companies.forEach((company: ApiCompany) => {
+            if (company.company_size) {
+              const count = sizeMap.get(company.company_size) || 0;
+              sizeMap.set(company.company_size, count + 1);
+            }
+          });
+
+          const sizesFromAPI = Array.from(sizeMap.entries()).map(([name, count]) => ({
+            name,
+            count
+          }));
+
+          setCompanySizes(sizesFromAPI);
+        }
+      } catch (error: any) {
+        console.error('Error fetching industries:', error);
+      }
+    };
+
+    fetchIndustries();
+  }, []);
+
+  // Pagination handlers
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages && page !== currentPage) {
+      setCurrentPage(page);
     }
-  ];
-
-  const toggleSavedCompany = (companyId: number) => {
-    setSavedCompanies(prev => 
-      prev.includes(companyId) 
-        ? prev.filter(id => id !== companyId)
-        : [...prev, companyId]
-    );
   };
 
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  // Filter handlers
   const handleFilterChange = (filterType: keyof typeof filters, value: string) => {
     setFilters(prev => ({
       ...prev,
@@ -132,6 +167,10 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick }) 
       [section]: !prev[section]
     }));
   };
+
+
+
+
 
   const FilterCheckbox = ({ 
     label, 
@@ -158,36 +197,7 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick }) 
     </div>
   );
 
-  // Fetch companies from API
-  useEffect(() => {
-    const fetchCompanies = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const response = await companyApi.getAllCompanies({
-          page: 1,
-          limit: 50,
-          search: searchQuery || undefined,
-          industry: filters.industry.length > 0 ? filters.industry.join(',') : undefined,
-          company_size: filters.companySize.length > 0 ? filters.companySize.join(',') : undefined
-        });
-        
-        if (response.success) {
-          setApiCompanies(response.data || []);
-        } else {
-          setError('Failed to fetch companies');
-        }
-      } catch (err: any) {
-        console.error('Error fetching companies:', err);
-        setError(err.message || 'An error occurred while fetching companies');
-      } finally {
-        setLoading(false);
-      }
-    };
 
-    fetchCompanies();
-  }, [searchQuery, filters]);
 
   const ApiCompanyCard = ({ company }: { company: ApiCompany }) => (
     <div 
@@ -206,17 +216,7 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick }) 
             <p className="text-sm text-[#007BFF]">0 Jobs</p>
           </div>
         </div>
-        <button 
-          onClick={(e) => {
-            e.stopPropagation();
-            // TODO: Add bookmark functionality for API companies
-          }}
-          className="text-gray-400 hover:text-red-500 transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
-        </button>
+
       </div>
 
       <p className="text-gray-600 text-sm mb-4 leading-relaxed">
@@ -238,60 +238,7 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick }) 
     </div>
   );
 
-  const CompanyCard = ({ company }: { company: Company }) => (
-    <div 
-      className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group cursor-pointer text-left"
-      onClick={() => onCompanyClick?.(company.id.toString())}
-    >
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold ${company.logoColor}`}>
-            {company.logo}
-          </div>
-          <div className="text-left">
-            <h3 className="font-semibold text-gray-900 group-hover:text-[#007BFF] transition-colors">
-              {company.name}
-            </h3>
-            <p className="text-sm text-[#007BFF]">{company.jobs} Jobs</p>
-          </div>
-        </div>
-        <button 
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleSavedCompany(company.id);
-          }}
-          className={`text-gray-400 hover:text-red-500 transition-colors ${
-            savedCompanies.includes(company.id) ? 'text-red-500' : ''
-          }`}
-        >
-          <svg className="w-5 h-5" fill={savedCompanies.includes(company.id) ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
-        </button>
-      </div>
 
-      <p className="text-gray-600 text-sm mb-4 leading-relaxed">
-        {company.description}
-      </p>
-
-      <div className="flex items-center flex-wrap gap-2">
-        {company.tags.map((tag, index) => (
-          <span 
-            key={index} 
-            className={`px-3 py-1 text-xs rounded-full font-medium ${
-              tag === 'Business' 
-                ? 'bg-green-100 text-green-700' 
-                : tag === 'Payment gateway'
-                ? 'bg-[#007BFF]/10 text-[#007BFF]'
-                : 'bg-yellow-100 text-yellow-700'
-            }`}
-          >
-            {tag}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
 
   return (
     <>
@@ -353,9 +300,9 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick }) 
             </div>
 
             {/* Popular tags */}
-            <div className="text-center text-sm text-gray-600">
+            <div className="text-left text-sm text-gray-600">
               <span className="mr-2">Popular:</span>
-              <span className="text-gray-800">Twitter, Microsoft, Apple, Facebook</span>
+              <span className="text-gray-800">FPT Software, VNG Corporation, Tiki, Grab</span>
             </div>
           </div>
         </div>
@@ -383,78 +330,17 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick }) 
                 </h3>
                 {!collapsedSections.industry && (
                 <div className="space-y-1">
+                  {industries.map((industry) => (
                   <FilterCheckbox 
-                    label="Advertising" 
-                    count={43}
-                    checked={filters.industry.includes('advertising')}
-                    onChange={() => handleFilterChange('industry', 'advertising')}
-                  />
-                  <FilterCheckbox 
-                    label="Business Service" 
-                    count={4}
-                    checked={filters.industry.includes('business-service')}
-                    onChange={() => handleFilterChange('industry', 'business-service')}
-                  />
-                  <FilterCheckbox 
-                    label="Blockchain" 
-                    count={5}
-                    checked={filters.industry.includes('blockchain')}
-                    onChange={() => handleFilterChange('industry', 'blockchain')}
-                  />
-                  <FilterCheckbox 
-                    label="Cloud" 
-                    count={15}
-                    checked={filters.industry.includes('cloud')}
-                    onChange={() => handleFilterChange('industry', 'cloud')}
-                  />
-                  <FilterCheckbox 
-                    label="Consumer Tech" 
-                    count={6}
-                    checked={filters.industry.includes('consumer-tech')}
-                    onChange={() => handleFilterChange('industry', 'consumer-tech')}
-                  />
-                  <FilterCheckbox 
-                    label="Education" 
-                    count={34}
-                    checked={filters.industry.includes('education')}
-                    onChange={() => handleFilterChange('industry', 'education')}
-                  />
-                  <FilterCheckbox 
-                    label="Fintech" 
-                    count={45}
-                    checked={filters.industry.includes('fintech')}
-                    onChange={() => handleFilterChange('industry', 'fintech')}
-                  />
-                  <FilterCheckbox 
-                    label="Gaming" 
-                    count={35}
-                    checked={filters.industry.includes('gaming')}
-                    onChange={() => handleFilterChange('industry', 'gaming')}
-                  />
-                  <FilterCheckbox 
-                    label="Food & Beverage" 
-                    count={5}
-                    checked={filters.industry.includes('food-beverage')}
-                    onChange={() => handleFilterChange('industry', 'food-beverage')}
-                  />
-                  <FilterCheckbox 
-                    label="Healthcare" 
-                    count={3}
-                    checked={filters.industry.includes('healthcare')}
-                    onChange={() => handleFilterChange('industry', 'healthcare')}
-                  />
-                  <FilterCheckbox 
-                    label="Hosting" 
-                    count={5}
-                    checked={filters.industry.includes('hosting')}
-                    onChange={() => handleFilterChange('industry', 'hosting')}
-                  />
-                  <FilterCheckbox 
-                    label="Media" 
-                    count={4}
-                    checked={filters.industry.includes('media')}
-                    onChange={() => handleFilterChange('industry', 'media')}
-                  />
+                      key={industry.name}
+                      label={industry.name} 
+                      count={industry.count}
+                      checked={filters.industry.includes(industry.name)}
+                      onChange={() => handleFilterChange('industry', industry.name)}
+                    />
+                  ))}
+
+
                 </div>
                 )}
               </div>
@@ -477,42 +363,15 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick }) 
                 </h3>
                 {!collapsedSections.companySize && (
                 <div className="space-y-1">
-                  <FilterCheckbox 
-                    label="1-50" 
-                    count={25}
-                    checked={filters.companySize.includes('1-50')}
-                    onChange={() => handleFilterChange('companySize', '1-50')}
-                  />
-                  <FilterCheckbox 
-                    label="51-150" 
-                    count={57}
-                    checked={filters.companySize.includes('51-150')}
-                    onChange={() => handleFilterChange('companySize', '51-150')}
-                  />
-                  <FilterCheckbox 
-                    label="151-250" 
-                    count={45}
-                    checked={filters.companySize.includes('151-250')}
-                    onChange={() => handleFilterChange('companySize', '151-250')}
-                  />
-                  <FilterCheckbox 
-                    label="251-500" 
-                    count={4}
-                    checked={filters.companySize.includes('251-500')}
-                    onChange={() => handleFilterChange('companySize', '251-500')}
-                  />
-                  <FilterCheckbox 
-                    label="501-1000" 
-                    count={43}
-                    checked={filters.companySize.includes('501-1000')}
-                    onChange={() => handleFilterChange('companySize', '501-1000')}
-                  />
-                  <FilterCheckbox 
-                    label="1000 - above" 
-                    count={25}
-                    checked={filters.companySize.includes('1000+')}
-                    onChange={() => handleFilterChange('companySize', '1000+')}
-                  />
+                  {companySizes.map((size) => (
+                    <FilterCheckbox 
+                      key={size.name}
+                      label={size.name} 
+                      count={size.count}
+                      checked={filters.companySize.includes(size.name)}
+                      onChange={() => handleFilterChange('companySize', size.name)}
+                    />
+                  ))}
                 </div>
                 )}
               </div>
@@ -524,7 +383,7 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick }) 
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">All Companies</h2>
-                  <p className="text-sm font-normal text-gray-500">Showing 73 results</p>
+                  <p className="text-sm font-normal text-gray-500">Showing {apiCompanies.length} of {totalCompanies} results</p>
                 </div>
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center space-x-2">
@@ -603,23 +462,60 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick }) 
 
 
               {/* Pagination */}
-              <div className="flex items-center justify-center space-x-2">
-                <button className="p-2 text-gray-400 hover:text-gray-600">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">1</button>
-                <button className="w-8 h-8 bg-[#007BFF] text-white rounded font-medium">2</button>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">3</button>
-                <span className="text-gray-400">...</span>
-                <button className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded">10</button>
-                <button className="p-2 text-gray-400 hover:text-gray-600">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center space-x-2">
+                  {/* Previous Button */}
+                  <button 
+                    onClick={handlePrevPage}
+                    disabled={currentPage === 1}
+                    className={`p-2 ${currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-gray-600'}`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+
+                  {/* Page Numbers */}
+                  {Array.from({ length: totalPages }, (_, index) => index + 1)
+                    .filter(pageNum => {
+                      if (totalPages <= 7) return true;
+                      if (pageNum === 1 || pageNum === totalPages) return true;
+                      if (pageNum >= currentPage - 1 && pageNum <= currentPage + 1) return true;
+                      return false;
+                    })
+                    .map((pageNum, index, array) => (
+                      <React.Fragment key={pageNum}>
+                        {/* Add ellipsis if there's a gap */}
+                        {index > 0 && pageNum - array[index - 1] > 1 && (
+                          <span className="text-gray-400">...</span>
+                        )}
+                        
+                        <button
+                          onClick={() => handlePageChange(pageNum)}
+                          className={`w-8 h-8 rounded font-medium ${
+                            currentPage === pageNum
+                              ? 'bg-[#007BFF] text-white'
+                              : 'text-gray-600 hover:bg-gray-100'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      </React.Fragment>
+                    ))
+                  }
+
+                  {/* Next Button */}
+                  <button 
+                    onClick={handleNextPage}
+                    disabled={currentPage === totalPages}
+                    className={`p-2 ${currentPage === totalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-gray-600'}`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
