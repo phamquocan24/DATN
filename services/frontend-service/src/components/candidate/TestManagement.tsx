@@ -4,6 +4,7 @@ import TestSuccess from './TestSuccess';
 import TestClosed from './TestClosed';
 import DashboardSidebar from './DashboardSidebar';
 import candidateApi from '../../services/candidateApi';
+import { testApi } from '../../services/testApi';
 
 interface TestAssignment {
   result_id: string;
@@ -32,7 +33,6 @@ interface TestManagementProps {
   onMyApplicationsClick?: () => void;
   onFindJobsClick?: () => void;
   onBrowseCompaniesClick?: () => void;
-  onAgentAIClick?: () => void;
   onSettingsClick?: () => void;
   onHelpCenterClick?: () => void;
 }
@@ -44,7 +44,6 @@ const TestManagement: React.FC<TestManagementProps> = ({
   onMyApplicationsClick,
   onFindJobsClick,
   onBrowseCompaniesClick,
-  onAgentAIClick,
   onSettingsClick,
   onHelpCenterClick
 }) => {
@@ -83,7 +82,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
     const fetchTests = async () => {
       setIsLoading(true);
       try {
-        const response = await candidateApi.getMyTests({
+        const response = await testApi.getMyTests({
           page: pagination.page,
           limit: pagination.limit,
           status: undefined // No filter for now
@@ -173,7 +172,6 @@ const TestManagement: React.FC<TestManagementProps> = ({
         isCollapsed={false}
         onToggleSidebar={() => {}}
         onDashboardClick={onDashboardClick}
-        onAgentAIClick={onAgentAIClick}
         onMyApplicationsClick={onMyApplicationsClick}
         onTestManagementClick={() => setActiveTab('test-management')}
         onProfileClick={onProfileClick}

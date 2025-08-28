@@ -23,8 +23,6 @@ import {
   Dashboard,
   MyApplications,
   TestManagement,
-  
-  AgentAI,
   Settings,
   HelpCenter,
 } from './components';
@@ -549,18 +547,7 @@ const MainContent = () => {
       case 'find-jobs':
         return <FindJobs onJobClick={handleJobClick} onCompanyClick={handleCompanyClick} />;
 
-      case 'agent-ai':
-        return <AgentAI 
-          onHomeClick={handleBackClick}
-          onDashboardClick={() => handlePageChange('dashboard')}
-          onProfileClick={() => handlePageChange('profile')}
-          onMyApplicationsClick={() => handlePageChange('my-applications')}
-          onTestManagementClick={() => handlePageChange('test-management')}
 
-
-          onSettingsClick={() => handlePageChange('settings')}
-          onHelpCenterClick={() => handlePageChange('help-center')}
-        />;
       case 'favorite-jobs':
         return <FavoriteJobs onJobClick={handleJobClick} />;
       case 'companies':
@@ -601,11 +588,8 @@ const MainContent = () => {
         return <Profile 
           onHomeClick={handleBackClick} 
           onDashboardClick={() => handlePageChange('dashboard')}
-          onAgentAIClick={() => handlePageChange('agent-ai')}
           onMyApplicationsClick={() => handlePageChange('my-applications')}
           onTestManagementClick={() => handlePageChange('test-management')}
-
-
           onSettingsClick={() => handlePageChange('settings')}
           onHelpCenterClick={() => handlePageChange('help-center')}
         />;
@@ -615,7 +599,6 @@ const MainContent = () => {
           onProfileClick={() => handlePageChange('profile')}
           onMyApplicationsClick={() => handlePageChange('my-applications')}
           onTestManagementClick={() => handlePageChange('test-management')}
-          onAgentAIClick={() => handlePageChange('agent-ai')}
           onSettingsClick={() => handlePageChange('settings')}
           onHelpCenterClick={() => handlePageChange('help-center')}
         />;
@@ -624,10 +607,7 @@ const MainContent = () => {
           onHomeClick={handleBackClick}
           onDashboardClick={() => handlePageChange('dashboard')}
           onProfileClick={() => handlePageChange('profile')}
-
-
           onTestManagementClick={() => handlePageChange('test-management')}
-          onAgentAIClick={() => handlePageChange('agent-ai')}
           onSettingsClick={() => handlePageChange('settings')}
           onHelpCenterClick={() => handlePageChange('help-center')}
         />;
@@ -637,9 +617,6 @@ const MainContent = () => {
           onDashboardClick={() => handlePageChange('dashboard')}
           onProfileClick={() => handlePageChange('profile')}
           onMyApplicationsClick={() => handlePageChange('my-applications')}
-
-
-          onAgentAIClick={() => handlePageChange('agent-ai')}
           onSettingsClick={() => handlePageChange('settings')}
           onHelpCenterClick={() => handlePageChange('help-center')}
         />;

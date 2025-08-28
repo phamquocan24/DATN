@@ -69,7 +69,6 @@ interface MyApplicationsProps {
   onFindJobsClick?: () => void;
   onBrowseCompaniesClick?: () => void;
   onTestManagementClick?: () => void;
-  onAgentAIClick?: () => void;
   onSettingsClick?: () => void;
   onHelpCenterClick?: () => void;
 }
@@ -81,7 +80,6 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
   onFindJobsClick,
   onBrowseCompaniesClick,
   onTestManagementClick,
-  onAgentAIClick,
   onSettingsClick,
   onHelpCenterClick
 }) => {
@@ -330,7 +328,6 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
             isCollapsed={false}
             onToggleSidebar={() => {}}
             onDashboardClick={onDashboardClick}
-            onAgentAIClick={onAgentAIClick}
             onMyApplicationsClick={() => setActiveTab('applications')}
             onTestManagementClick={onTestManagementClick}
             onProfileClick={onProfileClick}

@@ -13,7 +13,6 @@ interface DashboardSidebarProps {
   isCollapsed: boolean;
   onToggleSidebar: () => void;
   onDashboardClick?: () => void;
-  onAgentAIClick?: () => void;
   onMyApplicationsClick?: () => void;
   onTestManagementClick?: () => void;
   onProfileClick?: () => void;
@@ -28,7 +27,6 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   isCollapsed,
   onToggleSidebar,
   onDashboardClick,
-  onAgentAIClick,
   onMyApplicationsClick,
   onTestManagementClick,
   onProfileClick,
@@ -39,7 +37,6 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
 }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
-    { id: 'agent-ai', label: 'Agent AI', icon: AIIcon },
     { id: 'applications', label: 'My Applications', icon: DocIcon },
     { id: 'test-management', label: 'Test Management', icon: TestIcon },
     { id: 'public-profile', label: 'My Public Profile', icon: AccountIcon },
@@ -48,8 +45,6 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   const handleMenuClick = (itemId: string) => {
     if (itemId === 'dashboard' && onDashboardClick) {
       onDashboardClick();
-    } else if (itemId === 'agent-ai' && onAgentAIClick) {
-      onAgentAIClick();
     } else if (itemId === 'applications' && onMyApplicationsClick) {
       onMyApplicationsClick();
     } else if (itemId === 'test-management' && onTestManagementClick) {

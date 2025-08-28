@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import JobDetail from './JobDetail';
 import JobApplication from './JobApplication';
-import AgentAI from './AgentAI';
 import Avatar from '../../assets/Avatar17.png';
 import DashboardSidebar from './DashboardSidebar';
 import candidateApi from '../../services/candidateApi';
-import { getAIJobRecommendations } from '../../services/aiMatchingApi';
 
 interface Job {
   job_id: string; // Primary ID (UUID from database)
@@ -32,7 +30,6 @@ interface DashboardProps {
   onProfileClick?: () => void;
   onMyApplicationsClick?: () => void;
   onTestManagementClick?: () => void;
-  onAgentAIClick?: () => void;
   onSettingsClick?: () => void;
   onHelpCenterClick?: () => void;
 }
@@ -42,7 +39,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   onProfileClick, 
   onMyApplicationsClick, 
   onTestManagementClick,
-  onAgentAIClick,
   onSettingsClick,
   onHelpCenterClick
 }) => {
@@ -141,95 +137,65 @@ const Dashboard: React.FC<DashboardProps> = ({
     fetchApplicationsData();
   }, []);
 
-  // Fetch suggested jobs data using Business Service recommendations
+  // Fetch suggested jobs data - using same logic as FindJobs
   useEffect(() => {
     const fetchSuggestedJobs = async () => {
       try {
         setJobsLoading(true);
         setJobsError(null);
         
-        // Get current user's candidate ID
-        const userProfile = JSON.parse(localStorage.getItem('userInfo') || '{}');
+        // Use same API call as FindJobs Suitable Jobs
+        const response = await candidateApi.getRecommendedJobs({ 
+          page: 1, 
+          limit: 6 
+        });
         
-        if (userProfile.user_id) {
-          // Use Business Service recommendations as primary source
-          try {
-            const response = await candidateApi.getRecommendedJobs({ 
-              page: 1, 
-              limit: 6 
-            });
-            
-            if (response && response.data && Array.isArray(response.data)) {
-              const transformedJobs = response.data.map((job: any, index: number) => ({
-                job_id: job.job_id,
-                id: parseInt(job.id || job.job_id) || 0,
-                title: job.title,
-                company: job.company_name || 'Company',
-                location: [job.city_name, job.district_name, job.address]
-                  .filter(Boolean)
-                  .join(', ') || 'Remote',
-                type: job.employment_type === 'FULL_TIME' ? 'Full-Time' 
-                    : job.employment_type === 'PART_TIME' ? 'Part-Time'
-                    : job.employment_type === 'CONTRACT' ? 'Contract'
-                    : job.employment_type === 'INTERNSHIP' ? 'Internship'
-                    : 'Full-Time',
-                tags: [
-                  job.category,
-                  job.work_arrangement && job.work_arrangement.charAt(0) + job.work_arrangement.slice(1).toLowerCase(),
-                  job.featured && 'Featured',
-                  `Match: ${Math.round(job.match_score || 85)}%`
-                ].filter(Boolean).slice(0, 3),
-                logo: (job.company_name || job.title)?.charAt(0).toUpperCase() || 'J',
-                logoColor: `bg-${['blue', 'green', 'purple', 'red', 'teal', 'orange'][index % 6]}-500 text-white`,
-                match: Math.round(job.match_score || 85),
-                applied: job.application_count || 0,
-                capacity: job.max_applications || 1,
-                salary: job.salary_min && job.salary_max 
-                  ? `${job.salary_min.toLocaleString()} - ${job.salary_max.toLocaleString()} ${job.currency || 'VND'}`
-                  : job.salary_min 
-                    ? `From ${job.salary_min.toLocaleString()} ${job.currency || 'VND'}`
-                    : 'Competitive Salary'
-              }));
-              setSuggestedJobs(transformedJobs);
-            } else {
-              throw new Error('No data received from business service');
-            }
-          } catch (businessError) {
-            // Fallback to AI service if business service fails
-            console.warn('Business service recommendations failed, falling back to AI service:', businessError);
-            const aiResponse = await getAIJobRecommendations(userProfile.user_id, 6);
-            
-            if (aiResponse.success && aiResponse.data) {
-              const transformedJobs = aiResponse.data.recommendations.map((job: any) => ({
-                job_id: job.job_id,
-                id: job.job_id,
-                title: job.title,
-                company: job.group,
-                location: 'Various',
-                type: 'Full-Time',
-                tags: [
-                  'AI Recommended',
-                  `Match: ${Math.round(job.overall_similarity * 100)}%`
-                ],
-                logo: (job.group || 'C').charAt(0).toUpperCase(),
-                logoColor: 'bg-green-500 text-white',
-                match: Math.round(job.overall_similarity * 100),
-                applied: 0,
-                capacity: 10,
-                salary: 'Competitive'
-              }));
-              setSuggestedJobs(transformedJobs);
-            } else {
-              setSuggestedJobs([]);
-            }
-          }
+        if (response && response.data && Array.isArray(response.data)) {
+          const transformedJobs = response.data.map((job: any, index: number) => ({
+            job_id: job.job_id,
+            id: parseInt(job.id || job.job_id) || 0,
+            title: job.title,
+            company: job.company_name || 'Company',
+            location: [job.city_name, job.district_name, job.address]
+              .filter(Boolean)
+              .join(', ') || 'Remote',
+            type: job.employment_type === 'FULL_TIME' ? 'Full-Time' 
+                : job.employment_type === 'PART_TIME' ? 'Part-Time'
+                : job.employment_type === 'CONTRACT' ? 'Contract'
+                : job.employment_type === 'INTERNSHIP' ? 'Internship'
+                : 'Full-Time',
+            tags: [
+              job.category,
+              job.work_arrangement && job.work_arrangement.charAt(0) + job.work_arrangement.slice(1).toLowerCase(),
+              job.featured && 'Featured',
+              `Match: ${Math.round(job.match_score || 85)}%`
+            ].filter(Boolean).slice(0, 3),
+            logo: (job.company_name || job.title)?.charAt(0).toUpperCase() || 'J',
+            logoColor: `bg-${['blue', 'green', 'purple', 'red', 'teal', 'orange'][index % 6]}-500 text-white`,
+            match: Math.round(job.match_score || 85),
+            applied: job.application_count || 0,
+            capacity: job.max_applications || 1,
+            salary: job.salary_min && job.salary_max 
+              ? `${job.salary_min.toLocaleString()} - ${job.salary_max.toLocaleString()} ${job.currency || 'VND'}`
+              : job.salary_min 
+                ? `From ${job.salary_min.toLocaleString()} ${job.currency || 'VND'}`
+                : 'Competitive Salary'
+          }));
+          setSuggestedJobs(transformedJobs);
         } else {
+          // If no data, set empty array (same as FindJobs)
           setSuggestedJobs([]);
         }
       } catch (error: any) {
         console.error('Error fetching suggested jobs:', error);
-        setJobsError('Unable to load job recommendations');
-        setSuggestedJobs([]);
+        // Don't show error if user is not authenticated (same as FindJobs)
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          setJobsError(null);
+          setSuggestedJobs([]);
+        } else {
+          setJobsError('Unable to load job recommendations');
+          setSuggestedJobs([]);
+        }
       } finally {
         setJobsLoading(false);
       }
@@ -322,18 +288,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     );
   }
 
-  // Render Agent AI interface when agent-ai is active
-  if (activeTab === 'agent-ai') {
-    return (
-      <AgentAI 
-        onHomeClick={onHomeClick}
-        onProfileClick={onProfileClick}
-        onMyApplicationsClick={onMyApplicationsClick}
-        onDashboardClick={handleGoToDashboard}
-        onTestManagementClick={handleGoToTestManagement}
-      />
-    );
-  }
+
 
   // Helper function to get status display text and color
   const getStatusDisplayText = (status: string) => {
@@ -411,7 +366,6 @@ const Dashboard: React.FC<DashboardProps> = ({
           isCollapsed={isCollapsed}
           onToggleSidebar={toggleSidebar}
           onDashboardClick={handleGoToDashboard}
-          onAgentAIClick={onAgentAIClick}
           onMyApplicationsClick={onMyApplicationsClick}
           onTestManagementClick={onTestManagementClick}
           onProfileClick={onProfileClick}
