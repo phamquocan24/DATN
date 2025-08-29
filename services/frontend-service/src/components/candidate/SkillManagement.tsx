@@ -3,7 +3,7 @@ import candidateApi from '../../services/candidateApi';
 
 interface Skill {
   id: string;
-  skill_name: string;
+  skill_name?: string;
   proficiency_level: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
   created_at?: string;
 }
@@ -26,7 +26,7 @@ const SkillManagement: React.FC<SkillManagementProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [skillToDelete, setSkillToDelete] = useState<{id: string, name: string} | null>(null);
+
 
   const proficiencyLevels = ['Beginner', 'Intermediate', 'Advanced', 'Expert'] as const;
 
@@ -67,36 +67,39 @@ const SkillManagement: React.FC<SkillManagementProps> = ({
     }
   };
 
-  const handleDeleteSkill = async (skillId: string, skillName: string) => {
-    setSkillToDelete({ id: skillId, name: skillName });
-  };
-
-  const confirmDeleteSkill = async () => {
-    if (!skillToDelete) return;
-
+  const handleDeleteSkill = async (skillId: string) => {
     setLoading(true);
     setError(null);
     setSuccess(null);
 
     try {
-      const response = await candidateApi.deleteSkill(skillToDelete.id);
+      const response = await candidateApi.deleteSkill(skillId);
       
       if (response.success) {
-        const updatedSkills = skills.filter(skill => skill.id !== skillToDelete.id);
+        const updatedSkills = skills.filter(skill => skill.id !== skillId);
         setSkills(updatedSkills);
         onSkillsUpdate?.(updatedSkills);
         setSuccess('Skill removed successfully!');
         
         // Clear success message after 3 seconds
         setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.error || 'Failed to remove skill');
+        
+        // Clear error message after 5 seconds
+        setTimeout(() => setError(null), 5000);
       }
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Failed to remove skill. Please try again.');
+    } catch (error) {
+      setError('An error occurred while removing the skill');
+      
+      // Clear error message after 5 seconds
+      setTimeout(() => setError(null), 5000);
     } finally {
       setLoading(false);
-      setSkillToDelete(null);
     }
   };
+
+
 
   const getProficiencyColor = (level: string) => {
     switch (level) {
@@ -142,12 +145,12 @@ const SkillManagement: React.FC<SkillManagementProps> = ({
       {/* Add Skill Form */}
       {isAddingSkill && (
         <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <h4 className="text-md font-medium text-gray-900 mb-3">Add New Skill</h4>
+          <h4 className="text-md font-medium text-gray-900 mb-3 text-left">Add New Skill</h4>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Skill Name *
+              <label className="block text-sm font-medium text-gray-700 mb-1 text-left">
+                Skill Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -160,7 +163,7 @@ const SkillManagement: React.FC<SkillManagementProps> = ({
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1 text-left">
                 Proficiency Level
               </label>
               <select
@@ -210,14 +213,14 @@ const SkillManagement: React.FC<SkillManagementProps> = ({
             <p className="text-xs text-gray-400 mt-1">Click "Add Skill" to get started</p>
           </div>
         ) : (
-          skills.map((skill) => (
+          skills.filter(skill => skill && skill.skill_name).map((skill) => (
             <div
               key={skill.id}
               className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-sm transition-shadow"
             >
               <div className="flex-1">
                 <div className="flex items-center gap-3">
-                  <h4 className="font-medium text-gray-900">{skill.skill_name}</h4>
+                  <h4 className="font-medium text-gray-900">{skill.skill_name || 'Unknown Skill'}</h4>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${getProficiencyColor(skill.proficiency_level)}`}>
                     {skill.proficiency_level}
                   </span>
@@ -230,7 +233,7 @@ const SkillManagement: React.FC<SkillManagementProps> = ({
               </div>
               
               <button
-                onClick={() => handleDeleteSkill(skill.id, skill.skill_name)}
+                onClick={() => handleDeleteSkill(skill.id)}
                 disabled={loading}
                 className="p-2 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 title="Remove skill"
@@ -244,35 +247,7 @@ const SkillManagement: React.FC<SkillManagementProps> = ({
         )}
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {skillToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Remove Skill
-            </h3>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to remove "{skillToDelete.name}" from your skills?
-            </p>
-            <div className="flex space-x-4">
-              <button
-                onClick={confirmDeleteSkill}
-                disabled={loading}
-                className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Removing...' : 'Remove'}
-              </button>
-              <button
-                onClick={() => setSkillToDelete(null)}
-                disabled={loading}
-                className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 };
