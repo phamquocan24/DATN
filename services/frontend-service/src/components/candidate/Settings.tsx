@@ -24,11 +24,6 @@ const Settings: React.FC<SettingsProps> = ({
   currentUser
 }) => {
   const [activeTab, setActiveTab] = useState('login-details');
-
-
-
-
-
   const renderTabContent = () => {
     switch (activeTab) {
       case 'login-details':

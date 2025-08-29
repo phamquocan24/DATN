@@ -268,7 +268,7 @@ export const candidateApi = {
   // Profile Management
   getProfile: async () => {
     try {
-      const response = await apiClient.get('/users/profile');
+      const response = await apiClient.get('/api/v1/users/profile');
       return response.data;
     } catch (error: any) {
       // If user is not authenticated, return empty profile
@@ -284,7 +284,7 @@ export const candidateApi = {
   },
 
   updateProfile: async (profileData: any) => {
-    const response = await apiClient.put('/api/v1/user/profile', profileData);
+    const response = await apiClient.put('/api/v1/users/profile', profileData);
     return response.data;
   },
 

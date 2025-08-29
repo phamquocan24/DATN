@@ -12,14 +12,90 @@ interface Suggestion {
   priority: 'high' | 'medium' | 'low';
 }
 
+// User profile data structure based on database schema
+interface UserProfileData {
+  // Users table fields
+  user_id: string;
+  email: string;
+  phone?: string;
+  full_name: string;
+  role: 'CANDIDATE' | 'RECRUITER' | 'ADMIN';
+  auth_provider?: string;
+  is_active: boolean;
+  created_at: string;
+  
+  // User profile table fields  
+  profile_image_url?: string;
+  bio?: string;
+  website_url?: string;
+  languages?: string[];
+  profile_completed?: boolean;
+  account_status?: string;
+  last_login_at?: string;
+  
+  // Additional fields that might be at root level for compatibility
+  avatar_url?: string;
+  avatarUrl?: string;
+  location?: string;
+  address?: string;
+  date_of_birth?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
+  city_id?: string;
+  district_id?: string;
+  education_level?: 'HIGH_SCHOOL' | 'COLLEGE' | 'BACHELOR' | 'MASTER' | 'PHD';
+  years_experience?: number;
+  years_of_experience?: number;
+  current_job_title?: string;
+  current_company?: string;
+  current_salary?: number;
+  expected_salary?: number;
+  experience_level?: string;
+  job_seeking_status?: string;
+  notice_period_days?: number;
+  willing_to_relocate?: boolean;
+  remote_work_preference?: 'ONSITE' | 'REMOTE' | 'HYBRID' | 'FLEXIBLE';
+  
+  // Candidate profile nested object
+  candidate_profile?: {
+    profile_id: string;
+    user_id: string;
+    date_of_birth?: string;
+    gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
+    address?: string;
+    city_id?: string;
+    city_name?: string;
+    district_id?: string;
+    district_name?: string;
+    education_level?: 'HIGH_SCHOOL' | 'COLLEGE' | 'BACHELOR' | 'MASTER' | 'PHD';
+    years_experience?: number;
+    current_job_title?: string;
+    current_company?: string;
+    current_salary?: number;
+    expected_salary?: number;
+    currency?: string;
+    notice_period_days?: number;
+    willing_to_relocate?: boolean;
+    remote_work_preference?: 'ONSITE' | 'REMOTE' | 'HYBRID' | 'FLEXIBLE';
+    primary_cv_id?: string;
+    profile_completion_percentage?: number;
+    job_seeking_status?: string;
+    skills?: Array<{
+      skill_name: string;
+      category: string;
+      proficiency_level: string;
+      years_experience: number;
+      is_primary: boolean;
+    }>;
+    skill_count?: number;
+    cv_count?: number;
+  };
+}
+
 interface ProfileProps {
   onHomeClick?: () => void;
   onDashboardClick?: () => void;
-  onAgentAIClick?: () => void;
   onMyApplicationsClick?: () => void;
   onTestManagementClick?: () => void;
-  onFindJobsClick?: () => void;
-  onBrowseCompaniesClick?: () => void;
   onSettingsClick?: () => void;
   onHelpCenterClick?: () => void;
 }
@@ -27,20 +103,19 @@ interface ProfileProps {
 const Profile: React.FC<ProfileProps> = ({ 
   onHomeClick, 
   onDashboardClick, 
-  onAgentAIClick, 
   onMyApplicationsClick, 
   onTestManagementClick, 
-  onFindJobsClick, 
-  onBrowseCompaniesClick, 
   onSettingsClick,
   onHelpCenterClick
 }) => {
   const [activeTab, setActiveTab] = useState('public-profile');
   // Initialize with empty object to show content immediately
-  const [profileData, setProfileData] = useState<any>({
+  const [profileData, setProfileData] = useState<Partial<UserProfileData>>({
     full_name: '',
     email: '',
     candidate_profile: {
+      profile_id: '',
+      user_id: '',
       skills: []
     }
   });
@@ -50,10 +125,12 @@ const Profile: React.FC<ProfileProps> = ({
   // Section-specific edit mode states
   const [editingSections, setEditingSections] = useState<{ [key: string]: boolean }>({});
   // Initialize editedData with same structure as profileData
-  const [editedData, setEditedData] = useState<any>({
+  const [editedData, setEditedData] = useState<Partial<UserProfileData>>({
     full_name: '',
     email: '',
     candidate_profile: {
+      profile_id: '',
+      user_id: '',
       skills: []
     }
   });
@@ -76,13 +153,16 @@ const Profile: React.FC<ProfileProps> = ({
         console.log('Profile response:', profileResponse);
         
         if (profileResponse?.success && profileResponse?.data) {
-          setProfileData((prev: any) => ({ ...prev, ...profileResponse.data }));
-          setEditedData((prev: any) => ({ ...prev, ...profileResponse.data })); // Initialize edit data
+          // Handle the API response structure: { success: true, data: userData }
+          const userData = profileResponse.data as UserProfileData;
+          setProfileData(userData);
+          setEditedData(userData); // Initialize edit data
           setError(null);
         } else if (profileResponse?.data) {
-          // Handle direct data response
-          setProfileData((prev: any) => ({ ...prev, ...profileResponse.data }));
-          setEditedData((prev: any) => ({ ...prev, ...profileResponse.data })); // Initialize edit data
+          // Handle direct data response (fallback)
+          const userData = profileResponse.data as UserProfileData;
+          setProfileData(userData);
+          setEditedData(userData); // Initialize edit data
           setError(null);
         } else {
           // No profile data or not authenticated - but keep default data
@@ -294,17 +374,23 @@ const Profile: React.FC<ProfileProps> = ({
       // Prepare data for API call - based on PUT /api/v1/users/profile endpoint
       const updateData: any = {};
       
-      // Basic profile fields
-      if (editedData.full_name !== undefined) updateData.full_name = editedData.full_name;
-      if (editedData.phone !== undefined) updateData.phone = editedData.phone;
-      if (editedData.date_of_birth !== undefined) updateData.date_of_birth = editedData.date_of_birth;
-      if (editedData.bio !== undefined) updateData.bio = editedData.bio;
-      if (editedData.location !== undefined) updateData.location = editedData.location;
-      if (editedData.avatar_url !== undefined) updateData.avatar_url = editedData.avatar_url;
-      if (editedData.gender !== undefined) updateData.gender = editedData.gender;
-      if (editedData.address !== undefined) updateData.address = editedData.address;
-      if (editedData.city_id !== undefined) updateData.city_id = editedData.city_id;
-      if (editedData.district_id !== undefined) updateData.district_id = editedData.district_id;
+              // Basic profile fields (users table)
+        if (editedData.full_name !== undefined) updateData.full_name = editedData.full_name;
+        if (editedData.phone !== undefined) updateData.phone = editedData.phone;
+        
+        // User profile table fields
+        if (editedData.bio !== undefined) updateData.bio = editedData.bio;
+        if (editedData.profile_image_url !== undefined) updateData.profile_image_url = editedData.profile_image_url;
+        if (editedData.avatar_url !== undefined) updateData.profile_image_url = editedData.avatar_url; // Map avatar_url to profile_image_url
+        if (editedData.website_url !== undefined) updateData.website_url = editedData.website_url;
+        if (editedData.languages !== undefined) updateData.languages = editedData.languages;
+        
+        // Candidate profile table fields
+        if (editedData.date_of_birth !== undefined) updateData.date_of_birth = editedData.date_of_birth;
+        if (editedData.gender !== undefined) updateData.gender = editedData.gender;
+        if (editedData.address !== undefined) updateData.address = editedData.address;
+        if (editedData.city_id !== undefined) updateData.city_id = editedData.city_id;
+        if (editedData.district_id !== undefined) updateData.district_id = editedData.district_id;
 
       // Candidate specific fields (based on actual backend model)
       if (editedData.experience_level !== undefined) updateData.experience_level = editedData.experience_level;
@@ -321,24 +407,26 @@ const Profile: React.FC<ProfileProps> = ({
       // Education
       if (editedData.education_level !== undefined) updateData.education_level = editedData.education_level;
 
-      // Legacy candidate_profile fields mapping for backward compatibility
-      if (editedData.candidate_profile) {
-        if (editedData.candidate_profile.date_of_birth !== undefined) updateData.date_of_birth = editedData.candidate_profile.date_of_birth;
-        if (editedData.candidate_profile.gender !== undefined) updateData.gender = editedData.candidate_profile.gender;
-        if (editedData.candidate_profile.address !== undefined) updateData.address = editedData.candidate_profile.address;
-        if (editedData.candidate_profile.city_id !== undefined) updateData.city_id = editedData.candidate_profile.city_id;
-        if (editedData.candidate_profile.district_id !== undefined) updateData.district_id = editedData.candidate_profile.district_id;
-        if (editedData.candidate_profile.education_level !== undefined) updateData.education_level = editedData.candidate_profile.education_level;
-        if (editedData.candidate_profile.years_experience !== undefined) updateData.years_experience = editedData.candidate_profile.years_experience;
-        if (editedData.candidate_profile.current_job_title !== undefined) updateData.current_job_title = editedData.candidate_profile.current_job_title;
-        if (editedData.candidate_profile.current_company !== undefined) updateData.current_company = editedData.candidate_profile.current_company;
-        if (editedData.candidate_profile.current_salary !== undefined) updateData.current_salary = editedData.candidate_profile.current_salary;
-        if (editedData.candidate_profile.expected_salary !== undefined) updateData.expected_salary = editedData.candidate_profile.expected_salary;
-        if (editedData.candidate_profile.job_seeking_status !== undefined) updateData.job_seeking_status = editedData.candidate_profile.job_seeking_status;
-        if (editedData.candidate_profile.notice_period_days !== undefined) updateData.notice_period_days = editedData.candidate_profile.notice_period_days;
-        if (editedData.candidate_profile.willing_to_relocate !== undefined) updateData.willing_to_relocate = editedData.candidate_profile.willing_to_relocate;
-        if (editedData.candidate_profile.remote_work_preference !== undefined) updateData.remote_work_preference = editedData.candidate_profile.remote_work_preference;
-      }
+              // Handle nested candidate_profile fields mapping
+        if (editedData.candidate_profile) {
+          // Override with candidate_profile nested values if they exist
+          if (editedData.candidate_profile.date_of_birth !== undefined) updateData.date_of_birth = editedData.candidate_profile.date_of_birth;
+          if (editedData.candidate_profile.gender !== undefined) updateData.gender = editedData.candidate_profile.gender;
+          if (editedData.candidate_profile.address !== undefined) updateData.address = editedData.candidate_profile.address;
+          if (editedData.candidate_profile.city_id !== undefined) updateData.city_id = editedData.candidate_profile.city_id;
+          if (editedData.candidate_profile.district_id !== undefined) updateData.district_id = editedData.candidate_profile.district_id;
+          if (editedData.candidate_profile.education_level !== undefined) updateData.education_level = editedData.candidate_profile.education_level;
+          if (editedData.candidate_profile.years_experience !== undefined) updateData.years_experience = editedData.candidate_profile.years_experience;
+          if (editedData.candidate_profile.current_job_title !== undefined) updateData.current_job_title = editedData.candidate_profile.current_job_title;
+          if (editedData.candidate_profile.current_company !== undefined) updateData.current_company = editedData.candidate_profile.current_company;
+          if (editedData.candidate_profile.current_salary !== undefined) updateData.current_salary = editedData.candidate_profile.current_salary;
+          if (editedData.candidate_profile.expected_salary !== undefined) updateData.expected_salary = editedData.candidate_profile.expected_salary;
+          if (editedData.candidate_profile.currency !== undefined) updateData.currency = editedData.candidate_profile.currency;
+          if (editedData.candidate_profile.job_seeking_status !== undefined) updateData.job_seeking_status = editedData.candidate_profile.job_seeking_status;
+          if (editedData.candidate_profile.notice_period_days !== undefined) updateData.notice_period_days = editedData.candidate_profile.notice_period_days;
+          if (editedData.candidate_profile.willing_to_relocate !== undefined) updateData.willing_to_relocate = editedData.candidate_profile.willing_to_relocate;
+          if (editedData.candidate_profile.remote_work_preference !== undefined) updateData.remote_work_preference = editedData.candidate_profile.remote_work_preference;
+        }
 
       console.log('Updating profile with data:', updateData);
 
@@ -406,7 +494,6 @@ const Profile: React.FC<ProfileProps> = ({
         isCollapsed={false}
         onToggleSidebar={() => {}}
         onDashboardClick={onDashboardClick}
-        onAgentAIClick={onAgentAIClick}
         onMyApplicationsClick={onMyApplicationsClick}
         onTestManagementClick={onTestManagementClick}
         onProfileClick={handleGoToProfile}
@@ -670,6 +757,305 @@ const Profile: React.FC<ProfileProps> = ({
 
             {/* Profile Suggestions moved below Personal Details */}
 
+            {/* Personal Information */}
+            <div className="bg-white rounded-xl shadow-sm p-6 text-left relative">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
+                {!editingSections.personal && (
+                  <button 
+                    onClick={() => handleSectionEdit('personal')}
+                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                    title="Edit personal information"
+                  >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Email */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  {editingSections.personal ? (
+                    <input
+                      type="email"
+                      value={editedData.email || ''}
+                      onChange={(e) => handleFieldChange('email', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      placeholder="Enter your email"
+                    />
+                  ) : (
+                    <p className="text-gray-900 py-2">{profileData.email || 'Not provided'}</p>
+              )}
+            </div>
+
+                {/* Phone */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                  {editingSections.personal ? (
+                    <input
+                      type="tel"
+                      value={editedData.phone || ''}
+                      onChange={(e) => handleFieldChange('phone', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      placeholder="Enter your phone number"
+                    />
+                  ) : (
+                    <p className="text-gray-900 py-2">{profileData.phone || 'Not provided'}</p>
+                )}
+              </div>
+              
+                {/* Date of Birth */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
+                  {editingSections.personal ? (
+                      <input
+                        type="date"
+                      value={editedData.candidate_profile?.date_of_birth || ''}
+                      onChange={(e) => handleFieldChange('candidate_profile', e.target.value, 'date_of_birth')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      />
+                    ) : (
+                    <p className="text-gray-900 py-2">
+                      {profileData.candidate_profile?.date_of_birth ? 
+                        new Date(profileData.candidate_profile.date_of_birth).toLocaleDateString() : 
+                        'Not provided'}
+                    </p>
+                  )}
+                </div>
+                
+                {/* Gender */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+                  {editingSections.personal ? (
+                      <select
+                      value={editedData.candidate_profile?.gender || ''}
+                      onChange={(e) => handleFieldChange('candidate_profile', e.target.value, 'gender')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      >
+                        <option value="">Select gender</option>
+                        <option value="MALE">Male</option>
+                        <option value="FEMALE">Female</option>
+                        <option value="OTHER">Other</option>
+                        <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+                      </select>
+                    ) : (
+                    <p className="text-gray-900 py-2">
+                      {profileData.candidate_profile?.gender ? 
+                        profileData.candidate_profile.gender.charAt(0) + profileData.candidate_profile.gender.slice(1).toLowerCase().replace('_', ' ') : 
+                        'Not provided'}
+                      </p>
+                    )}
+                  </div>
+
+                {/* Address */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                  {editingSections.personal ? (
+                    <input
+                      type="text"
+                      value={editedData.candidate_profile?.address || ''}
+                      onChange={(e) => handleFieldChange('candidate_profile', e.target.value, 'address')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      placeholder="Enter your address"
+                    />
+                  ) : (
+                    <p className="text-gray-900 py-2">{profileData.candidate_profile?.address || 'Not provided'}</p>
+                  )}
+                </div>
+                
+
+                
+                {/* Website URL */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
+                  {editingSections.personal ? (
+                      <input
+                      type="url"
+                      value={editedData.website_url || ''}
+                      onChange={(e) => handleFieldChange('website_url', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      placeholder="https://your-website.com"
+                      />
+                    ) : (
+                    <p className="text-gray-900 py-2">
+                      {profileData.website_url ? 
+                        <a href={profileData.website_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          {profileData.website_url}
+                        </a> : 
+                        'Not provided'}
+                    </p>
+                  )}
+                </div>
+
+                {/* Languages */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Languages</label>
+                  {editingSections.personal ? (
+                    <input
+                      type="text"
+                      value={editedData.languages?.join(', ') || ''}
+                      onChange={(e) => handleFieldChange('languages', e.target.value.split(',').map(lang => lang.trim()))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      placeholder="English, Vietnamese, Japanese (comma separated)"
+                    />
+                  ) : (
+                    <p className="text-gray-900 py-2">
+                      {profileData.languages?.length ? profileData.languages.join(', ') : 'Not provided'}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Salary Information */}
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h4 className="text-md font-medium text-gray-900 mb-4">Salary Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Current Salary */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Current Salary</label>
+                    {editingSections.personal ? (
+                      <div className="flex">
+                        <input
+                          type="number"
+                          value={editedData.candidate_profile?.current_salary || ''}
+                          onChange={(e) => handleFieldChange('candidate_profile', parseFloat(e.target.value) || 0, 'current_salary')}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                          placeholder="0"
+                        />
+                        <span className="px-3 py-2 bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg text-sm text-gray-600">
+                          {profileData.candidate_profile?.currency || 'VND'}
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="text-gray-900 py-2">
+                        {profileData.candidate_profile?.current_salary ? 
+                          `${profileData.candidate_profile.current_salary.toLocaleString()} ${profileData.candidate_profile?.currency || 'VND'}` : 
+                          'Not provided'}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Expected Salary */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Expected Salary</label>
+                    {editingSections.personal ? (
+                      <div className="flex">
+                        <input
+                          type="number"
+                          value={editedData.candidate_profile?.expected_salary || ''}
+                          onChange={(e) => handleFieldChange('candidate_profile', parseFloat(e.target.value) || 0, 'expected_salary')}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                          placeholder="0"
+                        />
+                        <span className="px-3 py-2 bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg text-sm text-gray-600">
+                          {profileData.candidate_profile?.currency || 'VND'}
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="text-gray-900 py-2">
+                        {profileData.candidate_profile?.expected_salary ? 
+                          `${profileData.candidate_profile.expected_salary.toLocaleString()} ${profileData.candidate_profile?.currency || 'VND'}` : 
+                          'Not provided'}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Currency */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Currency</label>
+                    {editingSections.personal ? (
+                      <select
+                        value={editedData.candidate_profile?.currency || 'VND'}
+                        onChange={(e) => handleFieldChange('candidate_profile', e.target.value, 'currency')}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      >
+                        <option value="VND">VND</option>
+                        <option value="USD">USD</option>
+                        <option value="EUR">EUR</option>
+                      </select>
+                    ) : (
+                      <p className="text-gray-900 py-2">{profileData.candidate_profile?.currency || 'VND'}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Work Preferences */}
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h4 className="text-md font-medium text-gray-900 mb-4">Work Preferences</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Remote Work Preference */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Remote Work Preference</label>
+                    {editingSections.personal ? (
+                      <select
+                        value={editedData.candidate_profile?.remote_work_preference || ''}
+                        onChange={(e) => handleFieldChange('candidate_profile', e.target.value, 'remote_work_preference')}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      >
+                        <option value="">Select preference</option>
+                        <option value="ONSITE">Onsite</option>
+                        <option value="REMOTE">Remote</option>
+                        <option value="HYBRID">Hybrid</option>
+                        <option value="FLEXIBLE">Flexible</option>
+                      </select>
+                    ) : (
+                      <p className="text-gray-900 py-2">
+                        {profileData.candidate_profile?.remote_work_preference ? 
+                          profileData.candidate_profile.remote_work_preference.charAt(0) + profileData.candidate_profile.remote_work_preference.slice(1).toLowerCase() : 
+                          'Not specified'}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Years of Experience */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Years of Experience</label>
+                    {editingSections.personal ? (
+                      <input
+                        type="number"
+                        value={editedData.candidate_profile?.years_experience || ''}
+                        onChange={(e) => handleFieldChange('candidate_profile', parseInt(e.target.value) || 0, 'years_experience')}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        placeholder="0"
+                        min="0"
+                        max="50"
+                      />
+                    ) : (
+                      <p className="text-gray-900 py-2">
+                        {profileData.candidate_profile?.years_experience ? 
+                          `${profileData.candidate_profile.years_experience} years` : 
+                          'Not specified'}
+                      </p>
+                    )}
+                </div>
+              </div>
+            </div>
+
+              {/* Edit Controls */}
+              {editingSections.personal && (
+                <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
+                  <button 
+                    onClick={() => handleSaveProfile('personal')}
+                    disabled={isSaving}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isSaving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button 
+                    onClick={() => handleSectionCancel('personal')}
+                    disabled={isSaving}
+                    className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Cancel
+                </button>
+              </div>
+                )}
+              </div>
+
             {/* About Me */}
             <div className="bg-white rounded-xl shadow-sm p-6 text-left relative">
               <div className="flex items-center justify-between mb-4">
@@ -722,141 +1108,12 @@ const Profile: React.FC<ProfileProps> = ({
               )}
             </div>
 
-            {/* Skills Management */}
-            <SkillManagement 
-              userSkills={profileData.candidate_profile?.skills || []} 
-              onSkillsUpdate={(skills) => {
-                setProfileData((prev: any) => ({ 
-                  ...prev, 
-                  candidate_profile: {
-                    ...prev.candidate_profile,
-                    skills
-                  }
-                }));
-              }}
-            />
+
           </div>
 
           {/* Right Sidebar */}
           <div className="space-y-6">
-            {/* Personal Details */}
-            <div className="bg-white rounded-xl shadow-sm p-6 text-left relative">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Personal Details</h3>
-                {!editingSections.details && (
-                  <button 
-                    onClick={() => handleSectionEdit('details')}
-                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                    title="Edit personal details"
-                  >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </button>
-                )}
-              </div>
-              
-              <div className="space-y-4">
-                {/* Date of Birth */}
-                <div className="flex items-center space-x-3">
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4m5 0a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V9a2 2 0 012-2h12zM9 7h6" />
-                  </svg>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-500">Date of birth</p>
-                    {editingSections.details ? (
-                      <input
-                        type="date"
-                        value={editedData.date_of_birth?.split('T')[0] || editedData.candidate_profile?.date_of_birth?.split('T')[0] || ''}
-                        onChange={(e) => handleFieldChange('date_of_birth', e.target.value)}
-                        className="font-medium border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 outline-none bg-white w-full"
-                      />
-                    ) : (
-                      <p className="font-medium">{(profileData.date_of_birth || profileData.candidate_profile?.date_of_birth)?.split('T')[0] || 'Not set'}</p>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Gender */}
-                <div className="flex items-center space-x-3">
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-500">Gender</p>
-                    {editingSections.details ? (
-                      <select
-                        value={editedData.gender || editedData.candidate_profile?.gender || ''}
-                        onChange={(e) => handleFieldChange('gender', e.target.value)}
-                        className="font-medium border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none w-full"
-                      >
-                        <option value="">Select gender</option>
-                        <option value="MALE">Male</option>
-                        <option value="FEMALE">Female</option>
-                        <option value="OTHER">Other</option>
-                        <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
-                      </select>
-                    ) : (
-                      <p className="font-medium">
-                        {(profileData.gender || profileData.candidate_profile?.gender)?.replace('_', ' ')?.toLowerCase()?.replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'Not set'}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Email (read-only) */}
-                <div className="flex items-center space-x-3">
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  <div>
-                    <p className="text-sm text-gray-500">Email</p>
-                    <p className="font-medium">{profileData.email}</p>
-                  </div>
-                </div>
-                
-                {/* Phone */}
-                <div className="flex items-center space-x-3">
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-500">Phone</p>
-                    {editingSections.details ? (
-                      <input
-                        type="tel"
-                        value={editedData.phone || ''}
-                        onChange={(e) => handleFieldChange('phone', e.target.value)}
-                        className="font-medium border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 outline-none w-full"
-                        placeholder="Enter phone number"
-                      />
-                    ) : (
-                    <p className="font-medium">{profileData.phone || 'Not set'}</p>
-                    )}
-                </div>
-              </div>
-            </div>
-
-              {/* Edit Controls */}
-              {editingSections.details && (
-                <div className="flex gap-3 mt-6">
-                  <button 
-                    onClick={() => handleSaveProfile('details')}
-                    disabled={isSaving}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {isSaving ? 'Saving...' : 'Save'}
-                  </button>
-                  <button 
-                    onClick={() => handleSectionCancel('details')}
-                    disabled={isSaving}
-                    className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Cancel
-                </button>
-              </div>
-                )}
-              </div>
+            
 
             {/* Profile Suggestions */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6 text-left">
@@ -1185,200 +1442,25 @@ const Profile: React.FC<ProfileProps> = ({
             )}
           </div>
 
-          {/* Career Preferences */}
-          <div className="bg-white rounded-xl shadow-sm p-6 relative">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">Career Preferences</h3>
-              {!editingSections.preferences && (
-                <button 
-                  onClick={() => handleSectionEdit('preferences')}
-                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                  title="Edit career preferences"
-                >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              </button>
-              )}
-            </div>
-            
-            <div className="space-y-6">
-              {/* Expected Salary */}
-              <div className="flex space-x-4">
-                <div className="w-12 h-12 bg-green-600 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900 mb-2">Expected Salary (USD)</h4>
-                  {editingSections.preferences ? (
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="number"
-                        value={editedData.expected_salary || editedData.candidate_profile?.expected_salary || ''}
-                        onChange={(e) => handleFieldChange('expected_salary', parseInt(e.target.value) || 0)}
-                        className="border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 outline-none w-32"
-                        placeholder="Expected salary"
-                        min="0"
-                      />
-                      <span className="text-gray-500">USD/month</span>
-                    </div>
-                  ) : (
-                    <p className="text-gray-600">
-                      {(profileData.expected_salary || profileData.candidate_profile?.expected_salary) ? 
-                        `$${profileData.expected_salary || profileData.candidate_profile?.expected_salary} USD/month` : 
-                        'Expected salary not specified'}
-                    </p>
-              )}
-            </div>
-          </div>
+          {/* Skills Management */}
+          <SkillManagement 
+            userSkills={(profileData.candidate_profile?.skills || []).map((skill, index) => ({
+              id: `skill-${index}`,
+              skill_name: skill.skill_name,
+              proficiency_level: skill.proficiency_level as 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert'
+            }))} 
+            onSkillsUpdate={(skills) => {
+              setProfileData((prev: any) => ({ 
+                ...prev, 
+                candidate_profile: {
+                  ...prev.candidate_profile,
+                  skills
+                }
+              }));
+            }}
+          />
 
-              {/* Remote Work Preference */}
-              <div className="flex space-x-4">
-                <div className="w-12 h-12 bg-purple-600 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900 mb-2">Work Location Preference</h4>
-                  {editingSections.preferences ? (
-                    <select
-                      value={editedData.remote_work_preference || ''}
-                      onChange={(e) => handleFieldChange('remote_work_preference', e.target.value)}
-                      className="border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none w-full"
-                    >
-                      <option value="">Select work preference</option>
-                      <option value="ONSITE">On-site</option>
-                      <option value="REMOTE">Remote</option>
-                      <option value="HYBRID">Hybrid</option>
-                      <option value="FLEXIBLE">Flexible</option>
-                    </select>
-                  ) : (
-                    <p className="text-gray-600">
-                      {profileData.remote_work_preference ? 
-                        profileData.remote_work_preference.charAt(0) + profileData.remote_work_preference.slice(1).toLowerCase() : 
-                        'Work preference not specified'}
-                    </p>
-                  )}
-                </div>
-              </div>
 
-                            {/* Current Salary */}
-              <div className="flex space-x-4">
-                <div className="w-12 h-12 bg-orange-600 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                    </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900 mb-2">Current Salary (USD)</h4>
-                  {editingSections.preferences ? (
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="number"
-                        value={editedData.current_salary || editedData.candidate_profile?.current_salary || ''}
-                        onChange={(e) => handleFieldChange('current_salary', parseInt(e.target.value) || 0)}
-                        className="border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 outline-none w-32"
-                        placeholder="Current salary"
-                        min="0"
-                      />
-                      <span className="text-gray-500">USD/month</span>
-                    </div>
-                  ) : (
-                    <p className="text-gray-600">
-                      {(profileData.current_salary || profileData.candidate_profile?.current_salary) ? 
-                        `$${profileData.current_salary || profileData.candidate_profile?.current_salary} USD/month` : 
-                        'Current salary not specified'}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Notice Period */}
-              <div className="flex space-x-4">
-                <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4m5 0a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V9a2 2 0 012-2h12zM9 7h6" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900 mb-2">Notice Period</h4>
-                  {editingSections.preferences ? (
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="number"
-                        value={editedData.notice_period_days || editedData.candidate_profile?.notice_period_days || ''}
-                        onChange={(e) => handleFieldChange('notice_period_days', parseInt(e.target.value) || 0)}
-                        className="border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 outline-none w-20"
-                        placeholder="Days"
-                        min="0"
-                        max="365"
-                      />
-                      <span className="text-gray-500">days</span>
-                    </div>
-                  ) : (
-                    <p className="text-gray-600">
-                      {(profileData.notice_period_days || profileData.candidate_profile?.notice_period_days) ? 
-                        `${profileData.notice_period_days || profileData.candidate_profile?.notice_period_days} days` : 
-                        'Notice period not specified'}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Willing to Relocate */}
-              <div className="flex space-x-4">
-                <div className="w-12 h-12 bg-teal-600 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900 mb-2">Willing to Relocate</h4>
-                  {editingSections.preferences ? (
-                    <select
-                      value={editedData.willing_to_relocate || editedData.candidate_profile?.willing_to_relocate || ''}
-                      onChange={(e) => handleFieldChange('willing_to_relocate', e.target.value === 'true')}
-                      className="border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none w-full"
-                    >
-                      <option value="">Select preference</option>
-                      <option value="true">Yes, willing to relocate</option>
-                      <option value="false">No, prefer current location</option>
-                    </select>
-                  ) : (
-                    <p className="text-gray-600">
-                      {(profileData.willing_to_relocate !== undefined || profileData.candidate_profile?.willing_to_relocate !== undefined) ? 
-                        ((profileData.willing_to_relocate || profileData.candidate_profile?.willing_to_relocate) ? 'Yes, willing to relocate' : 'No, prefer current location') : 
-                        'Relocation preference not specified'}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Edit Controls */}
-            {editingSections.preferences && (
-              <div className="flex gap-3 mt-6">
-                <button 
-                  onClick={() => handleSaveProfile('preferences')}
-                  disabled={isSaving}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isSaving ? 'Saving...' : 'Save'}
-                </button>
-                <button 
-                  onClick={() => handleSectionCancel('preferences')}
-                  disabled={isSaving}
-                  className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
-          </div>
 
                     </div>
       </div>
