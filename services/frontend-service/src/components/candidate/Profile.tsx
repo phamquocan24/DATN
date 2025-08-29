@@ -281,14 +281,128 @@ const Profile: React.FC<ProfileProps> = ({
   // Section-specific edit functions
   const handleSectionEdit = (sectionName: string) => {
     setEditingSections(prev => ({ ...prev, [sectionName]: true }));
-    setEditedData((prev: any) => ({ ...prev, ...profileData }));
+    // Only copy relevant data for the section being edited to avoid unintended changes
+    let sectionData = {};
+    switch (sectionName) {
+      case 'header':
+        sectionData = {
+          full_name: profileData.full_name,
+          current_job_title: profileData.current_job_title || profileData.candidate_profile?.current_job_title,
+          profile_image_url: profileData.profile_image_url,
+          avatar_url: profileData.avatar_url
+        };
+        break;
+      case 'about':
+        sectionData = {
+          bio: profileData.bio
+        };
+        break;
+      case 'experience':
+        sectionData = {
+          current_job_title: profileData.current_job_title || profileData.candidate_profile?.current_job_title,
+          current_company: profileData.current_company || profileData.candidate_profile?.current_company,
+          years_of_experience: profileData.years_of_experience || profileData.candidate_profile?.years_experience
+        };
+        break;
+      case 'education':
+        sectionData = {
+          education_level: profileData.education_level || profileData.candidate_profile?.education_level
+        };
+        break;
+      case 'personal':
+        sectionData = {
+          email: profileData.email,
+          phone: profileData.phone,
+          website_url: profileData.website_url,
+          languages: profileData.languages,
+          candidate_profile: {
+            ...profileData.candidate_profile,
+            date_of_birth: profileData.candidate_profile?.date_of_birth,
+            gender: profileData.candidate_profile?.gender,
+            address: profileData.candidate_profile?.address
+          }
+        };
+        break;
+      case 'salary':
+        sectionData = {
+          candidate_profile: {
+            ...profileData.candidate_profile,
+            current_salary: profileData.candidate_profile?.current_salary,
+            expected_salary: profileData.candidate_profile?.expected_salary,
+            currency: profileData.candidate_profile?.currency,
+            remote_work_preference: profileData.candidate_profile?.remote_work_preference,
+            years_experience: profileData.candidate_profile?.years_experience
+          }
+        };
+        break;
+      default:
+        sectionData = { ...profileData };
+    }
+    setEditedData((prev: any) => ({ ...prev, ...sectionData }));
     setSaveError(null);
     setSaveSuccess(null);
   };
 
   const handleSectionCancel = (sectionName: string) => {
     setEditingSections(prev => ({ ...prev, [sectionName]: false }));
-    setEditedData((prev: any) => ({ ...prev, ...profileData }));
+    // Reset only the fields for the cancelled section to original values
+    let sectionData = {};
+    switch (sectionName) {
+      case 'header':
+        sectionData = {
+          full_name: profileData.full_name,
+          current_job_title: profileData.current_job_title || profileData.candidate_profile?.current_job_title,
+          profile_image_url: profileData.profile_image_url,
+          avatar_url: profileData.avatar_url
+        };
+        break;
+      case 'about':
+        sectionData = {
+          bio: profileData.bio
+        };
+        break;
+      case 'experience':
+        sectionData = {
+          current_job_title: profileData.current_job_title || profileData.candidate_profile?.current_job_title,
+          current_company: profileData.current_company || profileData.candidate_profile?.current_company,
+          years_of_experience: profileData.years_of_experience || profileData.candidate_profile?.years_experience
+        };
+        break;
+      case 'education':
+        sectionData = {
+          education_level: profileData.education_level || profileData.candidate_profile?.education_level
+        };
+        break;
+      case 'personal':
+        sectionData = {
+          email: profileData.email,
+          phone: profileData.phone,
+          website_url: profileData.website_url,
+          languages: profileData.languages,
+          candidate_profile: {
+            ...profileData.candidate_profile,
+            date_of_birth: profileData.candidate_profile?.date_of_birth,
+            gender: profileData.candidate_profile?.gender,
+            address: profileData.candidate_profile?.address
+          }
+        };
+        break;
+      case 'salary':
+        sectionData = {
+          candidate_profile: {
+            ...profileData.candidate_profile,
+            current_salary: profileData.candidate_profile?.current_salary,
+            expected_salary: profileData.candidate_profile?.expected_salary,
+            currency: profileData.candidate_profile?.currency,
+            remote_work_preference: profileData.candidate_profile?.remote_work_preference,
+            years_experience: profileData.candidate_profile?.years_experience
+          }
+        };
+        break;
+      default:
+        sectionData = { ...profileData };
+    }
+    setEditedData((prev: any) => ({ ...prev, ...sectionData }));
     setSaveError(null);
     setSaveSuccess(null);
   };
@@ -319,34 +433,69 @@ const Profile: React.FC<ProfileProps> = ({
 
       const updateData: any = {};
       
-      // Basic profile fields (users table)
-      if (editedData.full_name !== undefined) updateData.full_name = editedData.full_name;
-      if (editedData.phone !== undefined) updateData.phone = editedData.phone;
-        
-      // User profile table fields
-      if (editedData.bio !== undefined) updateData.bio = editedData.bio;
-      if (editedData.profile_image_url !== undefined) updateData.profile_image_url = editedData.profile_image_url;
-      if (editedData.avatar_url !== undefined) updateData.profile_image_url = editedData.avatar_url;
-      if (editedData.website_url !== undefined) updateData.website_url = editedData.website_url;
-      if (editedData.languages !== undefined) updateData.languages = editedData.languages;
-
-      // Handle nested candidate_profile fields mapping
-      if (editedData.candidate_profile) {
-        if (editedData.candidate_profile.date_of_birth !== undefined) updateData.date_of_birth = editedData.candidate_profile.date_of_birth;
-        if (editedData.candidate_profile.gender !== undefined) updateData.gender = editedData.candidate_profile.gender;
-        if (editedData.candidate_profile.address !== undefined) updateData.address = editedData.candidate_profile.address;
-        if (editedData.candidate_profile.city_id !== undefined) updateData.city_id = editedData.candidate_profile.city_id;
-        if (editedData.candidate_profile.district_id !== undefined) updateData.district_id = editedData.candidate_profile.district_id;
-        if (editedData.candidate_profile.education_level !== undefined) updateData.education_level = editedData.candidate_profile.education_level;
-        if (editedData.candidate_profile.years_experience !== undefined) updateData.years_experience = editedData.candidate_profile.years_experience;
-        if (editedData.candidate_profile.current_job_title !== undefined) updateData.current_job_title = editedData.candidate_profile.current_job_title;
-        if (editedData.candidate_profile.current_company !== undefined) updateData.current_company = editedData.candidate_profile.current_company;
-        if (editedData.candidate_profile.current_salary !== undefined) updateData.current_salary = editedData.candidate_profile.current_salary;
-        if (editedData.candidate_profile.expected_salary !== undefined) updateData.expected_salary = editedData.candidate_profile.expected_salary;
-           if (editedData.candidate_profile.currency !== undefined) updateData.currency = editedData.candidate_profile.currency;
-        if (editedData.candidate_profile.notice_period_days !== undefined) updateData.notice_period_days = editedData.candidate_profile.notice_period_days;
-        if (editedData.candidate_profile.willing_to_relocate !== undefined) updateData.willing_to_relocate = editedData.candidate_profile.willing_to_relocate;
-        if (editedData.candidate_profile.remote_work_preference !== undefined) updateData.remote_work_preference = editedData.candidate_profile.remote_work_preference;
+      // Build updateData based on the specific section being saved
+      if (sectionName) {
+        switch (sectionName) {
+          case 'header':
+            if (editedData.full_name !== undefined) updateData.full_name = editedData.full_name;
+            if (editedData.current_job_title !== undefined) updateData.current_job_title = editedData.current_job_title;
+            if (editedData.profile_image_url !== undefined) updateData.profile_image_url = editedData.profile_image_url;
+            if (editedData.avatar_url !== undefined) updateData.profile_image_url = editedData.avatar_url;
+            break;
+          case 'about':
+            if (editedData.bio !== undefined) updateData.bio = editedData.bio;
+            break;
+          case 'experience':
+            if (editedData.current_job_title !== undefined) updateData.current_job_title = editedData.current_job_title;
+            if (editedData.current_company !== undefined) updateData.current_company = editedData.current_company;
+            if (editedData.years_of_experience !== undefined) updateData.years_experience = editedData.years_of_experience;
+            break;
+          case 'education':
+            if (editedData.education_level !== undefined) updateData.education_level = editedData.education_level;
+            break;
+          case 'personal':
+            if (editedData.email !== undefined) updateData.email = editedData.email;
+            if (editedData.phone !== undefined) updateData.phone = editedData.phone;
+            if (editedData.website_url !== undefined) updateData.website_url = editedData.website_url;
+            if (editedData.languages !== undefined) updateData.languages = editedData.languages;
+            if (editedData.candidate_profile) {
+              if (editedData.candidate_profile.date_of_birth !== undefined) updateData.date_of_birth = editedData.candidate_profile.date_of_birth;
+              if (editedData.candidate_profile.gender !== undefined) updateData.gender = editedData.candidate_profile.gender;
+              if (editedData.candidate_profile.address !== undefined) updateData.address = editedData.candidate_profile.address;
+            }
+            break;
+          case 'salary':
+            if (editedData.candidate_profile) {
+              if (editedData.candidate_profile.current_salary !== undefined) updateData.current_salary = editedData.candidate_profile.current_salary;
+              if (editedData.candidate_profile.expected_salary !== undefined) updateData.expected_salary = editedData.candidate_profile.expected_salary;
+              if (editedData.candidate_profile.currency !== undefined) updateData.currency = editedData.candidate_profile.currency;
+              if (editedData.candidate_profile.remote_work_preference !== undefined) updateData.remote_work_preference = editedData.candidate_profile.remote_work_preference;
+              if (editedData.candidate_profile.years_experience !== undefined) updateData.years_experience = editedData.candidate_profile.years_experience;
+            }
+            break;
+        }
+      } else {
+        // Fallback: if no specific section, send all available data (legacy behavior)
+        if (editedData.full_name !== undefined) updateData.full_name = editedData.full_name;
+        if (editedData.phone !== undefined) updateData.phone = editedData.phone;
+        if (editedData.bio !== undefined) updateData.bio = editedData.bio;
+        if (editedData.profile_image_url !== undefined) updateData.profile_image_url = editedData.profile_image_url;
+        if (editedData.avatar_url !== undefined) updateData.profile_image_url = editedData.avatar_url;
+        if (editedData.website_url !== undefined) updateData.website_url = editedData.website_url;
+        if (editedData.languages !== undefined) updateData.languages = editedData.languages;
+        if (editedData.candidate_profile) {
+          if (editedData.candidate_profile.date_of_birth !== undefined) updateData.date_of_birth = editedData.candidate_profile.date_of_birth;
+          if (editedData.candidate_profile.gender !== undefined) updateData.gender = editedData.candidate_profile.gender;
+          if (editedData.candidate_profile.address !== undefined) updateData.address = editedData.candidate_profile.address;
+          if (editedData.candidate_profile.education_level !== undefined) updateData.education_level = editedData.candidate_profile.education_level;
+          if (editedData.candidate_profile.years_experience !== undefined) updateData.years_experience = editedData.candidate_profile.years_experience;
+          if (editedData.candidate_profile.current_job_title !== undefined) updateData.current_job_title = editedData.candidate_profile.current_job_title;
+          if (editedData.candidate_profile.current_company !== undefined) updateData.current_company = editedData.candidate_profile.current_company;
+          if (editedData.candidate_profile.current_salary !== undefined) updateData.current_salary = editedData.candidate_profile.current_salary;
+          if (editedData.candidate_profile.expected_salary !== undefined) updateData.expected_salary = editedData.candidate_profile.expected_salary;
+          if (editedData.candidate_profile.currency !== undefined) updateData.currency = editedData.candidate_profile.currency;
+          if (editedData.candidate_profile.remote_work_preference !== undefined) updateData.remote_work_preference = editedData.candidate_profile.remote_work_preference;
+        }
       }
 
       const response = await candidateApi.updateProfile(updateData);
