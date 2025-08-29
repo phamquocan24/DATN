@@ -258,7 +258,7 @@ const Profile: React.FC<ProfileProps> = ({
     switch (category) {
       case 'basic':
         return (
-          <svg className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-5 w-5 text-[#007bff]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
         );
@@ -375,11 +375,11 @@ const Profile: React.FC<ProfileProps> = ({
       const updateData: any = {};
       
               // Basic profile fields (users table)
-        if (editedData.full_name !== undefined) updateData.full_name = editedData.full_name;
-        if (editedData.phone !== undefined) updateData.phone = editedData.phone;
+      if (editedData.full_name !== undefined) updateData.full_name = editedData.full_name;
+      if (editedData.phone !== undefined) updateData.phone = editedData.phone;
         
         // User profile table fields
-        if (editedData.bio !== undefined) updateData.bio = editedData.bio;
+      if (editedData.bio !== undefined) updateData.bio = editedData.bio;
         if (editedData.profile_image_url !== undefined) updateData.profile_image_url = editedData.profile_image_url;
         if (editedData.avatar_url !== undefined) updateData.profile_image_url = editedData.avatar_url; // Map avatar_url to profile_image_url
         if (editedData.website_url !== undefined) updateData.website_url = editedData.website_url;
@@ -387,19 +387,17 @@ const Profile: React.FC<ProfileProps> = ({
         
         // Candidate profile table fields
         if (editedData.date_of_birth !== undefined) updateData.date_of_birth = editedData.date_of_birth;
-        if (editedData.gender !== undefined) updateData.gender = editedData.gender;
-        if (editedData.address !== undefined) updateData.address = editedData.address;
-        if (editedData.city_id !== undefined) updateData.city_id = editedData.city_id;
-        if (editedData.district_id !== undefined) updateData.district_id = editedData.district_id;
+      if (editedData.gender !== undefined) updateData.gender = editedData.gender;
+      if (editedData.address !== undefined) updateData.address = editedData.address;
+      if (editedData.city_id !== undefined) updateData.city_id = editedData.city_id;
+      if (editedData.district_id !== undefined) updateData.district_id = editedData.district_id;
 
       // Candidate specific fields (based on actual backend model)
-      if (editedData.experience_level !== undefined) updateData.experience_level = editedData.experience_level;
       if (editedData.expected_salary !== undefined) updateData.expected_salary = editedData.expected_salary;
       if (editedData.current_job_title !== undefined) updateData.current_job_title = editedData.current_job_title;
       if (editedData.current_company !== undefined) updateData.current_company = editedData.current_company;
       if (editedData.current_salary !== undefined) updateData.current_salary = editedData.current_salary;
       if (editedData.years_experience !== undefined) updateData.years_experience = editedData.years_experience;
-      if (editedData.job_seeking_status !== undefined) updateData.job_seeking_status = editedData.job_seeking_status;
       if (editedData.notice_period_days !== undefined) updateData.notice_period_days = editedData.notice_period_days;
       if (editedData.willing_to_relocate !== undefined) updateData.willing_to_relocate = editedData.willing_to_relocate;
       if (editedData.remote_work_preference !== undefined) updateData.remote_work_preference = editedData.remote_work_preference;
@@ -408,25 +406,24 @@ const Profile: React.FC<ProfileProps> = ({
       if (editedData.education_level !== undefined) updateData.education_level = editedData.education_level;
 
               // Handle nested candidate_profile fields mapping
-        if (editedData.candidate_profile) {
+      if (editedData.candidate_profile) {
           // Override with candidate_profile nested values if they exist
-          if (editedData.candidate_profile.date_of_birth !== undefined) updateData.date_of_birth = editedData.candidate_profile.date_of_birth;
-          if (editedData.candidate_profile.gender !== undefined) updateData.gender = editedData.candidate_profile.gender;
-          if (editedData.candidate_profile.address !== undefined) updateData.address = editedData.candidate_profile.address;
-          if (editedData.candidate_profile.city_id !== undefined) updateData.city_id = editedData.candidate_profile.city_id;
-          if (editedData.candidate_profile.district_id !== undefined) updateData.district_id = editedData.candidate_profile.district_id;
-          if (editedData.candidate_profile.education_level !== undefined) updateData.education_level = editedData.candidate_profile.education_level;
-          if (editedData.candidate_profile.years_experience !== undefined) updateData.years_experience = editedData.candidate_profile.years_experience;
-          if (editedData.candidate_profile.current_job_title !== undefined) updateData.current_job_title = editedData.candidate_profile.current_job_title;
-          if (editedData.candidate_profile.current_company !== undefined) updateData.current_company = editedData.candidate_profile.current_company;
-          if (editedData.candidate_profile.current_salary !== undefined) updateData.current_salary = editedData.candidate_profile.current_salary;
-          if (editedData.candidate_profile.expected_salary !== undefined) updateData.expected_salary = editedData.candidate_profile.expected_salary;
-          if (editedData.candidate_profile.currency !== undefined) updateData.currency = editedData.candidate_profile.currency;
-          if (editedData.candidate_profile.job_seeking_status !== undefined) updateData.job_seeking_status = editedData.candidate_profile.job_seeking_status;
-          if (editedData.candidate_profile.notice_period_days !== undefined) updateData.notice_period_days = editedData.candidate_profile.notice_period_days;
-          if (editedData.candidate_profile.willing_to_relocate !== undefined) updateData.willing_to_relocate = editedData.candidate_profile.willing_to_relocate;
-          if (editedData.candidate_profile.remote_work_preference !== undefined) updateData.remote_work_preference = editedData.candidate_profile.remote_work_preference;
-        }
+        if (editedData.candidate_profile.date_of_birth !== undefined) updateData.date_of_birth = editedData.candidate_profile.date_of_birth;
+        if (editedData.candidate_profile.gender !== undefined) updateData.gender = editedData.candidate_profile.gender;
+        if (editedData.candidate_profile.address !== undefined) updateData.address = editedData.candidate_profile.address;
+        if (editedData.candidate_profile.city_id !== undefined) updateData.city_id = editedData.candidate_profile.city_id;
+        if (editedData.candidate_profile.district_id !== undefined) updateData.district_id = editedData.candidate_profile.district_id;
+        if (editedData.candidate_profile.education_level !== undefined) updateData.education_level = editedData.candidate_profile.education_level;
+        if (editedData.candidate_profile.years_experience !== undefined) updateData.years_experience = editedData.candidate_profile.years_experience;
+        if (editedData.candidate_profile.current_job_title !== undefined) updateData.current_job_title = editedData.candidate_profile.current_job_title;
+        if (editedData.candidate_profile.current_company !== undefined) updateData.current_company = editedData.candidate_profile.current_company;
+        if (editedData.candidate_profile.current_salary !== undefined) updateData.current_salary = editedData.candidate_profile.current_salary;
+        if (editedData.candidate_profile.expected_salary !== undefined) updateData.expected_salary = editedData.candidate_profile.expected_salary;
+           if (editedData.candidate_profile.currency !== undefined) updateData.currency = editedData.candidate_profile.currency;
+        if (editedData.candidate_profile.notice_period_days !== undefined) updateData.notice_period_days = editedData.candidate_profile.notice_period_days;
+        if (editedData.candidate_profile.willing_to_relocate !== undefined) updateData.willing_to_relocate = editedData.candidate_profile.willing_to_relocate;
+        if (editedData.candidate_profile.remote_work_preference !== undefined) updateData.remote_work_preference = editedData.candidate_profile.remote_work_preference;
+      }
 
       console.log('Updating profile with data:', updateData);
 
@@ -468,7 +465,7 @@ const Profile: React.FC<ProfileProps> = ({
   //   return (
   //       <div className="flex-1 p-8 flex items-center justify-center">
   //         <div className="text-center">
-  //           <svg className="animate-spin -ml-1 mr-3 h-10 w-10 text-[#007BFF] mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+  //           <svg className="animate-spin -ml-1 mr-3 h-10 w-10 text-[#007bff] mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
   //             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
   //             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
   //           </svg>
@@ -508,7 +505,7 @@ const Profile: React.FC<ProfileProps> = ({
           <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
           <button 
             onClick={onHomeClick}
-            className="px-4 py-2 text-[#007BFF] hover:text-white font-medium border border-[#007BFF] rounded-lg hover:bg-[#007BFF] transition-colors"
+            className="px-4 py-2 text-[#007bff] hover:text-white font-medium border border-[#007bff] rounded-lg hover:bg-[#007bff] transition-colors"
           >
             Back to homepage
           </button>
@@ -545,12 +542,12 @@ const Profile: React.FC<ProfileProps> = ({
           {/* Main Profile Section */}
           <div className="lg:col-span-2 space-y-6">
             {/* Profile Header */}
-            <div className="bg-white rounded-xl shadow-sm p-8 relative text-left">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 relative text-left">
               {/* Edit button for this section */}
               {!editingSections.header && (
                 <button 
                   onClick={() => handleSectionEdit('header')}
-                  className="absolute top-4 right-4 p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                  className="absolute top-4 right-4 p-2 text-gray-400 hover:text-[#007bff] hover:bg-blue-50 rounded-full transition-colors"
                   title="Edit basic information"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -562,9 +559,9 @@ const Profile: React.FC<ProfileProps> = ({
               <div className="flex items-start space-x-6 text-left">
                 {/* User Avatar */}
                 <div className="relative">
-                  {profileData.avatar_url || profileData.avatarUrl ? (
+                   {profileData.profile_image_url || profileData.avatar_url || profileData.avatarUrl ? (
                     <img 
-                      src={profileData.avatar_url || profileData.avatarUrl} 
+                       src={profileData.profile_image_url || profileData.avatar_url || profileData.avatarUrl} 
                     alt="Profile" 
                       className="w-24 h-24 rounded-full object-cover border-4 border-gray-100"
                       onError={(e) => {
@@ -573,7 +570,7 @@ const Profile: React.FC<ProfileProps> = ({
                       }}
                     />
                   ) : (
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center border-4 border-gray-100">
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#007bff] to-purple-600 flex items-center justify-center border-4 border-gray-100">
                       <span className="text-3xl font-bold text-white">
                         {profileData.full_name ? profileData.full_name.charAt(0).toUpperCase() : '?'}
                       </span>
@@ -581,12 +578,33 @@ const Profile: React.FC<ProfileProps> = ({
                   )}
                   
                   {editingSections.header && (
-                    <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
+                     <>
+                       <input
+                         type="file"
+                         accept="image/*"
+                         onChange={(e) => {
+                           const file = e.target.files?.[0];
+                           if (file) {
+                             // Create a URL for preview
+                             const imageUrl = URL.createObjectURL(file);
+                             handleFieldChange('profile_image_url', imageUrl);
+                             // Here you would typically upload the file to a server
+                             // For now, we'll just use the local URL for preview
+                           }
+                         }}
+                         className="hidden"
+                         id="avatar-upload"
+                       />
+                       <label
+                         htmlFor="avatar-upload"
+                         className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+                       >
                       <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
-                    </div>
+                       </label>
+                     </>
                   )}
                 </div>
                 
@@ -610,7 +628,7 @@ const Profile: React.FC<ProfileProps> = ({
                       type="text"
                       value={editedData.full_name || ''}
                       onChange={(e) => handleFieldChange('full_name', e.target.value)}
-                      className="text-3xl font-bold text-gray-900 mb-3 border-b-2 border-blue-300 focus:border-blue-500 outline-none bg-transparent w-full rounded"
+                      className="text-3xl font-bold text-gray-900 mb-3 border-b-2 border-[#007bff] focus:border-[#007bff] outline-none bg-transparent w-full rounded"
                       placeholder="Enter your full name"
                     />
                   ) : (
@@ -623,7 +641,7 @@ const Profile: React.FC<ProfileProps> = ({
                       type="text"
                       value={editedData.current_job_title || editedData.candidate_profile?.current_job_title || ''}
                       onChange={(e) => handleFieldChange('current_job_title', e.target.value)}
-                      className="text-gray-600 text-lg mb-3 border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 outline-none bg-transparent w-full"
+                      className="text-gray-600 text-lg mb-3 border border-gray-300 rounded-lg px-3 py-2 focus:border-[#007bff] outline-none bg-transparent w-full"
                       placeholder="Enter your current job title"
                     />
                   ) : (
@@ -632,105 +650,11 @@ const Profile: React.FC<ProfileProps> = ({
                     </p>
                   )}
                   
-                  {/* Location - Editable */}
-                  <div className="flex items-center mb-4 text-left">
-                    <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                    {editingSections.header ? (
-                      <input
-                        type="text"
-                        value={editedData.location || editedData.address || editedData.candidate_profile?.address || editedData.candidate_profile?.city_name || ''}
-                        onChange={(e) => handleFieldChange('location', e.target.value)}
-                        className="text-gray-500 border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 outline-none bg-transparent flex-1"
-                        placeholder="Enter your location"
-                      />
-                    ) : (
-                      <span className="text-gray-500">
-                        {profileData.location || profileData.address || profileData.candidate_profile?.city_name || profileData.candidate_profile?.address || 'Location not set'}
-                      </span>
-                    )}
-                  </div>
+                                     
 
-                  {/* Experience Level */}
-                  <div className="flex items-center mb-4 text-left">
-                    <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {editingSections.header ? (
-                      <select
-                        value={editedData.experience_level || ''}
-                        onChange={(e) => handleFieldChange('experience_level', e.target.value)}
-                        className="text-gray-500 border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                      >
-                        <option value="">Select experience level</option>
-                        <option value="FRESHER">Fresher</option>
-                        <option value="JUNIOR">Junior</option>
-                        <option value="SENIOR">Senior</option>
-                        <option value="LEAD">Lead</option>
-                        <option value="EXPERT">Expert</option>
-                      </select>
-                    ) : (
-                      <span className="text-gray-500">
-                        {profileData.experience_level ? 
-                          profileData.experience_level.charAt(0) + profileData.experience_level.slice(1).toLowerCase() + ' Level' : 
-                          'Experience level not set'}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Job Seeking Status Badge */}
-                  <div className="mb-4 text-left">
-                    {editingSections.header ? (
-                      <select
-                        value={editedData.job_seeking_status || editedData.candidate_profile?.job_seeking_status || ''}
-                        onChange={(e) => handleFieldChange('job_seeking_status', e.target.value)}
-                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                      >
-                        <option value="">Select status</option>
-                        <option value="ACTIVELY_SEEKING">Actively Seeking</option>
-                        <option value="OPEN_TO_OPPORTUNITIES">Open to Opportunities</option>
-                        <option value="NOT_SEEKING">Not Seeking</option>
-                      </select>
-                    ) : (
-                      <span className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium ${
-                        (profileData.job_seeking_status || profileData.candidate_profile?.job_seeking_status) === 'ACTIVELY_SEEKING' || 
-                        (profileData.job_seeking_status || profileData.candidate_profile?.job_seeking_status) === 'OPEN_TO_OPPORTUNITIES' ? 
-                        'bg-green-100 text-green-700 border border-green-200' : 'bg-yellow-100 text-yellow-700 border border-yellow-200'
-                      }`}>
-                        <span className={`w-2 h-2 rounded-full mr-2 ${
-                          (profileData.job_seeking_status || profileData.candidate_profile?.job_seeking_status) === 'ACTIVELY_SEEKING' || 
-                          (profileData.job_seeking_status || profileData.candidate_profile?.job_seeking_status) === 'OPEN_TO_OPPORTUNITIES' ? 
-                          'bg-green-500' : 'bg-yellow-500'
-                        }`}></span>
-                        {(profileData.job_seeking_status || profileData.candidate_profile?.job_seeking_status) === 'ACTIVELY_SEEKING' ? 'ACTIVELY SEEKING' : 
-                         (profileData.job_seeking_status || profileData.candidate_profile?.job_seeking_status) === 'OPEN_TO_OPPORTUNITIES' ? 'OPEN FOR OPPORTUNITIES' : 
-                       'NOT SEEKING'}
-                    </span>
-                    )}
-                    </div>
+                  
                     
-                  {/* Avatar URL - In edit mode */}
-                  {editingSections.header && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <div className="flex items-center space-x-3">
-                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <div className="flex-1">
-                          <p className="text-sm text-gray-500 mb-1">Avatar URL</p>
-                          <input
-                            type="url"
-                            value={editedData.avatar_url || ''}
-                            onChange={(e) => handleFieldChange('avatar_url', e.target.value)}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 outline-none"
-                            placeholder="Enter image URL for your avatar"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  
 
                   {/* Edit Controls */}
                   {editingSections.header && (
@@ -738,7 +662,7 @@ const Profile: React.FC<ProfileProps> = ({
                       <button 
                         onClick={() => handleSaveProfile('header')}
                         disabled={isSaving}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="px-4 py-2 bg-[#007bff] text-white rounded-lg font-medium hover:bg-[#0056b3] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         {isSaving ? 'Saving...' : 'Save'}
                       </button>
@@ -757,313 +681,14 @@ const Profile: React.FC<ProfileProps> = ({
 
             {/* Profile Suggestions moved below Personal Details */}
 
-            {/* Personal Information */}
-            <div className="bg-white rounded-xl shadow-sm p-6 text-left relative">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
-                {!editingSections.personal && (
-                  <button 
-                    onClick={() => handleSectionEdit('personal')}
-                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                    title="Edit personal information"
-                  >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </button>
-                )}
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Email */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                  {editingSections.personal ? (
-                    <input
-                      type="email"
-                      value={editedData.email || ''}
-                      onChange={(e) => handleFieldChange('email', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                      placeholder="Enter your email"
-                    />
-                  ) : (
-                    <p className="text-gray-900 py-2">{profileData.email || 'Not provided'}</p>
-              )}
-            </div>
-
-                {/* Phone */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
-                  {editingSections.personal ? (
-                    <input
-                      type="tel"
-                      value={editedData.phone || ''}
-                      onChange={(e) => handleFieldChange('phone', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                      placeholder="Enter your phone number"
-                    />
-                  ) : (
-                    <p className="text-gray-900 py-2">{profileData.phone || 'Not provided'}</p>
-                )}
-              </div>
-              
-                {/* Date of Birth */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
-                  {editingSections.personal ? (
-                      <input
-                        type="date"
-                      value={editedData.candidate_profile?.date_of_birth || ''}
-                      onChange={(e) => handleFieldChange('candidate_profile', e.target.value, 'date_of_birth')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                      />
-                    ) : (
-                    <p className="text-gray-900 py-2">
-                      {profileData.candidate_profile?.date_of_birth ? 
-                        new Date(profileData.candidate_profile.date_of_birth).toLocaleDateString() : 
-                        'Not provided'}
-                    </p>
-                  )}
-                </div>
-                
-                {/* Gender */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
-                  {editingSections.personal ? (
-                      <select
-                      value={editedData.candidate_profile?.gender || ''}
-                      onChange={(e) => handleFieldChange('candidate_profile', e.target.value, 'gender')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                      >
-                        <option value="">Select gender</option>
-                        <option value="MALE">Male</option>
-                        <option value="FEMALE">Female</option>
-                        <option value="OTHER">Other</option>
-                        <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
-                      </select>
-                    ) : (
-                    <p className="text-gray-900 py-2">
-                      {profileData.candidate_profile?.gender ? 
-                        profileData.candidate_profile.gender.charAt(0) + profileData.candidate_profile.gender.slice(1).toLowerCase().replace('_', ' ') : 
-                        'Not provided'}
-                      </p>
-                    )}
-                  </div>
-
-                {/* Address */}
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
-                  {editingSections.personal ? (
-                    <input
-                      type="text"
-                      value={editedData.candidate_profile?.address || ''}
-                      onChange={(e) => handleFieldChange('candidate_profile', e.target.value, 'address')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                      placeholder="Enter your address"
-                    />
-                  ) : (
-                    <p className="text-gray-900 py-2">{profileData.candidate_profile?.address || 'Not provided'}</p>
-                  )}
-                </div>
-                
-
-                
-                {/* Website URL */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
-                  {editingSections.personal ? (
-                      <input
-                      type="url"
-                      value={editedData.website_url || ''}
-                      onChange={(e) => handleFieldChange('website_url', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                      placeholder="https://your-website.com"
-                      />
-                    ) : (
-                    <p className="text-gray-900 py-2">
-                      {profileData.website_url ? 
-                        <a href={profileData.website_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                          {profileData.website_url}
-                        </a> : 
-                        'Not provided'}
-                    </p>
-                  )}
-                </div>
-
-                {/* Languages */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Languages</label>
-                  {editingSections.personal ? (
-                    <input
-                      type="text"
-                      value={editedData.languages?.join(', ') || ''}
-                      onChange={(e) => handleFieldChange('languages', e.target.value.split(',').map(lang => lang.trim()))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                      placeholder="English, Vietnamese, Japanese (comma separated)"
-                    />
-                  ) : (
-                    <p className="text-gray-900 py-2">
-                      {profileData.languages?.length ? profileData.languages.join(', ') : 'Not provided'}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Salary Information */}
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <h4 className="text-md font-medium text-gray-900 mb-4">Salary Information</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Current Salary */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Current Salary</label>
-                    {editingSections.personal ? (
-                      <div className="flex">
-                        <input
-                          type="number"
-                          value={editedData.candidate_profile?.current_salary || ''}
-                          onChange={(e) => handleFieldChange('candidate_profile', parseFloat(e.target.value) || 0, 'current_salary')}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                          placeholder="0"
-                        />
-                        <span className="px-3 py-2 bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg text-sm text-gray-600">
-                          {profileData.candidate_profile?.currency || 'VND'}
-                        </span>
-                      </div>
-                    ) : (
-                      <p className="text-gray-900 py-2">
-                        {profileData.candidate_profile?.current_salary ? 
-                          `${profileData.candidate_profile.current_salary.toLocaleString()} ${profileData.candidate_profile?.currency || 'VND'}` : 
-                          'Not provided'}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Expected Salary */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Expected Salary</label>
-                    {editingSections.personal ? (
-                      <div className="flex">
-                        <input
-                          type="number"
-                          value={editedData.candidate_profile?.expected_salary || ''}
-                          onChange={(e) => handleFieldChange('candidate_profile', parseFloat(e.target.value) || 0, 'expected_salary')}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                          placeholder="0"
-                        />
-                        <span className="px-3 py-2 bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg text-sm text-gray-600">
-                          {profileData.candidate_profile?.currency || 'VND'}
-                        </span>
-                      </div>
-                    ) : (
-                      <p className="text-gray-900 py-2">
-                        {profileData.candidate_profile?.expected_salary ? 
-                          `${profileData.candidate_profile.expected_salary.toLocaleString()} ${profileData.candidate_profile?.currency || 'VND'}` : 
-                          'Not provided'}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Currency */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Currency</label>
-                    {editingSections.personal ? (
-                      <select
-                        value={editedData.candidate_profile?.currency || 'VND'}
-                        onChange={(e) => handleFieldChange('candidate_profile', e.target.value, 'currency')}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                      >
-                        <option value="VND">VND</option>
-                        <option value="USD">USD</option>
-                        <option value="EUR">EUR</option>
-                      </select>
-                    ) : (
-                      <p className="text-gray-900 py-2">{profileData.candidate_profile?.currency || 'VND'}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Work Preferences */}
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <h4 className="text-md font-medium text-gray-900 mb-4">Work Preferences</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Remote Work Preference */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Remote Work Preference</label>
-                    {editingSections.personal ? (
-                      <select
-                        value={editedData.candidate_profile?.remote_work_preference || ''}
-                        onChange={(e) => handleFieldChange('candidate_profile', e.target.value, 'remote_work_preference')}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                      >
-                        <option value="">Select preference</option>
-                        <option value="ONSITE">Onsite</option>
-                        <option value="REMOTE">Remote</option>
-                        <option value="HYBRID">Hybrid</option>
-                        <option value="FLEXIBLE">Flexible</option>
-                      </select>
-                    ) : (
-                      <p className="text-gray-900 py-2">
-                        {profileData.candidate_profile?.remote_work_preference ? 
-                          profileData.candidate_profile.remote_work_preference.charAt(0) + profileData.candidate_profile.remote_work_preference.slice(1).toLowerCase() : 
-                          'Not specified'}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Years of Experience */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Years of Experience</label>
-                    {editingSections.personal ? (
-                      <input
-                        type="number"
-                        value={editedData.candidate_profile?.years_experience || ''}
-                        onChange={(e) => handleFieldChange('candidate_profile', parseInt(e.target.value) || 0, 'years_experience')}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                        placeholder="0"
-                        min="0"
-                        max="50"
-                      />
-                    ) : (
-                      <p className="text-gray-900 py-2">
-                        {profileData.candidate_profile?.years_experience ? 
-                          `${profileData.candidate_profile.years_experience} years` : 
-                          'Not specified'}
-                      </p>
-                    )}
-                </div>
-              </div>
-            </div>
-
-              {/* Edit Controls */}
-              {editingSections.personal && (
-                <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
-                  <button 
-                    onClick={() => handleSaveProfile('personal')}
-                    disabled={isSaving}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {isSaving ? 'Saving...' : 'Save'}
-                  </button>
-                  <button 
-                    onClick={() => handleSectionCancel('personal')}
-                    disabled={isSaving}
-                    className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Cancel
-                </button>
-              </div>
-                )}
-              </div>
-
             {/* About Me */}
-            <div className="bg-white rounded-xl shadow-sm p-6 text-left relative">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-left relative">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">About Me</h3>
                 {!editingSections.about && (
                   <button 
                     onClick={() => handleSectionEdit('about')}
-                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                    className="p-2 text-gray-400 hover:text-[#007bff] hover:bg-blue-50 rounded-full transition-colors"
                     title="Edit about section"
                   >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1078,7 +703,7 @@ const Profile: React.FC<ProfileProps> = ({
                   <textarea
                     value={editedData.bio || ''}
                     onChange={(e) => handleFieldChange('bio', e.target.value)}
-                    className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+                    className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#007bff] focus:border-[#007bff] outline-none resize-none"
                     rows={5}
                     placeholder="Tell us about yourself, your experience, and what makes you unique..."
                   />
@@ -1086,7 +711,7 @@ const Profile: React.FC<ProfileProps> = ({
                     <button 
                       onClick={() => handleSaveProfile('about')}
                       disabled={isSaving}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="px-4 py-2 bg-[#007bff] text-white rounded-lg font-medium hover:bg-[#0056b3] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       {isSaving ? 'Saving...' : 'Save'}
                     </button>
@@ -1108,14 +733,599 @@ const Profile: React.FC<ProfileProps> = ({
               )}
             </div>
 
+          {/* Work Experience */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-left relative">
+              <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Work Experience</h3>
+              {!editingSections.experience && (
+                <button 
+                  onClick={() => handleSectionEdit('experience')}
+                  className="p-2 text-gray-400 hover:text-[#007bff] hover:bg-blue-50 rounded-full transition-colors"
+                  title="Edit work experience"
+                >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              )}
+            </div>
+            
+            <div className="space-y-6">
+              {profileData.current_job_title || profileData.candidate_profile?.current_job_title || editingSections.experience ? (
+                <div className="flex space-x-4">
+                  <div className="w-12 h-12 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-[#007bff]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    {/* Job Title */}
+                    <div className="mb-2">
+                      {editingSections.experience ? (
+                        <input
+                          type="text"
+                          value={editedData.current_job_title || editedData.candidate_profile?.current_job_title || ''}
+                          onChange={(e) => handleFieldChange('current_job_title', e.target.value)}
+                          className="font-semibold text-gray-900 border border-gray-300 rounded-lg px-3 py-2 focus:border-[#007bff] outline-none w-full"
+                          placeholder="Enter current job title"
+                        />
+                      ) : (
+                        <h4 className="font-semibold text-gray-900">{profileData.current_job_title || profileData.candidate_profile?.current_job_title}</h4>
+                      )}
+                    </div>
+                    
+                    {/* Company */}
+                    <div className="mb-2">
+                      {editingSections.experience ? (
+                        <input
+                          type="text"
+                          value={editedData.current_company || editedData.candidate_profile?.current_company || ''}
+                          onChange={(e) => handleFieldChange('current_company', e.target.value)}
+                          className="text-[#007bff] font-medium border border-gray-300 rounded-lg px-3 py-2 focus:border-[#007bff] outline-none w-full"
+                          placeholder="Company name"
+                        />
+                      ) : (
+                        <p className="text-[#007bff] font-medium">{profileData.current_company || profileData.candidate_profile?.current_company || 'Company'} • Current</p>
+                      )}
+                    </div>
+                    
+                    {/* Years of Experience */}
+                    <div>
+                      {editingSections.experience ? (
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="number"
+                            value={editedData.years_of_experience || editedData.candidate_profile?.years_experience || ''}
+                            onChange={(e) => handleFieldChange('years_of_experience', parseInt(e.target.value) || 0)}
+                            className="text-gray-600 border border-gray-300 rounded-lg px-3 py-2 focus:border-[#007bff] outline-none w-24"
+                            placeholder="0"
+                            min="0"
+                            max="50"
+                          />
+                          <span className="text-gray-600">years of experience</span>
+                        </div>
+                      ) : (
+                        <p className="text-gray-600">
+                          {(profileData.years_of_experience || profileData.candidate_profile?.years_experience) ? 
+                            `${profileData.years_of_experience || profileData.candidate_profile?.years_experience} years of experience` : 
+                            'Experience information not provided'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-8">No work experience added yet</p>
+              )}
+            </div>
+
+            {/* Edit Controls */}
+            {editingSections.experience && (
+              <div className="flex gap-3 mt-6">
+                <button 
+                  onClick={() => handleSaveProfile('experience')}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-[#007bff] text-white rounded-lg font-medium hover:bg-[#0056b3] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
+                <button 
+                  onClick={() => handleSectionCancel('experience')}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Education */}
+             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-left relative">
+               <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Education</h3>
+              {!editingSections.education && (
+                <button 
+                  onClick={() => handleSectionEdit('education')}
+                  className="p-2 text-gray-400 hover:text-[#007bff] hover:bg-blue-50 rounded-full transition-colors"
+                  title="Edit education"
+                >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              )}
+            </div>
+            
+            <div className="space-y-6">
+              {profileData.education_level || profileData.candidate_profile?.education_level || editingSections.education ? (
+                <div className="flex space-x-4">
+                  <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="mb-2">
+                      {editingSections.education ? (
+                        <select
+                          value={editedData.education_level || editedData.candidate_profile?.education_level || ''}
+                          onChange={(e) => handleFieldChange('education_level', e.target.value)}
+                          className="font-semibold text-gray-900 border border-gray-300 rounded-lg px-3 py-2 focus:border-[#007bff] focus:ring-1 focus:ring-[#007bff] outline-none w-full"
+                        >
+                          <option value="">Select education level</option>
+                          <option value="HIGH_SCHOOL">High School</option>
+                          <option value="COLLEGE">College</option>
+                          <option value="BACHELOR">Bachelor's Degree</option>
+                          <option value="MASTER">Master's Degree</option>
+                          <option value="PHD">PhD</option>
+                        </select>
+                      ) : (
+                        <h4 className="font-semibold text-gray-900">
+                          {(profileData.education_level || profileData.candidate_profile?.education_level)?.replace('_', ' ')?.toLowerCase()?.replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                        </h4>
+                      )}
+                    </div>
+                    <p className="text-gray-600 font-medium">Education Level</p>
+                    <p className="text-gray-500 text-sm">Highest level of education completed</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-8">No education information added yet</p>
+              )}
+            </div>
+
+            {/* Edit Controls */}
+            {editingSections.education && (
+              <div className="flex gap-3 mt-6">
+                <button 
+                  onClick={() => handleSaveProfile('education')}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-[#007bff] text-white rounded-lg font-medium hover:bg-[#0056b3] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
+                <button 
+                  onClick={() => handleSectionCancel('education')}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+
+             {/* Skills Management */}
+             <SkillManagement 
+               userSkills={(profileData.candidate_profile?.skills || []).map((skill, index) => ({
+                 id: `skill-${index}`,
+                 skill_name: skill.skill_name,
+                 proficiency_level: skill.proficiency_level as 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert'
+               }))} 
+               onSkillsUpdate={(skills) => {
+                 setProfileData((prev: any) => ({ 
+                   ...prev, 
+                   candidate_profile: {
+                     ...prev.candidate_profile,
+                     skills
+                   }
+                 }));
+               }}
+             />
 
           </div>
 
           {/* Right Sidebar */}
           <div className="space-y-6">
             
+            {/* Personal Information */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-left">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
+                {!editingSections.personal && (
+                <button 
+                    onClick={() => handleSectionEdit('personal')}
+                  className="p-2 text-gray-400 hover:text-[#007bff] hover:bg-blue-50 rounded-full transition-colors"
+                    title="Edit personal information"
+                >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              )}
+            </div>
+            
+              <div className="space-y-4">
+                {/* Email */}
+                <div className="flex items-center space-x-3">
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-500">Email</p>
+                    {editingSections.personal ? (
+                      <input
+                        type="email"
+                        value={editedData.email || ''}
+                        onChange={(e) => handleFieldChange('email', e.target.value)}
+                        className="font-medium border border-gray-300 rounded-lg px-3 py-2 focus:border-[#007bff] outline-none bg-white w-full"
+                        placeholder="Enter your email"
+                      />
+                    ) : (
+                      <p className="font-medium">{profileData.email || 'Not provided'}</p>
+                    )}
+                </div>
+                </div>
 
-            {/* Profile Suggestions */}
+                {/* Phone */}
+                <div className="flex items-center space-x-3">
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                <div className="flex-1">
+                    <p className="text-sm text-gray-500">Phone</p>
+                    {editingSections.personal ? (
+                      <input
+                        type="tel"
+                        value={editedData.phone || ''}
+                        onChange={(e) => handleFieldChange('phone', e.target.value)}
+                        className="font-medium border border-gray-300 rounded-lg px-3 py-2 focus:border-[#007bff] outline-none w-full"
+                        placeholder="Enter phone number"
+                      />
+                    ) : (
+                      <p className="font-medium">{profileData.phone || 'Not provided'}</p>
+                    )}
+                    </div>
+                </div>
+
+                                 {/* Date of Birth */}
+                 <div className="flex items-center space-x-3">
+                   <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                     <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4M8 7h8M6 21h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2zM7 11h.01M11 11h.01M15 11h.01M7 15h.01M11 15h.01M15 15h.01" />
+                   </svg>
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-500">Date of Birth</p>
+                    {editingSections.personal ? (
+                      <input
+                        type="date"
+                        value={editedData.candidate_profile?.date_of_birth || ''}
+                        onChange={(e) => handleFieldChange('candidate_profile', e.target.value, 'date_of_birth')}
+                        className="font-medium border border-gray-300 rounded-lg px-3 py-2 focus:border-[#007bff] outline-none bg-white w-full"
+                      />
+                    ) : (
+                      <p className="font-medium">
+                        {profileData.candidate_profile?.date_of_birth ? 
+                          new Date(profileData.candidate_profile.date_of_birth).toLocaleDateString() : 
+                          'Not provided'}
+                    </p>
+              )}
+            </div>
+          </div>
+
+                {/* Gender */}
+                <div className="flex items-center space-x-3">
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                <div className="flex-1">
+                    <p className="text-sm text-gray-500">Gender</p>
+                    {editingSections.personal ? (
+                    <select
+                        value={editedData.candidate_profile?.gender || ''}
+                        onChange={(e) => handleFieldChange('candidate_profile', e.target.value, 'gender')}
+                        className="font-medium border border-gray-300 rounded-lg px-3 py-2 focus:border-[#007bff] focus:ring-1 focus:ring-[#007bff] outline-none w-full"
+                      >
+                        <option value="">Select gender</option>
+                        <option value="MALE">Male</option>
+                        <option value="FEMALE">Female</option>
+                        <option value="OTHER">Other</option>
+                        <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+                    </select>
+                  ) : (
+                      <p className="font-medium">
+                        {profileData.candidate_profile?.gender ? 
+                          profileData.candidate_profile.gender.charAt(0) + profileData.candidate_profile.gender.slice(1).toLowerCase().replace('_', ' ') : 
+                          'Not provided'}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+                {/* Address */}
+                <div className="flex items-center space-x-3">
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-500">Address</p>
+                    {editingSections.personal ? (
+                      <input
+                        type="text"
+                        value={editedData.candidate_profile?.address || ''}
+                        onChange={(e) => handleFieldChange('candidate_profile', e.target.value, 'address')}
+                        className="font-medium border border-gray-300 rounded-lg px-3 py-2 focus:border-[#007bff] outline-none w-full"
+                        placeholder="Enter your address"
+                      />
+                    ) : (
+                      <p className="font-medium">{profileData.candidate_profile?.address || 'Not provided'}</p>
+                    )}
+                    </div>
+                </div>
+
+                                 {/* Website */}
+                 <div className="flex items-center space-x-3">
+                   <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                   </svg>
+                <div className="flex-1">
+                    <p className="text-sm text-gray-500">Website</p>
+                    {editingSections.personal ? (
+                      <input
+                        type="url"
+                        value={editedData.website_url || ''}
+                        onChange={(e) => handleFieldChange('website_url', e.target.value)}
+                        className="font-medium border border-gray-300 rounded-lg px-3 py-2 focus:border-[#007bff] outline-none w-full"
+                        placeholder="https://your-website.com"
+                      />
+                    ) : (
+                      <p className="font-medium">
+                        {profileData.website_url ? 
+                          <a href={profileData.website_url} target="_blank" rel="noopener noreferrer" className="text-[#007bff] hover:underline">
+                            {profileData.website_url}
+                          </a> : 
+                          'Not provided'}
+                      </p>
+                    )}
+                    </div>
+                </div>
+
+                {/* Languages */}
+                <div className="flex items-center space-x-3">
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-500">Languages</p>
+                    {editingSections.personal ? (
+                      <input
+                        type="text"
+                        value={editedData.languages?.join(', ') || ''}
+                        onChange={(e) => handleFieldChange('languages', e.target.value.split(',').map(lang => lang.trim()))}
+                        className="font-medium border border-gray-300 rounded-lg px-3 py-2 focus:border-[#007bff] outline-none w-full"
+                        placeholder="English, Vietnamese, Japanese"
+                      />
+                    ) : (
+                      <p className="font-medium">
+                        {profileData.languages?.length ? profileData.languages.join(', ') : 'Not provided'}
+                    </p>
+                  )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Edit Controls */}
+              {editingSections.personal && (
+                <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
+                  <button 
+                    onClick={() => handleSaveProfile('personal')}
+                    disabled={isSaving}
+                    className="px-4 py-2 bg-[#007bff] text-white rounded-lg font-medium hover:bg-[#0056b3] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isSaving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button 
+                    onClick={() => handleSectionCancel('personal')}
+                    disabled={isSaving}
+                    className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                             )}
+             </div>
+
+             {/* Salary & Work Preferences */}
+             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-left">
+               <div className="flex items-center justify-between mb-4">
+                 <h3 className="text-lg font-semibold text-gray-900">Salary & Work Preferences</h3>
+                 {!editingSections.salary && (
+                   <button 
+                     onClick={() => handleSectionEdit('salary')}
+                     className="p-2 text-gray-400 hover:text-[#007bff] hover:bg-blue-50 rounded-full transition-colors"
+                     title="Edit salary and work preferences"
+                   >
+                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                 </button>
+                 )}
+                </div>
+               
+               <div className="space-y-4">
+                 {/* Current Salary */}
+                 <div className="flex items-center space-x-3">
+                   <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                   </svg>
+                <div className="flex-1">
+                     <p className="text-sm text-gray-500">Current Salary</p>
+                     {editingSections.salary ? (
+                       <div className="flex">
+                      <input
+                        type="number"
+                           value={editedData.candidate_profile?.current_salary || ''}
+                           onChange={(e) => handleFieldChange('candidate_profile', parseFloat(e.target.value) || 0, 'current_salary')}
+                           className="font-medium border border-gray-300 rounded-l-lg px-3 py-2 focus:border-[#007bff] outline-none bg-white flex-1"
+                           placeholder="0"
+                         />
+                         <span className="px-3 py-2 bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg text-sm text-gray-600 font-medium">
+                           {editedData.candidate_profile?.currency || profileData.candidate_profile?.currency || 'VND'}
+                         </span>
+                    </div>
+                  ) : (
+                       <p className="font-medium">
+                         {profileData.candidate_profile?.current_salary ? 
+                           `${profileData.candidate_profile.current_salary.toLocaleString()} ${profileData.candidate_profile?.currency || 'VND'}` : 
+                           'Not provided'}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+                                  {/* Expected Salary */}
+                 <div className="flex items-center space-x-3">
+                   <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                     <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                   <div className="flex-1">
+                     <p className="text-sm text-gray-500">Expected Salary</p>
+                     {editingSections.salary ? (
+                       <div className="flex">
+                         <input
+                           type="number"
+                           value={editedData.candidate_profile?.expected_salary || ''}
+                           onChange={(e) => handleFieldChange('candidate_profile', parseFloat(e.target.value) || 0, 'expected_salary')}
+                           className="font-medium border border-gray-300 rounded-l-lg px-3 py-2 focus:border-[#007bff] outline-none bg-white flex-1"
+                           placeholder="0"
+                         />
+                         <span className="px-3 py-2 bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg text-sm text-gray-600 font-medium">
+                           {editedData.candidate_profile?.currency || profileData.candidate_profile?.currency || 'VND'}
+                         </span>
+                </div>
+                     ) : (
+                       <p className="font-medium">
+                         {profileData.candidate_profile?.expected_salary ? 
+                           `${profileData.candidate_profile.expected_salary.toLocaleString()} ${profileData.candidate_profile?.currency || 'VND'}` : 
+                           'Not provided'}
+                       </p>
+                     )}
+                   </div>
+                 </div>
+
+                 {/* Currency */}
+                 <div className="flex items-center space-x-3">
+                   <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                   </svg>
+                <div className="flex-1">
+                     <p className="text-sm text-gray-500">Currency</p>
+                     {editingSections.salary ? (
+                    <select
+                         value={editedData.candidate_profile?.currency || 'VND'}
+                         onChange={(e) => handleFieldChange('candidate_profile', e.target.value, 'currency')}
+                         className="font-medium border border-gray-300 rounded-lg px-3 py-2 focus:border-[#007bff] focus:ring-1 focus:ring-[#007bff] outline-none w-full"
+                       >
+                         <option value="VND">VND</option>
+                         <option value="USD">USD</option>
+                         <option value="EUR">EUR</option>
+                       </select>
+                     ) : (
+                       <p className="font-medium">{profileData.candidate_profile?.currency || 'VND'}</p>
+                     )}
+                   </div>
+                 </div>
+
+                 {/* Remote Work Preference */}
+                 <div className="flex items-center space-x-3">
+                   <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" />
+                   </svg>
+                   <div className="flex-1">
+                     <p className="text-sm text-gray-500">Work Preference</p>
+                     {editingSections.salary ? (
+                       <select
+                         value={editedData.candidate_profile?.remote_work_preference || ''}
+                         onChange={(e) => handleFieldChange('candidate_profile', e.target.value, 'remote_work_preference')}
+                         className="font-medium border border-gray-300 rounded-lg px-3 py-2 focus:border-[#007bff] focus:ring-1 focus:ring-[#007bff] outline-none w-full"
+                    >
+                      <option value="">Select preference</option>
+                         <option value="ONSITE">Onsite</option>
+                         <option value="REMOTE">Remote</option>
+                         <option value="HYBRID">Hybrid</option>
+                         <option value="FLEXIBLE">Flexible</option>
+                    </select>
+                  ) : (
+                       <p className="font-medium">
+                         {profileData.candidate_profile?.remote_work_preference ? 
+                           profileData.candidate_profile.remote_work_preference.charAt(0) + profileData.candidate_profile.remote_work_preference.slice(1).toLowerCase() : 
+                           'Not specified'}
+                       </p>
+                     )}
+                   </div>
+                 </div>
+
+                 {/* Years of Experience */}
+                 <div className="flex items-center space-x-3">
+                   <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                   </svg>
+                   <div className="flex-1">
+                     <p className="text-sm text-gray-500">Years of Experience</p>
+                     {editingSections.salary ? (
+                       <input
+                         type="number"
+                         value={editedData.candidate_profile?.years_experience || ''}
+                         onChange={(e) => handleFieldChange('candidate_profile', parseInt(e.target.value) || 0, 'years_experience')}
+                         className="font-medium border border-gray-300 rounded-lg px-3 py-2 focus:border-[#007bff] outline-none w-full"
+                         placeholder="0"
+                         min="0"
+                         max="50"
+                       />
+                     ) : (
+                       <p className="font-medium">
+                         {profileData.candidate_profile?.years_experience ? 
+                           `${profileData.candidate_profile.years_experience} years` : 
+                           'Not specified'}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Edit Controls */}
+               {editingSections.salary && (
+                 <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200">
+                <button 
+                     onClick={() => handleSaveProfile('salary')}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-[#007bff] text-white rounded-lg font-medium hover:bg-[#0056b3] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
+                <button 
+                     onClick={() => handleSectionCancel('salary')}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+
+             {/* Profile Suggestions */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6 text-left">
               {/* Removed suggestions loading animation */}
               {suggestionsError ? (
@@ -1128,7 +1338,7 @@ const Profile: React.FC<ProfileProps> = ({
                       <p className="text-sm text-gray-600 mb-2">{suggestionsError}</p>
                       <button
                         onClick={refreshSuggestions}
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        className="text-[#007bff] hover:text-[#0056b3] text-sm font-medium"
                       >
                         Try again
                       </button>
@@ -1147,7 +1357,7 @@ const Profile: React.FC<ProfileProps> = ({
                         <div className="text-sm font-medium text-gray-900 mb-1">Complete {completionPercentage}%</div>
                         <div className="w-24 bg-gray-200 rounded-full h-2">
                           <div 
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            className="bg-[#007bff] h-2 rounded-full transition-all duration-300"
                             style={{ width: `${completionPercentage}%` }}
                           ></div>
                         </div>
@@ -1208,7 +1418,7 @@ const Profile: React.FC<ProfileProps> = ({
                                     <div className="flex items-center gap-2">
                                       <button
                                         onClick={() => handleSuggestionAction(suggestion)}
-                                        className="px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
+                                        className="px-3 py-1 bg-[#007bff] text-white text-xs rounded-lg hover:bg-[#0056b3] transition-colors"
                                       >
                                         Take Action
                                       </button>
@@ -1242,7 +1452,7 @@ const Profile: React.FC<ProfileProps> = ({
                     <div className="mt-6 pt-4 border-t border-gray-200">
                       <button
                         onClick={refreshSuggestions}
-                        className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                        className="text-sm text-[#007bff] hover:text-[#0056b3] font-medium"
                       >
                         Refresh suggestions
                       </button>
@@ -1253,215 +1463,6 @@ const Profile: React.FC<ProfileProps> = ({
             </div>
 
           </div>
-        </div>
-
-        {/* Full Width Sections */}
-        <div className="space-y-6 mt-8 text-left">
-          {/* Work Experience */}
-          <div className="bg-white rounded-xl shadow-sm p-6 relative">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">Work Experience</h3>
-              {!editingSections.experience && (
-                <button 
-                  onClick={() => handleSectionEdit('experience')}
-                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                  title="Edit work experience"
-                >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              </button>
-              )}
-            </div>
-            
-            <div className="space-y-6">
-              {profileData.current_job_title || profileData.candidate_profile?.current_job_title || editingSections.experience ? (
-                <div className="flex space-x-4">
-                  <div className="w-12 h-12 bg-[#007BFF] rounded-xl flex items-center justify-center">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    {/* Job Title */}
-                    <div className="mb-2">
-                      {editingSections.experience ? (
-                        <input
-                          type="text"
-                          value={editedData.current_job_title || editedData.candidate_profile?.current_job_title || ''}
-                          onChange={(e) => handleFieldChange('current_job_title', e.target.value)}
-                          className="font-semibold text-gray-900 border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 outline-none w-full"
-                          placeholder="Enter current job title"
-                        />
-                      ) : (
-                        <h4 className="font-semibold text-gray-900">{profileData.current_job_title || profileData.candidate_profile?.current_job_title}</h4>
-                      )}
-                    </div>
-                    
-                    {/* Company */}
-                    <div className="mb-2">
-                      {editingSections.experience ? (
-                        <input
-                          type="text"
-                          value={editedData.current_company || editedData.candidate_profile?.current_company || ''}
-                          onChange={(e) => handleFieldChange('current_company', e.target.value)}
-                          className="text-[#007BFF] font-medium border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 outline-none w-full"
-                          placeholder="Company name"
-                        />
-                      ) : (
-                        <p className="text-[#007BFF] font-medium">{profileData.current_company || profileData.candidate_profile?.current_company || 'Company'} • Current</p>
-                      )}
-                    </div>
-                    
-                    <p className="text-gray-500 text-sm mb-2">{profileData.location || profileData.address || profileData.candidate_profile?.city_name || profileData.candidate_profile?.address || 'Location not specified'}</p>
-                    
-                    {/* Years of Experience */}
-                    <div>
-                      {editingSections.experience ? (
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="number"
-                            value={editedData.years_of_experience || editedData.candidate_profile?.years_experience || ''}
-                            onChange={(e) => handleFieldChange('years_of_experience', parseInt(e.target.value) || 0)}
-                            className="text-gray-600 border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 outline-none w-24"
-                            placeholder="0"
-                            min="0"
-                            max="50"
-                          />
-                          <span className="text-gray-600">years of experience</span>
-                        </div>
-                      ) : (
-                        <p className="text-gray-600">
-                          {(profileData.years_of_experience || profileData.candidate_profile?.years_experience) ? 
-                            `${profileData.years_of_experience || profileData.candidate_profile?.years_experience} years of experience` : 
-                            'Experience information not provided'}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-gray-500 text-center py-8">No work experience added yet</p>
-              )}
-            </div>
-
-            {/* Edit Controls */}
-            {editingSections.experience && (
-              <div className="flex gap-3 mt-6">
-                <button 
-                  onClick={() => handleSaveProfile('experience')}
-                  disabled={isSaving}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isSaving ? 'Saving...' : 'Save'}
-                </button>
-                <button 
-                  onClick={() => handleSectionCancel('experience')}
-                  disabled={isSaving}
-                  className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Education */}
-          <div className="bg-white rounded-xl shadow-sm p-6 relative">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">Education</h3>
-              {!editingSections.education && (
-                <button 
-                  onClick={() => handleSectionEdit('education')}
-                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                  title="Edit education"
-                >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              </button>
-              )}
-            </div>
-            
-            <div className="space-y-6">
-              {profileData.education_level || profileData.candidate_profile?.education_level || editingSections.education ? (
-                <div className="flex space-x-4">
-                  <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <div className="mb-2">
-                      {editingSections.education ? (
-                        <select
-                          value={editedData.education_level || editedData.candidate_profile?.education_level || ''}
-                          onChange={(e) => handleFieldChange('education_level', e.target.value)}
-                          className="font-semibold text-gray-900 border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none w-full"
-                        >
-                          <option value="">Select education level</option>
-                          <option value="HIGH_SCHOOL">High School</option>
-                          <option value="COLLEGE">College</option>
-                          <option value="BACHELOR">Bachelor's Degree</option>
-                          <option value="MASTER">Master's Degree</option>
-                          <option value="PHD">PhD</option>
-                        </select>
-                      ) : (
-                        <h4 className="font-semibold text-gray-900">
-                          {(profileData.education_level || profileData.candidate_profile?.education_level)?.replace('_', ' ')?.toLowerCase()?.replace(/\b\w/g, (l: string) => l.toUpperCase())}
-                        </h4>
-                      )}
-                    </div>
-                    <p className="text-gray-600 font-medium">Education Level</p>
-                    <p className="text-gray-500 text-sm">Highest level of education completed</p>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-gray-500 text-center py-8">No education information added yet</p>
-              )}
-            </div>
-
-            {/* Edit Controls */}
-            {editingSections.education && (
-              <div className="flex gap-3 mt-6">
-                <button 
-                  onClick={() => handleSaveProfile('education')}
-                  disabled={isSaving}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isSaving ? 'Saving...' : 'Save'}
-                </button>
-                <button 
-                  onClick={() => handleSectionCancel('education')}
-                  disabled={isSaving}
-                  className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Skills Management */}
-          <SkillManagement 
-            userSkills={(profileData.candidate_profile?.skills || []).map((skill, index) => ({
-              id: `skill-${index}`,
-              skill_name: skill.skill_name,
-              proficiency_level: skill.proficiency_level as 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert'
-            }))} 
-            onSkillsUpdate={(skills) => {
-              setProfileData((prev: any) => ({ 
-                ...prev, 
-                candidate_profile: {
-                  ...prev.candidate_profile,
-                  skills
-                }
-              }));
-            }}
-          />
-
-
-
                     </div>
       </div>
     </div>
