@@ -60,6 +60,7 @@ interface Resume {
   bestMatchScore?: number; // Điểm match cao nhất
   bestMatchJob?: string; // Tên job có điểm match cao nhất
   hasJobMatches?: boolean; // Có match scores với jobs không
+  is_primary?: boolean; // Whether this is the primary CV
 }
 
 // Helper functions for file persistence
@@ -102,13 +103,42 @@ export const Resume: React.FC = () => {
 
   // Load saved resumes and available jobs
   useEffect(() => {
-    const loadSavedResumes = () => {
+    const loadSavedResumes = async () => {
       try {
+        // First, try to load from API to get latest data including is_primary
+        try {
+          const apiResponse = await candidateApi.getMyCVs();
+          if (apiResponse && apiResponse.data && Array.isArray(apiResponse.data)) {
+            // Transform API data to Resume format
+            const apiResumes = apiResponse.data.map((cv: any) => ({
+              id: cv.cv_id,
+              cv_id: cv.cv_id,
+              candidate_id: cv.candidate_id,
+              full_name: cv.cv_title || cv.cv_name || 'Untitled CV',
+              email: cv.email || 'N/A',
+              phone: cv.phone || 'N/A',
+              address: cv.address || 'N/A',
+              objective: cv.objective || cv.description || '',
+              fileName: cv.file_name || cv.cv_file_name,
+              fileType: cv.file_type || cv.cv_file_type,
+              filePath: cv.file_path || cv.cv_file_url,
+              uploadedAt: new Date(cv.created_at || cv.updated_at || Date.now()),
+              is_primary: cv.is_primary || false
+            }));
+            
+            setResumes(apiResumes);
+            // Save to localStorage for offline access
+            saveResumesToLocalStorage(apiResumes);
+            return;
+          }
+        } catch (apiError) {
+          console.log('API failed, falling back to localStorage:', apiError);
+        }
+        
+        // Fallback to localStorage if API fails
         const savedResumes = localStorage.getItem('userResumes');
         if (savedResumes) {
           const parsedResumes = JSON.parse(savedResumes);
-          // Note: Files are now stored on server (filePath), not as base64 in localStorage
-          // localStorage only contains resume metadata for UI persistence
           setResumes(parsedResumes);
         }
       } catch (err) {
@@ -430,6 +460,40 @@ export const Resume: React.FC = () => {
     console.log('Triggered job matching calculation for CV:', resume.cv_id);
   };
 
+  const handleSetPrimaryCV = async (resume: Resume) => {
+    if (!resume.cv_id) {
+      alert('CV ID not found. Please re-upload the CV.');
+      return;
+    }
+
+    // Close dropdown
+    setOpenDropdownId(null);
+
+    try {
+      await candidateApi.setPrimaryCV(resume.cv_id);
+      
+      // Update local state - mark this CV as primary and others as not primary
+      setResumes(prevResumes => 
+        prevResumes.map(r => ({
+          ...r,
+          is_primary: r.id === resume.id
+        }))
+      );
+
+      // Update localStorage
+      const updatedResumes = resumes.map(r => ({
+        ...r,
+        is_primary: r.id === resume.id
+      }));
+      saveResumesToLocalStorage(updatedResumes);
+
+      alert(`"${resume.full_name}" has been set as your primary CV.`);
+    } catch (error: any) {
+      console.error('Failed to set primary CV:', error);
+      alert('Failed to set primary CV. Please try again.');
+    }
+  };
+
   const toggleDropdown = (resumeId: string) => {
     setOpenDropdownId(openDropdownId === resumeId ? null : resumeId);
   };
@@ -677,6 +741,11 @@ export const Resume: React.FC = () => {
               year: '2-digit'
             })}
           </span>
+          {resume.is_primary && (
+            <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap">
+              Primary
+            </span>
+          )}
           <div className="relative">
             <button 
               className="text-gray-400 hover:text-gray-600 p-1"
@@ -704,6 +773,20 @@ export const Resume: React.FC = () => {
                   </svg>
                   Calculate Job Matches
                 </button>
+                {!resume.is_primary && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSetPrimaryCV(resume);
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 flex items-center"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Set as Primary CV
+                  </button>
+                )}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

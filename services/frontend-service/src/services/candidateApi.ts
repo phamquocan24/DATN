@@ -501,7 +501,7 @@ export const candidateApi = {
 
   // Set CV as primary
   setPrimaryCV: async (cvId: string) => {
-    const response = await apiClient.post(`/cvs/${cvId}/set-primary`);
+    const response = await apiClient.post(`/api/v1/cvs/${cvId}/set-primary`);
     return response.data;
   },
 
