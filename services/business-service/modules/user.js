@@ -70,11 +70,12 @@ const changePasswordSchema = Joi.object({
 });
 
 const addSkillSchema = Joi.object({
-  skill_id: Joi.string().uuid().required(),
+  skill_id: Joi.string().uuid().optional(), // Optional: if provided, use it; if not, create from skill_name
+  skill_name: Joi.string().min(1).max(100).optional(), // Optional: if skill_id not provided, use this to create skill
   proficiency_level: Joi.string().valid('BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT').required(),
   years_experience: Joi.number().integer().min(0).max(50).default(0),
   is_primary: Joi.boolean().default(false)
-});
+}).xor('skill_id', 'skill_name'); // Either skill_id OR skill_name must be provided, not both
 
 const updateUserStatusSchema = Joi.object({
   is_active: Joi.boolean().required()
@@ -131,9 +132,7 @@ router.get('/profile', authenticateToken, async (req, res) => {
     res.json({
       success: true,
       message: 'Profile retrieved successfully',
-      data: {
-        user: profile
-      }
+      data: profile // Return profile directly, not wrapped in { user: profile }
     });
 
   } catch (error) {
@@ -527,6 +526,97 @@ router.get('/profile/suggestions', authenticateToken, async (req, res) => {
   }
 });
 
+// Upload avatar image
+router.post('/upload-avatar', authenticateToken, async (req, res) => {
+  try {
+    const multer = require('multer');
+    const path = require('path');
+    const fs = require('fs');
+    
+    // Configure multer for file upload
+    const storage = multer.diskStorage({
+      destination: (req, file, cb) => {
+        const uploadDir = path.join(__dirname, '../uploads/avatars');
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+      },
+      filename: (req, file, cb) => {
+        const uniqueName = `${req.user.user_id}_${Date.now()}${path.extname(file.originalname)}`;
+        cb(null, uniqueName);
+      }
+    });
+    
+    const upload = multer({ 
+      storage,
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+      fileFilter: (req, file, cb) => {
+        const allowedTypes = /jpeg|jpg|png|gif/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+        
+        if (mimetype && extname) {
+          return cb(null, true);
+        } else {
+          cb(new Error('Only image files are allowed'));
+        }
+      }
+    }).single('avatar');
+    
+    upload(req, res, async (err) => {
+      if (err) {
+        return res.status(400).json({
+          success: false,
+          error: err.message,
+          code: 'UPLOAD_ERROR'
+        });
+      }
+      
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          error: 'No file uploaded',
+          code: 'NO_FILE'
+        });
+      }
+      
+      // Generate URL for the uploaded file
+      const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+      
+      // Update user profile with new avatar URL
+      await userModel.db.query(
+        `UPDATE user_profile SET profile_image_url = $1, updated_at = NOW() 
+         WHERE user_id = $2`,
+        [avatarUrl, req.user.user_id],
+        'update_avatar_url'
+      );
+      
+      logger.info('Avatar uploaded successfully', {
+        user_id: req.user.user_id,
+        filename: req.file.filename,
+        avatar_url: avatarUrl
+      });
+      
+      res.json({
+        success: true,
+        message: 'Avatar uploaded successfully',
+        data: {
+          avatar_url: avatarUrl
+        }
+      });
+    });
+    
+  } catch (error) {
+    logger.error('Failed to upload avatar:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: 'AVATAR_UPLOAD_ERROR'
+    });
+  }
+});
+
 // Add skill to candidate profile
 router.post('/skills', authenticateToken, requireRole(['CANDIDATE']), async (req, res) => {
   try {
@@ -539,7 +629,7 @@ router.post('/skills', authenticateToken, requireRole(['CANDIDATE']), async (req
       });
     }
 
-    const { skill_id, proficiency_level, years_experience, is_primary } = value;
+    const { skill_id, skill_name, proficiency_level, years_experience, is_primary } = value;
 
     // Get candidate profile
     const profile = await userModel.getUserProfile(req.user.user_id);
@@ -551,7 +641,33 @@ router.post('/skills', authenticateToken, requireRole(['CANDIDATE']), async (req
       });
     }
 
-    // Add skill
+    let finalSkillId = skill_id;
+
+    // If skill_name is provided instead of skill_id, find or create the skill
+    if (skill_name && !skill_id) {
+      // First, try to find existing skill by name (case-insensitive)
+      const existingSkill = await userModel.db.query(
+        `SELECT skill_id FROM skills WHERE LOWER(skill_name) = LOWER($1) LIMIT 1`,
+        [skill_name.trim()],
+        'find_skill_by_name'
+      );
+
+      if (existingSkill.rows.length > 0) {
+        finalSkillId = existingSkill.rows[0].skill_id;
+      } else {
+        // Create new skill
+        const newSkill = await userModel.db.query(
+          `INSERT INTO skills (skill_name, category, is_active) 
+           VALUES ($1, 'General', true) 
+           RETURNING skill_id`,
+          [skill_name.trim()],
+          'create_new_skill'
+        );
+        finalSkillId = newSkill.rows[0].skill_id;
+      }
+    }
+
+    // Add skill to candidate profile
     await userModel.db.query(
       `INSERT INTO candidate_skills (profile_id, skill_id, proficiency_level, years_experience, is_primary)
        VALUES ($1, $2, $3, $4, $5)
@@ -560,13 +676,14 @@ router.post('/skills', authenticateToken, requireRole(['CANDIDATE']), async (req
          proficiency_level = $3,
          years_experience = $4,
          is_primary = $5`,
-      [profile.candidate_profile.profile_id, skill_id, proficiency_level, years_experience, is_primary],
+      [profile.candidate_profile.profile_id, finalSkillId, proficiency_level, years_experience, is_primary],
       'add_candidate_skill'
     );
 
     logger.info('Skill added to candidate profile', {
       user_id: req.user.user_id,
-      skill_id,
+      skill_id: finalSkillId,
+      skill_name: skill_name,
       proficiency_level
     });
 

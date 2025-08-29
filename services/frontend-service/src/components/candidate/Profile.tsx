@@ -66,6 +66,7 @@ interface UserProfileData {
     profile_completion_percentage?: number;
     job_seeking_status?: string;
     skills?: Array<{
+      skill_id: string; // Added skill_id from backend
       skill_name: string;
       category: string;
       proficiency_level: string;
@@ -113,9 +114,7 @@ const Profile: React.FC<ProfileProps> = ({
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-
         const profileResponse = await candidateApi.getProfile();
-
         
         if (profileResponse?.success && profileResponse?.data) {
           const userData = profileResponse.data as UserProfileData;
@@ -126,7 +125,6 @@ const Profile: React.FC<ProfileProps> = ({
           setError('Bạn cần đăng nhập để xem profile.');
         }
       } catch (err: any) {
-  
         if (err.response?.status === 401) {
           setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
         } else {
@@ -437,31 +435,31 @@ const Profile: React.FC<ProfileProps> = ({
       if (sectionName) {
         switch (sectionName) {
           case 'header':
-            if (editedData.full_name !== undefined) updateData.full_name = editedData.full_name;
+      if (editedData.full_name !== undefined) updateData.full_name = editedData.full_name;
             if (editedData.current_job_title !== undefined) updateData.current_job_title = editedData.current_job_title;
             if (editedData.profile_image_url !== undefined) updateData.profile_image_url = editedData.profile_image_url;
             if (editedData.avatar_url !== undefined) updateData.profile_image_url = editedData.avatar_url;
             break;
           case 'about':
-            if (editedData.bio !== undefined) updateData.bio = editedData.bio;
+      if (editedData.bio !== undefined) updateData.bio = editedData.bio;
             break;
           case 'experience':
-            if (editedData.current_job_title !== undefined) updateData.current_job_title = editedData.current_job_title;
-            if (editedData.current_company !== undefined) updateData.current_company = editedData.current_company;
+      if (editedData.current_job_title !== undefined) updateData.current_job_title = editedData.current_job_title;
+      if (editedData.current_company !== undefined) updateData.current_company = editedData.current_company;
             if (editedData.years_of_experience !== undefined) updateData.years_experience = editedData.years_of_experience;
             break;
           case 'education':
-            if (editedData.education_level !== undefined) updateData.education_level = editedData.education_level;
+      if (editedData.education_level !== undefined) updateData.education_level = editedData.education_level;
             break;
           case 'personal':
             if (editedData.email !== undefined) updateData.email = editedData.email;
             if (editedData.phone !== undefined) updateData.phone = editedData.phone;
             if (editedData.website_url !== undefined) updateData.website_url = editedData.website_url;
             if (editedData.languages !== undefined) updateData.languages = editedData.languages;
-            if (editedData.candidate_profile) {
-              if (editedData.candidate_profile.date_of_birth !== undefined) updateData.date_of_birth = editedData.candidate_profile.date_of_birth;
-              if (editedData.candidate_profile.gender !== undefined) updateData.gender = editedData.candidate_profile.gender;
-              if (editedData.candidate_profile.address !== undefined) updateData.address = editedData.candidate_profile.address;
+      if (editedData.candidate_profile) {
+        if (editedData.candidate_profile.date_of_birth !== undefined) updateData.date_of_birth = editedData.candidate_profile.date_of_birth;
+        if (editedData.candidate_profile.gender !== undefined) updateData.gender = editedData.candidate_profile.gender;
+        if (editedData.candidate_profile.address !== undefined) updateData.address = editedData.candidate_profile.address;
             }
             break;
           case 'salary':
@@ -487,14 +485,14 @@ const Profile: React.FC<ProfileProps> = ({
           if (editedData.candidate_profile.date_of_birth !== undefined) updateData.date_of_birth = editedData.candidate_profile.date_of_birth;
           if (editedData.candidate_profile.gender !== undefined) updateData.gender = editedData.candidate_profile.gender;
           if (editedData.candidate_profile.address !== undefined) updateData.address = editedData.candidate_profile.address;
-          if (editedData.candidate_profile.education_level !== undefined) updateData.education_level = editedData.candidate_profile.education_level;
-          if (editedData.candidate_profile.years_experience !== undefined) updateData.years_experience = editedData.candidate_profile.years_experience;
-          if (editedData.candidate_profile.current_job_title !== undefined) updateData.current_job_title = editedData.candidate_profile.current_job_title;
-          if (editedData.candidate_profile.current_company !== undefined) updateData.current_company = editedData.candidate_profile.current_company;
-          if (editedData.candidate_profile.current_salary !== undefined) updateData.current_salary = editedData.candidate_profile.current_salary;
-          if (editedData.candidate_profile.expected_salary !== undefined) updateData.expected_salary = editedData.candidate_profile.expected_salary;
+        if (editedData.candidate_profile.education_level !== undefined) updateData.education_level = editedData.candidate_profile.education_level;
+        if (editedData.candidate_profile.years_experience !== undefined) updateData.years_experience = editedData.candidate_profile.years_experience;
+        if (editedData.candidate_profile.current_job_title !== undefined) updateData.current_job_title = editedData.candidate_profile.current_job_title;
+        if (editedData.candidate_profile.current_company !== undefined) updateData.current_company = editedData.candidate_profile.current_company;
+        if (editedData.candidate_profile.current_salary !== undefined) updateData.current_salary = editedData.candidate_profile.current_salary;
+        if (editedData.candidate_profile.expected_salary !== undefined) updateData.expected_salary = editedData.candidate_profile.expected_salary;
           if (editedData.candidate_profile.currency !== undefined) updateData.currency = editedData.candidate_profile.currency;
-          if (editedData.candidate_profile.remote_work_preference !== undefined) updateData.remote_work_preference = editedData.candidate_profile.remote_work_preference;
+        if (editedData.candidate_profile.remote_work_preference !== undefined) updateData.remote_work_preference = editedData.candidate_profile.remote_work_preference;
         }
       }
 
@@ -623,19 +621,33 @@ const Profile: React.FC<ProfileProps> = ({
                   
                   {editingSections.header && (
                      <>
-                       <input
-                         type="file"
-                         accept="image/*"
-                         onChange={(e) => {
-                           const file = e.target.files?.[0];
-                           if (file) {
-                             const imageUrl = URL.createObjectURL(file);
-                             handleFieldChange('profile_image_url', imageUrl);
-                           }
-                         }}
-                         className="hidden"
-                         id="avatar-upload"
-                       />
+                                             <input
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            try {
+                              // Create FormData for file upload
+                              const formData = new FormData();
+                              formData.append('avatar', file);
+                              
+                              // Upload file to server
+                              const uploadResponse = await candidateApi.uploadAvatar(formData);
+                              
+                              if (uploadResponse.success && uploadResponse.data?.avatar_url) {
+                                // Use the server-returned URL
+                                handleFieldChange('profile_image_url', uploadResponse.data.avatar_url);
+                              }
+                            } catch (error) {
+                              console.error('Failed to upload avatar:', error);
+                              setError('Failed to upload avatar. Please try again.');
+                            }
+                          }
+                        }}
+                        className="hidden"
+                        id="avatar-upload"
+                      />
                        <label
                          htmlFor="avatar-upload"
                          className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
@@ -959,19 +971,26 @@ const Profile: React.FC<ProfileProps> = ({
 
              {/* Skills Management */}
              <SkillManagement 
-               userSkills={(profileData.candidate_profile?.skills || []).map((skill, index) => ({
-                 id: `skill-${index}`,
+               userSkills={(profileData.candidate_profile?.skills || []).map((skill) => ({
+                 id: skill.skill_id || `skill-${skill.skill_name}`,
                  skill_name: skill.skill_name,
                  proficiency_level: skill.proficiency_level as 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert'
                }))} 
-               onSkillsUpdate={(skills) => {
-                 setProfileData((prev: any) => ({ 
-                   ...prev, 
-                   candidate_profile: {
-                     ...prev.candidate_profile,
-                     skills
+               onSkillsUpdate={() => {
+                 // Refresh profile data after skill update
+                 const fetchProfile = async () => {
+                   try {
+                     const profileResponse = await candidateApi.getProfile();
+                     if (profileResponse?.success && profileResponse?.data) {
+                       const userData = profileResponse.data as UserProfileData;
+                       setProfileData(userData);
+                       setEditedData(userData);
+                     }
+                   } catch (error) {
+                     console.error('Failed to refresh profile after skill update:', error);
                    }
-                 }));
+                 };
+                 fetchProfile();
                }}
              />
 

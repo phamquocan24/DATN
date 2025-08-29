@@ -163,6 +163,42 @@ app.use(cors({
   optionsSuccessStatus: 204
 }));
 
+// CORS middleware for static files
+app.use('/uploads', (req, res, next) => {
+  const origin = req.headers.origin;
+  
+  // Log the request for debugging
+  logger.info('Static file request:', {
+    path: req.path,
+    origin: origin,
+    method: req.method,
+    userAgent: req.headers['user-agent']?.substring(0, 50)
+  });
+  
+  // Set CORS headers for all uploads requests
+  res.header('Access-Control-Allow-Origin', origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.header('Cross-Origin-Embedder-Policy', 'unsafe-none');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  next();
+});
+
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  setHeaders: (res, path, stat) => {
+    // Additional headers for static files
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  }
+}));
+
 app.use(morgan('combined', {
   stream: {
     write: (message) => logger.info(message.trim())

@@ -26,6 +26,7 @@ const SkillManagement: React.FC<SkillManagementProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [skillToDelete, setSkillToDelete] = useState<{id: string, name: string} | null>(null);
 
   const proficiencyLevels = ['Beginner', 'Intermediate', 'Advanced', 'Expert'] as const;
 
@@ -60,26 +61,28 @@ const SkillManagement: React.FC<SkillManagementProps> = ({
         setTimeout(() => setSuccess(null), 3000);
       }
     } catch (err: any) {
-      console.error('Error adding skill:', err);
-      setError(err.message || 'Failed to add skill. Please try again.');
+      setError(err.response?.data?.error || err.message || 'Failed to add skill. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteSkill = async (skillId: string, skillName: string) => {
-    if (!window.confirm(`Are you sure you want to remove "${skillName}" from your skills?`)) {
-      return;
-    }
+    setSkillToDelete({ id: skillId, name: skillName });
+  };
+
+  const confirmDeleteSkill = async () => {
+    if (!skillToDelete) return;
 
     setLoading(true);
     setError(null);
     setSuccess(null);
 
     try {
-      const response = await candidateApi.deleteSkill(skillId);
+      const response = await candidateApi.deleteSkill(skillToDelete.id);
+      
       if (response.success) {
-        const updatedSkills = skills.filter(skill => skill.id !== skillId);
+        const updatedSkills = skills.filter(skill => skill.id !== skillToDelete.id);
         setSkills(updatedSkills);
         onSkillsUpdate?.(updatedSkills);
         setSuccess('Skill removed successfully!');
@@ -88,10 +91,10 @@ const SkillManagement: React.FC<SkillManagementProps> = ({
         setTimeout(() => setSuccess(null), 3000);
       }
     } catch (err: any) {
-      console.error('Error deleting skill:', err);
-      setError(err.message || 'Failed to remove skill. Please try again.');
+      setError(err.response?.data?.error || err.message || 'Failed to remove skill. Please try again.');
     } finally {
       setLoading(false);
+      setSkillToDelete(null);
     }
   };
 
@@ -240,6 +243,36 @@ const SkillManagement: React.FC<SkillManagementProps> = ({
           ))
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {skillToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Remove Skill
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to remove "{skillToDelete.name}" from your skills?
+            </p>
+            <div className="flex space-x-4">
+              <button
+                onClick={confirmDeleteSkill}
+                disabled={loading}
+                className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Removing...' : 'Remove'}
+              </button>
+              <button
+                onClick={() => setSkillToDelete(null)}
+                disabled={loading}
+                className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

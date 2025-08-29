@@ -293,13 +293,30 @@ export const candidateApi = {
     return response.data;
   },
 
+  // Upload avatar image
+  uploadAvatar: async (formData: FormData) => {
+    const response = await apiClient.post('/api/v1/user/upload-avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
   addSkill: async (skillData: { skill_name: string; proficiency_level: string }) => {
-    const response = await apiClient.post('/user/skills', skillData);
+    // Send both skill_name and proficiency_level to backend
+    // Backend should handle finding/creating skill and returning skill_id
+    const response = await apiClient.post('/api/v1/user/skills', {
+      skill_name: skillData.skill_name,
+      proficiency_level: skillData.proficiency_level.toUpperCase(), // Convert to match backend enum
+      years_experience: 0, // Default value
+      is_primary: false // Default value
+    });
     return response.data;
   },
 
   deleteSkill: async (skillId: string) => {
-    const response = await apiClient.delete(`/user/skills/${skillId}`);
+    const response = await apiClient.delete(`/api/v1/user/skills/${skillId}`);
     return response.data;
   },
 

@@ -2,11 +2,16 @@ import apiClient from './api';
 import { isTokenValid } from './tokenUtils';
 
 export interface User {
-  id: string;
+  user_id: string; // Changed from 'id' to 'user_id' to match backend
   email: string;
   role: 'ADMIN' | 'CANDIDATE' | 'RECRUITER';
-  name: string;
+  full_name: string; // Changed from 'name' to 'full_name' to match backend
+  profile_image_url?: string;
+  bio?: string;
+  website_url?: string;
+  languages?: string[];
   profile?: any;
+  candidate_profile?: any;
   candidate_profile_id?: string;
   company_id?: string;
 }
@@ -159,7 +164,30 @@ class AuthService {
       const response = await apiClient.get('/auth/me');
       
       if (response.data.success && response.data.data) {
-        const user = response.data.data;
+        let user = response.data.data;
+        
+        // If user is CANDIDATE, also fetch full profile to get profile_image_url
+        if (user.role === 'CANDIDATE') {
+          try {
+            const profileResponse = await apiClient.get('/api/v1/users/profile');
+            if (profileResponse.data.success && profileResponse.data.data) {
+              // Merge profile data into user object
+              const profileData = profileResponse.data.data;
+              user = {
+                ...user,
+                profile_image_url: profileData.profile_image_url,
+                bio: profileData.bio,
+                website_url: profileData.website_url,
+                languages: profileData.languages,
+                candidate_profile: profileData.candidate_profile
+              };
+            }
+          } catch (profileError) {
+            console.warn('Failed to fetch full profile, using basic user data:', profileError);
+            // Continue with basic user data if profile fetch fails
+          }
+        }
+        
         // Update stored user data
         localStorage.setItem(this.userKey, JSON.stringify(user));
         return user;
