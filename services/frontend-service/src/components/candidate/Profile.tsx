@@ -33,27 +33,13 @@ interface UserProfileData {
   account_status?: string;
   last_login_at?: string;
   
-  // Additional fields that might be at root level for compatibility
+  // Compatibility fields
   avatar_url?: string;
   avatarUrl?: string;
-  location?: string;
-  address?: string;
-  date_of_birth?: string;
-  gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
-  city_id?: string;
-  district_id?: string;
-  education_level?: 'HIGH_SCHOOL' | 'COLLEGE' | 'BACHELOR' | 'MASTER' | 'PHD';
-  years_experience?: number;
-  years_of_experience?: number;
   current_job_title?: string;
   current_company?: string;
-  current_salary?: number;
-  expected_salary?: number;
-  experience_level?: string;
-  job_seeking_status?: string;
-  notice_period_days?: number;
-  willing_to_relocate?: boolean;
-  remote_work_preference?: 'ONSITE' | 'REMOTE' | 'HYBRID' | 'FLEXIBLE';
+  education_level?: 'HIGH_SCHOOL' | 'COLLEGE' | 'BACHELOR' | 'MASTER' | 'PHD';
+  years_of_experience?: number;
   
   // Candidate profile nested object
   candidate_profile?: {
@@ -109,86 +95,53 @@ const Profile: React.FC<ProfileProps> = ({
   onHelpCenterClick
 }) => {
   const [activeTab, setActiveTab] = useState('public-profile');
-  // Initialize with empty object to show content immediately
-  const [profileData, setProfileData] = useState<Partial<UserProfileData>>({
-    full_name: '',
-    email: '',
-    candidate_profile: {
-      profile_id: '',
-      user_id: '',
-      skills: []
-    }
-  });
-  // Removed isLoading since we don't use loading states
+  const [profileData, setProfileData] = useState<Partial<UserProfileData>>({});
   const [error, setError] = useState<string | null>(null);
   
   // Section-specific edit mode states
   const [editingSections, setEditingSections] = useState<{ [key: string]: boolean }>({});
-  // Initialize editedData with same structure as profileData
-  const [editedData, setEditedData] = useState<Partial<UserProfileData>>({
-    full_name: '',
-    email: '',
-    candidate_profile: {
-      profile_id: '',
-      user_id: '',
-      skills: []
-    }
-  });
+  const [editedData, setEditedData] = useState<Partial<UserProfileData>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
 
-  // ProfileSuggestions states
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [completionPercentage, setCompletionPercentage] = useState<number>(0);
-  // Removed suggestionsLoading since we don't use loading states
   const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
   const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        // Removed setIsLoading(true) to avoid loading state
+
         const profileResponse = await candidateApi.getProfile();
-        console.log('Profile response:', profileResponse);
+
         
         if (profileResponse?.success && profileResponse?.data) {
-          // Handle the API response structure: { success: true, data: userData }
           const userData = profileResponse.data as UserProfileData;
           setProfileData(userData);
-          setEditedData(userData); // Initialize edit data
-          setError(null);
-        } else if (profileResponse?.data) {
-          // Handle direct data response (fallback)
-          const userData = profileResponse.data as UserProfileData;
-          setProfileData(userData);
-          setEditedData(userData); // Initialize edit data
+          setEditedData(userData);
           setError(null);
         } else {
-          // No profile data or not authenticated - but keep default data
           setError('Bạn cần đăng nhập để xem profile.');
         }
       } catch (err: any) {
-        console.error('Error fetching profile:', err);
+  
         if (err.response?.status === 401) {
           setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
         } else {
           setError('Không thể tải dữ liệu profile.');
         }
-      } finally {
-        // Removed setIsLoading(false) since we don't use loading state
       }
     };
 
     const fetchSuggestions = async () => {
       try {
-        // Removed setSuggestionsLoading(true) to avoid loading state
         setSuggestionsError(null);
         const response = await candidateApi.getProfileSuggestions();
         
-        console.log('Suggestions API response:', response);
         
-        // Handle API response structure: { success: true, data: { suggestions: [], completion_percentage: 0 } }
+        
         if (response && response.success && response.data) {
           setSuggestions(response.data.suggestions || []);
           setCompletionPercentage(response.data.completion_percentage || 0);
@@ -197,16 +150,14 @@ const Profile: React.FC<ProfileProps> = ({
           setCompletionPercentage(0);
         }
       } catch (err: any) {
-        console.error('Error fetching profile suggestions:', err);
-        setSuggestions([]); // Ensure suggestions is always an array
+  
+        setSuggestions([]);
         setCompletionPercentage(0);
         if (err.response?.status === 401) {
           setSuggestionsError('Please log in to view profile suggestions.');
         } else {
           setSuggestionsError('Unable to load suggestions at this time.');
         }
-      } finally {
-        // Removed setSuggestionsLoading(false) since we don't use loading state
       }
     };
 
@@ -295,9 +246,8 @@ const Profile: React.FC<ProfileProps> = ({
     }
   };
 
-  const handleSuggestionAction = (suggestion: Suggestion) => {
+  const handleSuggestionAction = (_suggestion: Suggestion) => {
     // Handle suggestion action here
-    console.log('Suggestion action:', suggestion);
   };
 
   const handleDismissSuggestion = (suggestionField: string) => {
@@ -306,11 +256,9 @@ const Profile: React.FC<ProfileProps> = ({
 
   const refreshSuggestions = async () => {
     try {
-      // Removed setSuggestionsLoading(true) to avoid loading state
       setSuggestionsError(null);
       const response = await candidateApi.getProfileSuggestions();
       
-      // Handle API response structure: { success: true, data: { suggestions: [], completion_percentage: 0 } }
       if (response && response.success && response.data) {
         setSuggestions(response.data.suggestions || []);
         setCompletionPercentage(response.data.completion_percentage || 0);
@@ -319,7 +267,7 @@ const Profile: React.FC<ProfileProps> = ({
         setCompletionPercentage(0);
       }
     } catch (err: any) {
-      console.error('Error refreshing suggestions:', err);
+
       setSuggestions([]);
       setCompletionPercentage(0);
       if (err.response?.status === 401) {
@@ -327,22 +275,20 @@ const Profile: React.FC<ProfileProps> = ({
       } else {
         setSuggestionsError('Unable to load suggestions at this time.');
       }
-    } finally {
-              // Removed setSuggestionsLoading(false) since we don't use loading state
     }
   };
 
   // Section-specific edit functions
   const handleSectionEdit = (sectionName: string) => {
     setEditingSections(prev => ({ ...prev, [sectionName]: true }));
-    setEditedData((prev: any) => ({ ...prev, ...profileData })); // Copy current data to edit state
+    setEditedData((prev: any) => ({ ...prev, ...profileData }));
     setSaveError(null);
     setSaveSuccess(null);
   };
 
   const handleSectionCancel = (sectionName: string) => {
     setEditingSections(prev => ({ ...prev, [sectionName]: false }));
-    setEditedData((prev: any) => ({ ...prev, ...profileData })); // Reset to current profile data
+    setEditedData((prev: any) => ({ ...prev, ...profileData }));
     setSaveError(null);
     setSaveSuccess(null);
   };
@@ -371,43 +317,21 @@ const Profile: React.FC<ProfileProps> = ({
       setSaveError(null);
       setSaveSuccess(null);
 
-      // Prepare data for API call - based on PUT /api/v1/users/profile endpoint
       const updateData: any = {};
       
-              // Basic profile fields (users table)
+      // Basic profile fields (users table)
       if (editedData.full_name !== undefined) updateData.full_name = editedData.full_name;
       if (editedData.phone !== undefined) updateData.phone = editedData.phone;
         
-        // User profile table fields
+      // User profile table fields
       if (editedData.bio !== undefined) updateData.bio = editedData.bio;
-        if (editedData.profile_image_url !== undefined) updateData.profile_image_url = editedData.profile_image_url;
-        if (editedData.avatar_url !== undefined) updateData.profile_image_url = editedData.avatar_url; // Map avatar_url to profile_image_url
-        if (editedData.website_url !== undefined) updateData.website_url = editedData.website_url;
-        if (editedData.languages !== undefined) updateData.languages = editedData.languages;
-        
-        // Candidate profile table fields
-        if (editedData.date_of_birth !== undefined) updateData.date_of_birth = editedData.date_of_birth;
-      if (editedData.gender !== undefined) updateData.gender = editedData.gender;
-      if (editedData.address !== undefined) updateData.address = editedData.address;
-      if (editedData.city_id !== undefined) updateData.city_id = editedData.city_id;
-      if (editedData.district_id !== undefined) updateData.district_id = editedData.district_id;
+      if (editedData.profile_image_url !== undefined) updateData.profile_image_url = editedData.profile_image_url;
+      if (editedData.avatar_url !== undefined) updateData.profile_image_url = editedData.avatar_url;
+      if (editedData.website_url !== undefined) updateData.website_url = editedData.website_url;
+      if (editedData.languages !== undefined) updateData.languages = editedData.languages;
 
-      // Candidate specific fields (based on actual backend model)
-      if (editedData.expected_salary !== undefined) updateData.expected_salary = editedData.expected_salary;
-      if (editedData.current_job_title !== undefined) updateData.current_job_title = editedData.current_job_title;
-      if (editedData.current_company !== undefined) updateData.current_company = editedData.current_company;
-      if (editedData.current_salary !== undefined) updateData.current_salary = editedData.current_salary;
-      if (editedData.years_experience !== undefined) updateData.years_experience = editedData.years_experience;
-      if (editedData.notice_period_days !== undefined) updateData.notice_period_days = editedData.notice_period_days;
-      if (editedData.willing_to_relocate !== undefined) updateData.willing_to_relocate = editedData.willing_to_relocate;
-      if (editedData.remote_work_preference !== undefined) updateData.remote_work_preference = editedData.remote_work_preference;
-
-      // Education
-      if (editedData.education_level !== undefined) updateData.education_level = editedData.education_level;
-
-              // Handle nested candidate_profile fields mapping
+      // Handle nested candidate_profile fields mapping
       if (editedData.candidate_profile) {
-          // Override with candidate_profile nested values if they exist
         if (editedData.candidate_profile.date_of_birth !== undefined) updateData.date_of_birth = editedData.candidate_profile.date_of_birth;
         if (editedData.candidate_profile.gender !== undefined) updateData.gender = editedData.candidate_profile.gender;
         if (editedData.candidate_profile.address !== undefined) updateData.address = editedData.candidate_profile.address;
@@ -425,10 +349,7 @@ const Profile: React.FC<ProfileProps> = ({
         if (editedData.candidate_profile.remote_work_preference !== undefined) updateData.remote_work_preference = editedData.candidate_profile.remote_work_preference;
       }
 
-      console.log('Updating profile with data:', updateData);
-
       const response = await candidateApi.updateProfile(updateData);
-      console.log('Profile update response:', response);
 
       if (response.success) {
         // Merge the response data with existing profile data
@@ -451,7 +372,7 @@ const Profile: React.FC<ProfileProps> = ({
         setSaveError(response.message || 'Failed to update profile');
       }
     } catch (err: any) {
-      console.error('Error updating profile:', err);
+
       setSaveError(err.response?.data?.message || err.message || 'Failed to update profile');
     } finally {
       setIsSaving(false);
@@ -460,28 +381,6 @@ const Profile: React.FC<ProfileProps> = ({
 
 
 
-  // Removed loading screen - show content immediately
-  // if (isLoading) {
-  //   return (
-  //       <div className="flex-1 p-8 flex items-center justify-center">
-  //         <div className="text-center">
-  //           <svg className="animate-spin -ml-1 mr-3 h-10 w-10 text-[#007bff] mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-  //             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-  //             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-  //           </svg>
-  //           <p className="text-lg font-medium text-gray-600">Loading Profile...</p>
-  //         </div>
-  //       </div>
-  //   );
-  // }
-
-  // Removed error and null data blocking - show content always
-  // if (error) {
-  //   return error screen
-  // }
-  // if (!profileData) {
-  //   return no data screen  
-  // }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -564,10 +463,6 @@ const Profile: React.FC<ProfileProps> = ({
                        src={profileData.profile_image_url || profileData.avatar_url || profileData.avatarUrl} 
                     alt="Profile" 
                       className="w-24 h-24 rounded-full object-cover border-4 border-gray-100"
-                      onError={(e) => {
-                        // Hide image completely if it fails to load
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
                     />
                   ) : (
                     <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#007bff] to-purple-600 flex items-center justify-center border-4 border-gray-100">
@@ -585,11 +480,8 @@ const Profile: React.FC<ProfileProps> = ({
                          onChange={(e) => {
                            const file = e.target.files?.[0];
                            if (file) {
-                             // Create a URL for preview
                              const imageUrl = URL.createObjectURL(file);
                              handleFieldChange('profile_image_url', imageUrl);
-                             // Here you would typically upload the file to a server
-                             // For now, we'll just use the local URL for preview
                            }
                          }}
                          className="hidden"
@@ -679,7 +571,7 @@ const Profile: React.FC<ProfileProps> = ({
               </div>
             </div>
 
-            {/* Profile Suggestions moved below Personal Details */}
+
 
             {/* About Me */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-left relative">
@@ -1327,7 +1219,7 @@ const Profile: React.FC<ProfileProps> = ({
 
              {/* Profile Suggestions */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6 text-left">
-              {/* Removed suggestions loading animation */}
+
               {suggestionsError ? (
                 <div className="text-left py-4">
                   <div className="flex items-center gap-3 mb-3">
