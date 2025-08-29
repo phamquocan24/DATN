@@ -85,33 +85,7 @@ const LoginDetailsSettings: React.FC<LoginDetailsSettingsProps> = ({ currentUser
         <p className="text-gray-500 text-left">This is login information that you can update anytime.</p>
       </div>
 
-      {/* Update Email Section */}
-      <div className="border-b border-gray-200 pb-6">
-        <div className="grid grid-cols-3 gap-6">
-          {/* Label column */}
-          <div>
-            <h3 className="font-medium text-gray-900 mb-2 text-left">Update Email</h3>
-            <p className="text-gray-500 text-left">Update your email address to<br />make sure it is safe</p>
-          </div>
 
-          {/* Current email & form */}
-          <div className="col-span-2 space-y-4 text-left">
-            <div className="flex items-center space-x-2">
-              <div>
-                <p className="font-medium text-gray-900 text-sm">jakegyll@email.com</p>
-                <p className="text-xs text-gray-500">Your email address is verified.</p>
-              </div>
-              <svg className="w-4 h-4 text-green-500 mt-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-            </div>
-
-            <div>
-              <label className="block font-medium text-gray-700 mb-1 text-left">Update Email</label>
-              <input type="email" placeholder="Enter your new email" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007BFF]" />
-            </div>
-            <button className="px-6 py-2 bg-[#007BFF] text-white rounded-md font-medium hover:bg-[#0056b3]">Update Email</button>
-          </div>
-        </div>
-      </div>
 
       {/* New Password Section */}
       <div className="border-b border-gray-200 pb-6">

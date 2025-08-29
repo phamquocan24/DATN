@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import MyProfileSettings from './MyProfileSettings';
 import LoginDetailsSettings from './LoginDetailsSettings';
 import NotificationsSettings from './NotificationsSettings';
 import DashboardSidebar from './DashboardSidebar';
@@ -8,11 +7,8 @@ interface SettingsProps {
   onHomeClick?: () => void;
   onDashboardClick?: () => void;
   onProfileClick?: () => void;
-  onAgentAIClick?: () => void;
   onMyApplicationsClick?: () => void;
   onTestManagementClick?: () => void;
-  onFindJobsClick?: () => void;
-  onBrowseCompaniesClick?: () => void;
   onSettingsClick?: () => void;
   onHelpCenterClick?: () => void;
   currentUser?: any;
@@ -22,15 +18,12 @@ const Settings: React.FC<SettingsProps> = ({
   onHomeClick,
   onDashboardClick,
   onProfileClick,
-  onAgentAIClick,
   onMyApplicationsClick,
   onTestManagementClick,
-  onFindJobsClick,
-  onBrowseCompaniesClick,
   onHelpCenterClick,
   currentUser
 }) => {
-  const [activeTab, setActiveTab] = useState('my-profile');
+  const [activeTab, setActiveTab] = useState('login-details');
 
 
 
@@ -38,8 +31,6 @@ const Settings: React.FC<SettingsProps> = ({
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'my-profile':
-        return <MyProfileSettings currentUser={currentUser} />;
       case 'login-details':
         return <LoginDetailsSettings currentUser={currentUser} />;
       case 'notifications':
@@ -54,12 +45,11 @@ const Settings: React.FC<SettingsProps> = ({
       {/* Sidebar */}
       <DashboardSidebar 
         activeTab="settings"
+        isCollapsed={false}
+        onToggleSidebar={() => {}}
         onDashboardClick={onDashboardClick}
-        onAgentAIClick={onAgentAIClick}
         onMyApplicationsClick={onMyApplicationsClick}
         onTestManagementClick={onTestManagementClick}
-        onFindJobsClick={onFindJobsClick}
-        onBrowseCompaniesClick={onBrowseCompaniesClick}
         onProfileClick={onProfileClick}
         onSettingsClick={() => {}}
         onHelpCenterClick={onHelpCenterClick}
@@ -81,16 +71,6 @@ const Settings: React.FC<SettingsProps> = ({
         {/* Tab Navigation */}
         <div className="mb-8">
           <nav className="flex space-x-8 border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab('my-profile')}
-              className={`pb-2 px-1 font-medium text-sm border-b-2 ${
-                activeTab === 'my-profile'
-                  ? 'border-[#007BFF] text-[#007BFF]'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              My Profile
-            </button>
             <button
               onClick={() => setActiveTab('login-details')}
               className={`pb-2 px-1 font-medium text-sm border-b-2 ${

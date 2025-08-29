@@ -364,7 +364,7 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick }) 
                 {!collapsedSections.companySize && (
                 <div className="space-y-1">
                   {companySizes.map((size) => (
-                    <FilterCheckbox 
+                  <FilterCheckbox 
                       key={size.name}
                       label={size.name} 
                       count={size.count}
@@ -463,17 +463,17 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick }) 
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-center space-x-2">
+              <div className="flex items-center justify-center space-x-2">
                   {/* Previous Button */}
                   <button 
                     onClick={handlePrevPage}
                     disabled={currentPage === 1}
                     className={`p-2 ${currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-gray-600'}`}
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </button>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
 
                   {/* Page Numbers */}
                   {Array.from({ length: totalPages }, (_, index) => index + 1)
@@ -487,7 +487,7 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick }) 
                       <React.Fragment key={pageNum}>
                         {/* Add ellipsis if there's a gap */}
                         {index > 0 && pageNum - array[index - 1] > 1 && (
-                          <span className="text-gray-400">...</span>
+                <span className="text-gray-400">...</span>
                         )}
                         
                         <button
@@ -510,11 +510,11 @@ export const FindCompanies: React.FC<FindCompaniesProps> = ({ onCompanyClick }) 
                     disabled={currentPage === totalPages}
                     className={`p-2 ${currentPage === totalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-gray-600'}`}
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </div>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
               )}
             </div>
           </div>
