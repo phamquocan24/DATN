@@ -1153,7 +1153,7 @@ class ApplicationController {
         });
       }
 
-      // Get candidate profile_id from user_id
+      // Verify candidate profile exists but use user_id for application operations
       const profileQuery = `
         SELECT profile_id FROM candidate_profiles WHERE user_id = $1
       `;
@@ -1166,7 +1166,8 @@ class ApplicationController {
         });
       }
       
-      const candidateId = profileResult.rows[0].profile_id;
+      // Use user_id as candidateId since applications.candidate_id references users.user_id
+      const candidateId = userId;
 
       const application = await this.applicationModel.withdrawApplication(id, candidateId, reason);
 
@@ -1922,7 +1923,7 @@ class ApplicationController {
       const { cv_id } = req.query; // Get cv_id from query params
       const user_id = req.user.user_id;
 
-      // Get candidate profile ID from user ID (applications table expects profile_id)
+      // Verify candidate profile exists but use user_id for calculateMatchScore
       const candidateProfileQuery = `
         SELECT profile_id 
         FROM candidate_profiles 
@@ -1943,17 +1944,17 @@ class ApplicationController {
         });
       }
       
-      const candidateId = candidateResult.rows[0].profile_id;
+      // Use user_id as candidateId since calculateMatchScore expects user_id
+      const candidateId = user_id;
 
-      // If cv_id provided, verify it belongs to candidate via user_id
+      // If cv_id provided, verify it belongs to candidate using user_id
       if (cv_id) {
         const cvQuery = `
-          SELECT cv.cv_id 
-          FROM candidate_cvs cv
-          INNER JOIN candidate_profiles cp ON cv.candidate_id = cp.user_id
-          WHERE cv.cv_id = $1 AND cp.profile_id = $2
+          SELECT cv_id 
+          FROM candidate_cvs 
+          WHERE cv_id = $1 AND candidate_id = $2
         `;
-        const cvResult = await this.applicationModel.db.query(cvQuery, [cv_id, candidateId], 'validate_cv_ownership');
+        const cvResult = await this.applicationModel.db.query(cvQuery, [cv_id, user_id], 'validate_cv_ownership');
         
         console.log('🔍 Debug CV validation:', {
           cv_id,
