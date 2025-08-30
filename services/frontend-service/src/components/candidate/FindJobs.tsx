@@ -56,7 +56,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
   const [jobs, setJobs] = useState<Job[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pagination, setPagination] = useState({ page: 1, limit: 5, total: 0 });
+  const [pagination, setPagination] = useState({ page: 1, limit: 100, total: 0 });
   const [currentView, setCurrentView] = useState<'list' | 'detail'>('list');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   
@@ -65,11 +65,27 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
   const [suitableJobsError, setSuitableJobsError] = useState<string | null>(null);
   const [suitableJobsPagination, setSuitableJobsPagination] = useState({ 
     page: 1, 
-    limit: 5, 
+    limit: 100, 
     total: 0, 
     totalPages: 0 
   });
 
+  // Frontend pagination for display
+  const [displayPagination, setDisplayPagination] = useState({ page: 1, itemsPerPage: 5 });
+  const [suitableDisplayPagination, setSuitableDisplayPagination] = useState({ page: 1, itemsPerPage: 5 });
+
+  // Helper functions for frontend pagination
+  const getDisplayedJobs = () => {
+    const startIndex = (displayPagination.page - 1) * displayPagination.itemsPerPage;
+    const endIndex = startIndex + displayPagination.itemsPerPage;
+    return jobs.slice(startIndex, endIndex);
+  };
+
+  const getDisplayedSuitableJobs = () => {
+    const startIndex = (suitableDisplayPagination.page - 1) * suitableDisplayPagination.itemsPerPage;
+    const endIndex = startIndex + suitableDisplayPagination.itemsPerPage;
+    return suitableJobs.slice(startIndex, endIndex);
+  };
 
   // Match scores will be calculated only in JobDetail component
 
@@ -187,6 +203,11 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       fetchJobs();
+      // Reset display pagination when search criteria changes (but not when pagination.page changes)
+      if (searchQuery || location || Object.values(filters).some(filter => filter.length > 0)) {
+        setDisplayPagination(prev => ({ ...prev, page: 1 }));
+        setSuitableDisplayPagination(prev => ({ ...prev, page: 1 }));
+      }
     }, searchQuery ? 300 : 0); // 300ms debounce for search, immediate for pagination/filters
 
     return () => clearTimeout(timeoutId);
@@ -825,46 +846,22 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
             <div className="flex-1 text-left">
               {/* New Jobs Section */}
               <div className="mb-8">
-                <div className="flex items-start justify-between mb-6">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Fresh Opportunities</h2>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {isLoading 
-                          ? 'Loading opportunities...'
-                          : error 
-                            ? 'Failed to load opportunities'
-                            : `Showing ${jobs.length} of ${pagination.total} career opportunities`
-                        }
-                      </p>
-                  </div>
-                  <div className="flex items-center space-x-4 ml-auto">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm text-gray-500">Sort by:</span>
-                      <select className="w-40 text-sm border border-gray-300 rounded px-3 py-1">
-                        <option>Most relevant</option>
-                        <option>Newest</option>
-                        <option>Salary</option>
-                      </select>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <button className="p-2 text-gray-400 hover:text-gray-600">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                        </svg>
-                      </button>
-                      <button className="p-2 text-[#007BFF]">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Fresh Opportunities</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {isLoading 
+                      ? 'Loading opportunities...'
+                      : error 
+                        ? 'Failed to load opportunities'
+                        : `${jobs.length} career opportunities available`
+                    }
+                  </p>
                 </div>
 
                 <div className="space-y-4">
                   {isLoading ? (
                     // Skeleton loading for job list
-                    Array.from({ length: pagination.limit }, (_, i) => (
+                    Array.from({ length: displayPagination.itemsPerPage }, (_, i) => (
                       <JobListItemSkeleton key={i} />
                     ))
                   ) : error ? (
@@ -878,7 +875,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
                       </button>
                     </div>
                   ) : jobs.length > 0 ? (
-                    jobs.map((job) => (
+                    getDisplayedJobs().map((job) => (
                       <JobCard key={job.id} job={job} />
                     ))
                   ) : (
@@ -892,57 +889,35 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
               </div>
 
                 {/* New Jobs Pagination */}
-                {pagination.total > pagination.limit && (
-                  <Pagination
-                    currentPage={pagination.page}
-                    totalPages={Math.ceil(pagination.total / pagination.limit)}
-                    totalItems={pagination.total}
-                    itemsPerPage={pagination.limit}
-                    onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
-                    showInfo={true}
-                  />
+                {jobs.length > displayPagination.itemsPerPage && (
+                  <div className="flex justify-end mt-6">
+                    <Pagination
+                      currentPage={displayPagination.page}
+                      totalPages={Math.ceil(jobs.length / displayPagination.itemsPerPage)}
+                      totalItems={jobs.length}
+                      itemsPerPage={displayPagination.itemsPerPage}
+                      onPageChange={(page) => setDisplayPagination(prev => ({ ...prev, page }))}
+                      showInfo={false}
+                    />
+                  </div>
                 )}
 
               {/* Suitable Jobs Section */}
               <div>
-                <div className="flex items-start justify-between mb-6">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">AI-Matched Positions</h2>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {suitableJobsError 
-                        ? 'Failed to load AI matches'
-                        : `Showing ${Math.min(suitableJobsPagination.limit, suitableJobs.length)} of ${suitableJobsPagination.total} AI-curated matches`
-                      }
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-4 ml-auto">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm text-gray-500">Sort by:</span>
-                      <select className="w-40 text-sm border border-gray-300 rounded px-3 py-1">
-                        <option>Most relevant</option>
-                        <option>Newest</option>
-                        <option>Salary</option>
-                      </select>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <button className="p-2 text-gray-400 hover:text-gray-600">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                        </svg>
-                      </button>
-                      <button className="p-2 text-[#007BFF]">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">AI-Matched Positions</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {suitableJobsError 
+                      ? 'Failed to load AI matches'
+                      : `${suitableJobs.length} AI-curated matches available`
+                    }
+                  </p>
                 </div>
 
                 <div className="space-y-4">
                   {!suitableJobs.length && !suitableJobsError ? (
                     // Skeleton loading for suitable jobs
-                    Array.from({ length: suitableJobsPagination.limit }, (_, i) => (
+                    Array.from({ length: suitableDisplayPagination.itemsPerPage }, (_, i) => (
                       <JobListItemSkeleton key={i} />
                     ))
                   ) : suitableJobsError ? (
@@ -957,7 +932,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
                       </button>
                     </div>
                   ) : suitableJobs.length > 0 ? (
-                    suitableJobs.map((job) => (
+                    getDisplayedSuitableJobs().map((job) => (
                       <JobCard key={job.job_id || job.id} job={job} />
                     ))
                   ) : (
@@ -971,15 +946,17 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
               </div>
 
               {/* Suitable Jobs Pagination */}
-              {suitableJobsPagination.total > suitableJobsPagination.limit && (
-                <Pagination
-                  currentPage={suitableJobsPagination.page}
-                  totalPages={Math.ceil(suitableJobsPagination.total / suitableJobsPagination.limit)}
-                  totalItems={suitableJobsPagination.total}
-                  itemsPerPage={suitableJobsPagination.limit}
-                  onPageChange={(page) => setSuitableJobsPagination(prev => ({ ...prev, page }))}
-                  showInfo={true}
-                />
+              {suitableJobs.length > suitableDisplayPagination.itemsPerPage && (
+                <div className="flex justify-end mt-6">
+                  <Pagination
+                    currentPage={suitableDisplayPagination.page}
+                    totalPages={Math.ceil(suitableJobs.length / suitableDisplayPagination.itemsPerPage)}
+                    totalItems={suitableJobs.length}
+                    itemsPerPage={suitableDisplayPagination.itemsPerPage}
+                    onPageChange={(page) => setSuitableDisplayPagination(prev => ({ ...prev, page }))}
+                    showInfo={false}
+                  />
+                </div>
               )}
             </div>
           </div>
