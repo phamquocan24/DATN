@@ -4,24 +4,26 @@ import { useNavigate } from 'react-router-dom';
 
 interface Resume {
   id: string;
+  cv_id?: string;
+  candidate_id?: string;
   full_name: string;
   email: string;
   phone: string;
   address: string;
   objective: string;
+  file?: File;
+  fileName?: string;
+  fileType?: string;
+  filePath?: string; // Server file path (stored in database)
   extractedData?: any;
   uploadedAt: Date;
+  matchingScore?: number;
+  isCalculatingMatch?: boolean;
   jobMatchScores?: MatchScore[];
   bestMatchScore?: number;
   bestMatchJob?: string;
   hasJobMatches?: boolean;
-  cv_file_url?: string;
-  cv_file_name?: string;
-  cv_file_type?: 'pdf' | 'doc' | 'docx';
-  fileBase64?: string;
-  fileName?: string;
-  fileType?: string;
-  file?: File;
+  is_primary?: boolean;
 }
 
 interface MatchScore {
@@ -64,22 +66,19 @@ export const CVDetailModal: React.FC<CVDetailModalProps> = ({ isOpen, onClose, r
 
   const renderPDFPreviewTab = () => {
     // Debug log to see what data we have
-    console.log('PDF Preview Data:', {
-      cv_file_url: resume.cv_file_url,
-      fileBase64: resume.fileBase64 ? 'has base64' : 'no base64',
-      cv_file_name: resume.cv_file_name,
-      cv_file_type: resume.cv_file_type,
+    console.log('🖼️ PDF Preview Data for', resume.full_name, {
+      filePath: resume.filePath,
       fileName: resume.fileName,
       fileType: resume.fileType,
-      file: resume.file ? 'has file object' : 'no file object'
+      file: resume.file ? 'has file object' : 'no file object',
+      extractedData: resume.extractedData ? 'has extracted data' : 'no extracted data'
     });
 
     // Check all possible sources for file data
-    const hasFileUrl = resume.cv_file_url;
-    const hasBase64 = resume.fileBase64;
+    const hasFilePath = resume.filePath;
     const hasFileObject = resume.file;
     
-    if (!hasFileUrl && !hasBase64 && !hasFileObject) {
+    if (!hasFilePath && !hasFileObject) {
       return (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <div className="bg-gray-100 rounded-full p-4 mb-4">
@@ -99,23 +98,15 @@ export const CVDetailModal: React.FC<CVDetailModalProps> = ({ isOpen, onClose, r
     let fileName = '';
     let fileType = '';
     
-    if (hasFileUrl) {
-      fileUrl = resume.cv_file_url!;
-      fileName = resume.cv_file_name || resume.fileName || 'CV.pdf';
-      fileType = resume.cv_file_type || resume.fileType || 'pdf';
-    } else if (hasFileObject) {
-      fileUrl = URL.createObjectURL(resume.file!);
-      fileName = resume.file!.name;
-      fileType = resume.file!.type;
-    } else if (hasBase64) {
-      // Check if base64 already includes data URI prefix
-      if (resume.fileBase64!.startsWith('data:')) {
-        fileUrl = resume.fileBase64!;
-      } else {
-        fileUrl = `data:application/pdf;base64,${resume.fileBase64}`;
-      }
-      fileName = resume.cv_file_name || resume.fileName || 'CV.pdf';
-      fileType = resume.cv_file_type || resume.fileType || 'pdf';
+    if (hasFilePath && resume.filePath) {
+      // Convert server file path to full URL
+      fileUrl = resume.filePath.startsWith('http') ? resume.filePath : `http://localhost:5001${resume.filePath}`;
+      fileName = resume.fileName || 'CV.pdf';
+      fileType = resume.fileType || 'pdf';
+    } else if (hasFileObject && resume.file) {
+      fileUrl = URL.createObjectURL(resume.file);
+      fileName = resume.file.name;
+      fileType = resume.file.type;
     }
     
     // Check if it's a PDF file
@@ -385,6 +376,14 @@ export const CVDetailModal: React.FC<CVDetailModalProps> = ({ isOpen, onClose, r
   };
 
   const renderMatchTab = () => {
+    console.log('📊 Rendering Match Tab for', resume.full_name, {
+      hasJobMatches: resume.hasJobMatches,
+      bestMatchScore: resume.bestMatchScore,
+      bestMatchJob: resume.bestMatchJob,
+      jobMatchScoresCount: resume.jobMatchScores?.length || 0,
+      jobMatchScores: resume.jobMatchScores
+    });
+
     if (!resume.hasJobMatches || !resume.jobMatchScores || resume.jobMatchScores.length === 0) {
       return (
         <div className="space-y-6">

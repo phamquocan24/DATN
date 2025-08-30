@@ -72,13 +72,32 @@ const saveResumesToLocalStorage = (resumes: Resume[]) => {
   const resumesToSave = resumes.map(resume => ({
     ...resume,
     file: undefined, // Remove File object for localStorage storage
-    // Keep fileName, fileType, filePath for reference
+    // Keep essential data for offline access
+    id: resume.id,
+    cv_id: resume.cv_id,
+    candidate_id: resume.candidate_id,
+    full_name: resume.full_name,
+    email: resume.email,
+    phone: resume.phone,
+    address: resume.address,
+    objective: resume.objective,
+    fileName: resume.fileName,
+    fileType: resume.fileType,
+    filePath: resume.filePath,
+    uploadedAt: resume.uploadedAt,
+    is_primary: resume.is_primary,
+    // Keep extracted data for preview and enhancement
+    extractedData: resume.extractedData,
     // Keep match scores for fallback when API fails
     hasJobMatches: resume.hasJobMatches,
     bestMatchScore: resume.bestMatchScore,
     bestMatchJob: resume.bestMatchJob,
-    jobMatchScores: resume.jobMatchScores
+    jobMatchScores: resume.jobMatchScores,
+    isCalculatingMatch: resume.isCalculatingMatch,
+    matchingScore: resume.matchingScore
   }));
+  
+  console.log('💾 Saving resumes to localStorage:', resumesToSave.length, 'items');
   localStorage.setItem('userResumes', JSON.stringify(resumesToSave));
 };
 
@@ -138,20 +157,38 @@ export const Resume: React.FC = () => {
             // Transform API data to Resume format and load match scores
             const apiResumes = await Promise.all(
               apiResponse.data.map(async (cv: any) => {
+                // Extract data from parsed_data or ai_analysis or extracted_contact
+                const extractedData = cv.parsed_data || cv.ai_analysis || {};
+                const contactData = cv.extracted_contact || {};
+                
                 const resumeBase = {
                   id: cv.cv_id,
                   cv_id: cv.cv_id,
                   candidate_id: cv.candidate_id,
-                  full_name: cv.cv_title || cv.cv_name || 'Untitled CV',
-                  email: cv.email || 'N/A',
-                  phone: cv.phone || 'N/A',
-                  address: cv.address || 'N/A',
-                  objective: cv.objective || cv.description || '',
-                  fileName: cv.file_name || cv.cv_file_name,
-                  fileType: cv.file_type || cv.cv_file_type,
-                  filePath: cv.file_path || cv.cv_file_url,
+                  full_name: cv.original_name || extractedData.full_name || contactData.full_name || 'Untitled CV',
+                  email: extractedData.email || contactData.email || 'N/A',
+                  phone: extractedData.phone || contactData.phone || 'N/A',
+                  address: extractedData.address || contactData.address || 'N/A',
+                  objective: extractedData.objective || extractedData.mo_ta_ban_than || '',
+                  fileName: cv.file_name,
+                  fileType: cv.file_type,
+                  filePath: cv.file_path,
                   uploadedAt: new Date(cv.created_at || cv.updated_at || Date.now()),
-                  is_primary: cv.is_primary || false
+                  is_primary: cv.is_primary || false,
+                  // Add extracted data for preview and enhancement
+                  extractedData: extractedData.full_name ? {
+                    full_name: extractedData.full_name || cv.original_name,
+                    email: extractedData.email || contactData.email,
+                    phone: extractedData.phone || contactData.phone,
+                    address: extractedData.address || contactData.address,
+                    objective: extractedData.objective || extractedData.mo_ta_ban_than,
+                    skills: cv.skills_extracted?.map((skill: string) => ({ skill_name: skill })) || [],
+                    experience: extractedData.experience || cv.extracted_experience,
+                    education: extractedData.education || cv.extracted_education,
+                    languages: extractedData.languages || [],
+                    certifications: extractedData.certifications || [],
+                    projects: extractedData.projects || []
+                  } : undefined
                 };
 
                 // Load match scores from database
@@ -182,6 +219,9 @@ export const Resume: React.FC = () => {
               })
             );
             
+            console.log('✅ API CVs loaded successfully:', apiResumes.length, 'items');
+            console.log('📄 First CV sample:', apiResumes[0]);
+            
             setResumes(apiResumes);
             // Save to localStorage for offline access
             saveResumesToLocalStorage(apiResumes);
@@ -195,7 +235,13 @@ export const Resume: React.FC = () => {
         const savedResumes = localStorage.getItem('userResumes');
         if (savedResumes) {
           const parsedResumes = JSON.parse(savedResumes);
-          setResumes(parsedResumes);
+          console.log('📱 Loading resumes from localStorage:', parsedResumes.length, 'items');
+          // Ensure proper date parsing from localStorage
+          const processedResumes = parsedResumes.map((resume: any) => ({
+            ...resume,
+            uploadedAt: new Date(resume.uploadedAt)
+          }));
+          setResumes(processedResumes);
         }
       } catch (err) {
         console.error('Error loading saved resumes:', err);
@@ -376,11 +422,12 @@ export const Resume: React.FC = () => {
               setResumes(prevResumes => {
                 const updatedResumes = prevResumes.map(resume => {
                   if (resume.cv_id === cvId) {
-                    return {
+                    const updatedResume = {
                       ...resume,
                       hasJobMatches: matchScoresData.has_job_matches,
                       bestMatchScore: matchScoresData.best_match_score,
                       bestMatchJob: matchScoresData.best_match_job,
+                      isCalculatingMatch: false, // Stop loading state
                       jobMatchScores: matchScoresData.job_match_scores.map(score => ({
                         job_id: score.job_id,
                         job_title: score.job_title,
@@ -390,11 +437,19 @@ export const Resume: React.FC = () => {
                         detailed_scores: score.detailed_scores
                       }))
                     };
+                    console.log('💾 Updated resume with match scores:', updatedResume.full_name, {
+                      hasJobMatches: updatedResume.hasJobMatches,
+                      bestMatchScore: updatedResume.bestMatchScore,
+                      bestMatchJob: updatedResume.bestMatchJob,
+                      jobMatchCount: updatedResume.jobMatchScores?.length || 0
+                    });
+                    return updatedResume;
                   }
                   return resume;
                 });
                 
                 // Save updated data to localStorage
+                console.log('💾 Saving match scores to localStorage...');
                 saveResumesToLocalStorage(updatedResumes);
                 return updatedResumes;
               });
@@ -534,6 +589,13 @@ export const Resume: React.FC = () => {
   };
 
   const handleCalculateJobMatches = async (resume: Resume) => {
+    console.log('🎯 Starting Calculate Job Matches for:', resume.full_name, {
+      cv_id: resume.cv_id,
+      candidate_id: resume.candidate_id,
+      hasJobMatches: resume.hasJobMatches,
+      bestMatchScore: resume.bestMatchScore
+    });
+
     if (!resume.cv_id || !resume.candidate_id) {
       showToastMessage('CV ID or Candidate ID not found. Please re-upload the CV.', 'error');
       return;
@@ -557,28 +619,32 @@ export const Resume: React.FC = () => {
       await calculateAIMatchScoresForCV(resume.cv_id, resume.candidate_id);
       
       // Set selected CV for job matching in localStorage
-      localStorage.setItem('selectedCVForMatching', JSON.stringify({
+      const cvForMatching = {
         cv_id: resume.cv_id,
         candidate_id: resume.candidate_id,
         full_name: resume.full_name,
         uploadedAt: resume.uploadedAt
-      }));
+      };
+      localStorage.setItem('selectedCVForMatching', JSON.stringify(cvForMatching));
+      console.log('💾 Saved selectedCVForMatching to localStorage:', cvForMatching);
 
       // Trigger calculation in other components
-      localStorage.setItem('triggerJobMatching', Date.now().toString());
+      const triggerTime = Date.now().toString();
+      localStorage.setItem('triggerJobMatching', triggerTime);
+      console.log('💾 Set triggerJobMatching:', triggerTime);
 
       showToastMessage(`Job matches calculated for ${resume.full_name}. Results available in Find Jobs section.`, 'success');
       
-      console.log('Calculated job matching for CV:', resume.cv_id);
+      console.log('✅ Completed job matching calculation for CV:', resume.cv_id);
     } catch (error) {
-      console.error('Error calculating job matches:', error);
+      console.error('❌ Error calculating job matches:', error);
       showToastMessage('Failed to calculate job matches. Please try again.', 'error');
     } finally {
       setActionLoading(actionKey, false);
-      // Remove loading state
+      // Remove loading state only if not already updated by calculateAIMatchScoresForCV
       setResumes(prevResumes => 
         prevResumes.map(r => 
-          r.id === resume.id ? { ...r, isCalculatingMatch: false } : r
+          r.id === resume.id && r.isCalculatingMatch ? { ...r, isCalculatingMatch: false } : r
         )
       );
     }
@@ -847,7 +913,18 @@ export const Resume: React.FC = () => {
     }
   };
 
-  const ResumeCard = ({ resume }: { resume: Resume }) => (
+  const ResumeCard = ({ resume }: { resume: Resume }) => {
+    // Debug logging for resume data
+    console.log('🎴 Rendering ResumeCard for:', resume.full_name, {
+      id: resume.id,
+      cv_id: resume.cv_id,
+      objective: resume.objective,
+      extractedData: resume.extractedData,
+      hasJobMatches: resume.hasJobMatches,
+      bestMatchScore: resume.bestMatchScore
+    });
+    
+    return (
     <div 
       className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group text-left cursor-pointer hover:shadow-md"
       onClick={() => handleOpenDetailModal(resume)}
@@ -950,7 +1027,7 @@ export const Resume: React.FC = () => {
       </div>
 
       <p className="text-gray-600 text-sm mb-4 line-clamp-3 leading-relaxed">
-        {resume.objective || (
+        {resume.objective || resume.extractedData?.objective || (
           resume.bestMatchJob && !resume.isCalculatingMatch ? (
             <span className="text-blue-600 font-medium">
               Best for: {resume.bestMatchJob}
@@ -1047,7 +1124,8 @@ export const Resume: React.FC = () => {
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <>
