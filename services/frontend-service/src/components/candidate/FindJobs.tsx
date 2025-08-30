@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Footer } from './Footer';
 import JobDetail from './JobDetail';
 import GroupUnderline from '../../assets/Group.png';
+import Pagination from '../common/Pagination';
+import { JobListItemSkeleton, JobCardSkeleton } from '../common/SkeletonLoader';
 import candidateApi from '../../services/candidateApi'; // Sử dụng candidateApi
 import { isTokenValid } from '../../services/tokenUtils';
 import bookmarkCache from '../../services/bookmarkCache';
@@ -181,9 +183,13 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
     }
   }, [searchQuery, location, pagination.page, pagination.limit, filters]);
 
-  // Fetch jobs
+  // Fetch jobs with debouncing for search query
   useEffect(() => {
-    fetchJobs();
+    const timeoutId = setTimeout(() => {
+      fetchJobs();
+    }, searchQuery ? 300 : 0); // 300ms debounce for search, immediate for pagination/filters
+
+    return () => clearTimeout(timeoutId);
   }, [searchQuery, location, pagination.page, pagination.limit, filters]);
 
   // Match scores will be calculated only in JobDetail component
@@ -857,76 +863,43 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
 
                 <div className="space-y-4">
                   {isLoading ? (
-                    <p>Loading...</p>
+                    // Skeleton loading for job list
+                    Array.from({ length: pagination.limit }, (_, i) => (
+                      <JobListItemSkeleton key={i} />
+                    ))
                   ) : error ? (
-                    <p className="text-red-500">{error}</p>
+                    <div className="text-center py-8">
+                      <div className="text-red-500 mb-2">⚠️ {error}</div>
+                      <button 
+                        onClick={() => window.location.reload()} 
+                        className="text-blue-500 hover:underline"
+                      >
+                        Try Again
+                      </button>
+                    </div>
                   ) : jobs.length > 0 ? (
                     jobs.map((job) => (
                       <JobCard key={job.id} job={job} />
                     ))
                   ) : (
-                    <p>No jobs found.</p>
+                    <div className="text-center py-12">
+                      <div className="text-gray-400 text-6xl mb-4">🔍</div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No jobs found</h3>
+                      <p className="text-gray-500">Try adjusting your search criteria or filters</p>
+                    </div>
                   )}
                 </div>
               </div>
 
-                             {/* New Jobs Pagination */}
-               {pagination.total > pagination.limit && (
-              <div className="flex items-center justify-center space-x-2 mb-8">
-                   <button 
-                     onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
-                     disabled={pagination.page === 1}
-                     className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                   >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                   
-                   {/* Page numbers */}
-                   {Array.from({ length: Math.min(5, Math.ceil(pagination.total / pagination.limit)) }, (_, i) => {
-                     const pageNum = Math.max(1, pagination.page - 2) + i;
-                     const totalPages = Math.ceil(pagination.total / pagination.limit);
-                     if (pageNum > totalPages) return null;
-                     
-                     return (
-                       <button
-                         key={pageNum}
-                         onClick={() => setPagination(prev => ({ ...prev, page: pageNum }))}
-                         className={`w-8 h-8 rounded font-medium ${
-                           pageNum === pagination.page
-                             ? 'bg-[#007BFF] text-white'
-                             : 'text-gray-600 hover:bg-gray-100'
-                         }`}
-                       >
-                         {pageNum}
-                       </button>
-                     );
-                   })}
-                   
-                   {Math.ceil(pagination.total / pagination.limit) > 5 && pagination.page < Math.ceil(pagination.total / pagination.limit) - 2 && (
-                     <>
-                <span className="text-gray-400">...</span>
-                       <button
-                         onClick={() => setPagination(prev => ({ ...prev, page: Math.ceil(pagination.total / pagination.limit) }))}
-                         className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded"
-                       >
-                         {Math.ceil(pagination.total / pagination.limit)}
-                       </button>
-                     </>
-                   )}
-                   
-                   <button 
-                     onClick={() => setPagination(prev => ({ ...prev, page: Math.min(Math.ceil(pagination.total / pagination.limit), prev.page + 1) }))}
-                     disabled={pagination.page === Math.ceil(pagination.total / pagination.limit)}
-                     className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                   >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
-               )}
+                {/* New Jobs Pagination */}
+                <Pagination
+                  currentPage={pagination.page}
+                  totalPages={Math.ceil(pagination.total / pagination.limit)}
+                  totalItems={pagination.total}
+                  itemsPerPage={pagination.limit}
+                  onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
+                  showInfo={false}
+                />
 
               {/* Suitable Jobs Section */}
               <div>
@@ -965,19 +938,31 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
                 </div>
 
                 <div className="space-y-4">
-                  {suitableJobsError ? (
+                  {!suitableJobs.length && !suitableJobsError ? (
+                    // Skeleton loading for suitable jobs
+                    Array.from({ length: suitableJobsPagination.limit }, (_, i) => (
+                      <JobListItemSkeleton key={i} />
+                    ))
+                  ) : suitableJobsError ? (
                     <div className="text-center py-8">
-                      <p className="text-red-500">{suitableJobsError}</p>
+                      <div className="text-red-500 mb-2">⚠️ {suitableJobsError}</div>
                       <p className="text-gray-500 mt-2">Please try again or login to see personalized recommendations</p>
+                      <button 
+                        onClick={fetchSuitableJobs} 
+                        className="mt-3 text-blue-500 hover:underline"
+                      >
+                        Retry
+                      </button>
                     </div>
                   ) : suitableJobs.length > 0 ? (
                     suitableJobs.map((job) => (
                       <JobCard key={job.job_id || job.id} job={job} />
                     ))
                   ) : (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500">No personalized recommendations available</p>
-                      <p className="text-gray-400 text-sm mt-2">Complete your profile to get better job recommendations</p>
+                    <div className="text-center py-12">
+                      <div className="text-gray-400 text-6xl mb-4">🎯</div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No recommendations yet</h3>
+                      <p className="text-gray-500">Complete your profile to get personalized job recommendations</p>
                     </div>
                   )}
                 </div>

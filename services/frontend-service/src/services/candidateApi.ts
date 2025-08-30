@@ -1,10 +1,16 @@
 import apiClient from './api';
+import { apiCache } from './apiCache';
 
 // Candidate API Service
 export const candidateApi = {
   // Job Search & Browse
   getAllJobs: async () => {
+    const cacheKey = apiCache.generateKey('getAllJobs');
+    const cached = apiCache.get(cacheKey);
+    if (cached) return cached;
+
     const response = await apiClient.get('/api/v1/jobs');
+    apiCache.set(cacheKey, response.data, 2 * 60 * 1000); // Cache for 2 minutes
     return response.data;
   },
 
@@ -39,7 +45,12 @@ export const candidateApi = {
       )
     );
     
+    const cacheKey = apiCache.generateKey('searchJobs', cleanParams);
+    const cached = apiCache.get(cacheKey);
+    if (cached) return cached;
+    
     const response = await apiClient.get('/api/v1/jobs/search', { params: cleanParams });
+    apiCache.set(cacheKey, response.data, 30 * 1000); // Cache for 30 seconds (shorter for search)
     return response.data;
   },
 
@@ -57,14 +68,24 @@ export const candidateApi = {
     }
   },
 
-  getLatestJobs: async (params?: { limit?: number }) => {
+  getLatestJobs: async (params?: { limit?: number, page?: number }) => {
+    const cacheKey = apiCache.generateKey('getLatestJobs', params);
+    const cached = apiCache.get(cacheKey);
+    if (cached) return cached;
+
     const response = await apiClient.get('/api/v1/jobs/latest', { params });
+    apiCache.set(cacheKey, response.data, 60 * 1000); // Cache for 1 minute
     return response.data;
   },
 
   getFeaturedJobs: async () => {
+    const cacheKey = apiCache.generateKey('getFeaturedJobs');
+    const cached = apiCache.get(cacheKey);
+    if (cached) return cached;
+
     // Use regular jobs endpoint since /api/v1/jobs/featured doesn't exist
     const response = await apiClient.get('/api/v1/jobs');
+    apiCache.set(cacheKey, response.data, 3 * 60 * 1000); // Cache for 3 minutes
     return response.data;
   },
 

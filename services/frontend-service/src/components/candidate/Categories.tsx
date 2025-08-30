@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Skeleton } from '../common/SkeletonLoader';
 import { candidateApi } from '../../services/candidateApi';
 import { companyApi } from '../../services/companyApi';
 

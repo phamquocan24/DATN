@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Skeleton, TableRowSkeleton } from '../common/SkeletonLoader';
 import JobDetail from './JobDetail';
 import JobApplication from './JobApplication';
 import Avatar from '../../assets/Avatar17.png';
@@ -592,12 +593,33 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
           
           {applicationsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <svg className="animate-spin h-8 w-8 text-[#007BFF]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span className="ml-2 text-gray-600">Loading applications...</span>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <Skeleton width="w-16" height="h-4" />
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <Skeleton width="w-20" height="h-4" />
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <Skeleton width="w-24" height="h-4" />
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <Skeleton width="w-16" height="h-4" />
+                    </th>
+                    <th className="relative px-6 py-3">
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <TableRowSkeleton key={i} columns={5} />
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : applicationsError ? (
             <div className="text-center py-8">
@@ -662,12 +684,27 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           {jobsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <svg className="animate-spin h-8 w-8 text-[#007BFF]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span className="ml-2 text-gray-600">Loading job recommendations...</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }, (_, i) => (
+                <div key={i} className="bg-gray-50 rounded-lg p-6">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <Skeleton circle width="w-10" height="h-10" />
+                    <div>
+                      <Skeleton width="w-6" height="h-6" className="mb-1" />
+                    </div>
+                  </div>
+                  <Skeleton width="w-full" height="h-5" className="mb-2" />
+                  <Skeleton width="w-32" height="h-4" className="mb-3" />
+                  <div className="space-y-2">
+                    <Skeleton width="w-full" height="h-4" />
+                    <Skeleton width="w-3/4" height="h-4" />
+                  </div>
+                  <div className="flex items-center justify-between mt-4">
+                    <Skeleton width="w-20" height="h-6" />
+                    <Skeleton width="w-16" height="h-8" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : jobsError ? (
             <div className="text-center py-8">

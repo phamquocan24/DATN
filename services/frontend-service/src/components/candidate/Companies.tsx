@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { CompanyCardSkeleton } from '../common/SkeletonLoader';
 import { Footer } from './Footer';
 import { CTA } from './CTA';
 import GroupUnderline from '../../assets/Group.png';
@@ -430,9 +431,10 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
               </div>
 
               {loading && (
-                <div className="flex justify-center items-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#007BFF]"></div>
-                  <span className="ml-2 text-gray-600">Loading companies...</span>
+                <div className="grid lg:grid-cols-3 md:grid-cols-2 gap-6">
+                  {Array.from({ length: 6 }, (_, i) => (
+                    <CompanyCardSkeleton key={i} />
+                  ))}
                 </div>
               )}
 

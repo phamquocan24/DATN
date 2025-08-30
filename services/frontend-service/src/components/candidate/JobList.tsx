@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { JobApplication } from './JobApplication';
 import candidateApi from '../../services/candidateApi';
 import favoritesService from '../../services/favoritesService';
+import Pagination from '../common/Pagination';
+import { FeaturedJobSkeleton } from '../common/SkeletonLoader';
 import { isTokenValid } from '../../services/tokenUtils';
 import bookmarkCache from '../../services/bookmarkCache';
 
@@ -18,16 +20,36 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick, o
   const [latestJobs, setLatestJobs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [latestJobsPagination, setLatestJobsPagination] = useState({
+    page: 1,
+    limit: 6,
+    total: 0
+  });
 
   useEffect(() => {
     const fetchJobs = async () => {
       setIsLoading(true);
       try {
-        // Use correct API endpoints - try getFeaturedJobs for featured jobs  
-        const [allJobsResponse, latestJobsResponse] = await Promise.all([
-          candidateApi.getFeaturedJobs().catch(() => candidateApi.getAllJobs()),
-          candidateApi.getLatestJobs().catch(() => candidateApi.getAllJobs())
-        ]);
+        // Use correct API endpoints - with proper error handling
+        let allJobsResponse, latestJobsResponse;
+        
+        try {
+          allJobsResponse = await candidateApi.getFeaturedJobs();
+        } catch (error) {
+          console.warn('Failed to get featured jobs, falling back to all jobs:', error);
+          allJobsResponse = await candidateApi.getAllJobs();
+        }
+        
+        try {
+          latestJobsResponse = await candidateApi.getLatestJobs({ 
+            limit: latestJobsPagination.limit,
+            page: latestJobsPagination.page 
+          });
+        } catch (error) {
+          console.warn('Failed to get latest jobs, using featured jobs as fallback:', error);
+          // Use featured jobs as fallback to avoid extra API call
+          latestJobsResponse = allJobsResponse;
+        }
 
         // Handle different API response structures
         const allJobsArray = Array.isArray(allJobsResponse) 
@@ -37,6 +59,14 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick, o
         const latestJobsArray = Array.isArray(latestJobsResponse) 
           ? latestJobsResponse 
           : (latestJobsResponse?.data || latestJobsResponse?.jobs || []);
+          
+        // Update latest jobs pagination from API response
+        if (latestJobsResponse?.pagination) {
+          setLatestJobsPagination(prev => ({
+            ...prev,
+            total: latestJobsResponse.pagination.total
+          }));
+        }
 
         // Transform API data to match component interface - using real API structure
         const transformJob = (job: any, index: number) => ({
@@ -85,7 +115,7 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick, o
     };
 
     fetchJobs();
-  }, []);
+  }, [latestJobsPagination.page, latestJobsPagination.limit]);
 
 
 
@@ -96,13 +126,42 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick, o
 
   if (isLoading) {
     return (
-      <div className="py-16 bg-white text-center">
-        <svg className="animate-spin h-8 w-8 text-[#007BFF] mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <p className="mt-2 text-gray-600">Loading Jobs...</p>
-      </div>
+      <>
+        {/* Featured Jobs Skeleton */}
+        <div className="py-16 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between mb-8">
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-200 rounded w-48 mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-64"></div>
+              </div>
+              <div className="h-6 bg-gray-200 rounded w-32 animate-pulse"></div>
+            </div>
+            <div className="grid lg:grid-cols-4 md:grid-cols-2 gap-6">
+              {Array.from({ length: 4 }, (_, i) => (
+                <FeaturedJobSkeleton key={i} />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Latest Jobs Skeleton */}
+        <div className="py-16 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between mb-8">
+              <div className="animate-pulse">
+                <div className="h-8 bg-gray-200 rounded w-64 mb-2"></div>
+              </div>
+              <div className="h-6 bg-gray-200 rounded w-32 animate-pulse"></div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-6">
+              {Array.from({ length: latestJobsPagination.limit }, (_, i) => (
+                <FeaturedJobSkeleton key={i} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </>
     );
   }
 
@@ -411,11 +470,23 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick, o
             </button>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-2 gap-6 mb-8">
             {latestJobs.map((job) => (
               <JobCard key={job.id} job={job} cardStyle="latest" onJobClick={onJobClick} />
             ))}
           </div>
+          
+          {/* Latest Jobs Pagination */}
+          {latestJobsPagination.total > latestJobsPagination.limit && (
+            <Pagination
+              currentPage={latestJobsPagination.page}
+              totalPages={Math.ceil(latestJobsPagination.total / latestJobsPagination.limit)}
+              totalItems={latestJobsPagination.total}
+              itemsPerPage={latestJobsPagination.limit}
+              onPageChange={(page) => setLatestJobsPagination(prev => ({ ...prev, page }))}
+              showInfo={true}
+            />
+          )}
         </div>
       </div>
       

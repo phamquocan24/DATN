@@ -224,10 +224,10 @@ class JobController {
         });
       }
 
-      // Only show active jobs for public access
+      // Only show active and published jobs for public access
       const options = {
         ...value,
-        status: 'ACTIVE'
+        status: ['ACTIVE', 'PUBLISHED']
       };
 
       const result = await this.jobModel.getJobs(options);
@@ -1292,11 +1292,11 @@ class JobController {
    */
   async getLatestJobs(req, res) {
     try {
-      const { limit = 10 } = req.query;
+      const { limit = 10, page = 1 } = req.query;
 
       const options = {
-        status: 'ACTIVE',
-        page: 1,
+        status: ['ACTIVE', 'PUBLISHED'],
+        page: parseInt(page),
         limit: parseInt(limit),
         orderBy: 'created_at',
         direction: 'DESC'
@@ -1307,7 +1307,8 @@ class JobController {
       res.json({
         success: true,
         message: 'Latest jobs retrieved successfully',
-        data: result.data
+        data: result.data,
+        pagination: result.pagination
       });
     } catch (error) {
       logger.error('Failed to get latest jobs:', error);
@@ -1475,7 +1476,7 @@ class JobController {
 
       const options = {
         ...value,
-        status: 'ACTIVE'
+        status: ['ACTIVE', 'PUBLISHED']
       };
 
       const result = await this.jobModel.getJobs(options);
@@ -2327,11 +2328,11 @@ class JobController {
    */
   async getLatestJobs(req, res) {
     try {
-      const { limit = 10 } = req.query;
+      const { limit = 10, page = 1 } = req.query;
 
       const options = {
-        status: 'ACTIVE',
-        page: 1,
+        status: ['ACTIVE', 'PUBLISHED'],
+        page: parseInt(page),
         limit: parseInt(limit),
         orderBy: 'created_at',
         direction: 'DESC'
@@ -2342,7 +2343,8 @@ class JobController {
       res.json({
         success: true,
         message: 'Latest jobs retrieved successfully',
-        data: result.data
+        data: result.data,
+        pagination: result.pagination
       });
     } catch (error) {
       logger.error('Failed to get latest jobs:', error);

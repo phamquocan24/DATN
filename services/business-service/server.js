@@ -56,10 +56,10 @@ const { auditLogger } = require('./middleware/auditLogger');
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// Rate limiting
+// Rate limiting - Increased for better UX with pagination
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'test' ? 100000 : 100, // Very high limit for testing
+  max: process.env.NODE_ENV === 'test' ? 100000 : 10000, // Increased from 100 to 1000 for development
   message: {
     success: false,
     error: 'Too many requests, please try again later'
@@ -67,8 +67,9 @@ const generalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Always skip rate limiting for test environment
-    return process.env.NODE_ENV === 'test';
+    // Skip rate limiting for test environment, localhost development, or when NODE_ENV is not set
+    const nodeEnv = process.env.NODE_ENV || 'development';
+    return nodeEnv === 'test' || nodeEnv === 'development' || req.hostname === 'localhost';
   }
 });
 
