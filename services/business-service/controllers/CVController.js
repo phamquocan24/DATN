@@ -1269,4 +1269,3 @@ router.get('/my-cvs/stats', authenticateToken, requireRole(['CANDIDATE']), async
 });
 
 module.exports = router; 
-
