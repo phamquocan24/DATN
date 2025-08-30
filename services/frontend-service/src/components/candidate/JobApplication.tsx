@@ -131,7 +131,7 @@ export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose,
         job_id: jobId,
         cv_id: selectedCVId || undefined,
         cover_letter: formData.coverLetter || undefined,
-        ai_match_score: aiMatchScore,
+        match_score: aiMatchScore ? Number(aiMatchScore) : undefined,
         source: 'DIRECT' as const
       };
 

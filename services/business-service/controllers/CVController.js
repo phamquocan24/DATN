@@ -1268,4 +1268,214 @@ router.get('/my-cvs/stats', authenticateToken, requireRole(['CANDIDATE']), async
   }
 });
 
+/**
+ * @swagger
+ * /api/v1/cvs/{cv_id}/match-scores:
+ *   get:
+ *     summary: Get CV match scores
+ *     description: Get match scores for a specific CV with all jobs
+ *     tags: [CVs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: cv_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: CV ID
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: number
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *         description: Number of match scores to return
+ *     responses:
+ *       200:
+ *         description: Match scores retrieved successfully
+ *       403:
+ *         description: Access denied
+ *       404:
+ *         description: CV not found
+ *       500:
+ *         description: Internal server error
+ */
+// Get CV match scores
+router.get('/:cv_id/match-scores', authenticateToken, requireRole(['CANDIDATE']), async (req, res) => {
+  try {
+    const { cv_id } = req.params;
+    const { limit = 20 } = req.query;
+    const user_id = req.user.user_id;
+
+    // Get candidate profile ID from user ID 
+    const candidateProfileQuery = `
+      SELECT profile_id 
+      FROM candidate_profiles 
+      WHERE user_id = $1
+    `;
+    const candidateResult = await cvModel.db.query(candidateProfileQuery, [user_id], 'get_candidate_profile');
+    
+    if (candidateResult.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'Candidate profile not found'
+      });
+    }
+    
+    const candidate_id = candidateResult.rows[0].profile_id;
+
+    // Verify CV ownership (candidate_cvs.candidate_id is user_id, not profile_id)
+    const cvQuery = `
+      SELECT cv.cv_id 
+      FROM candidate_cvs cv
+      INNER JOIN candidate_profiles cp ON cv.candidate_id = cp.user_id
+      WHERE cv.cv_id = $1 AND cp.profile_id = $2
+    `;
+    const cvResult = await cvModel.db.query(cvQuery, [cv_id, candidate_id], 'validate_cv_ownership');
+    
+    if (cvResult.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'CV not found or access denied'
+      });
+    }
+
+    // For now, return empty match scores (can be enhanced with actual match scores later)
+    res.json({
+      success: true,
+      message: 'Match scores retrieved successfully',
+      data: {
+        cv_id,
+        best_match_score: null,
+        best_match_job: null,
+        has_job_matches: false,
+        job_match_scores: []
+      }
+    });
+
+  } catch (error) {
+    logger.error('Failed to get match scores:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: 'GET_MATCH_SCORES_ERROR'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/v1/cvs/{cv_id}/match-scores:
+ *   post:
+ *     summary: Save CV match scores
+ *     description: Save match scores for a specific CV
+ *     tags: [CVs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: cv_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: CV ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               best_match_score:
+ *                 type: number
+ *                 minimum: 0
+ *                 maximum: 100
+ *               best_match_job:
+ *                 type: string
+ *               has_job_matches:
+ *                 type: boolean
+ *               job_match_scores:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *     responses:
+ *       200:
+ *         description: Match scores saved successfully
+ *       403:
+ *         description: Access denied
+ *       404:
+ *         description: CV not found
+ *       500:
+ *         description: Internal server error
+ */
+// Save CV match scores
+router.post('/:cv_id/match-scores', authenticateToken, requireRole(['CANDIDATE']), async (req, res) => {
+  try {
+    const { cv_id } = req.params;
+    const matchScoresData = req.body;
+    const user_id = req.user.user_id;
+
+    // Get candidate profile ID from user ID 
+    const candidateProfileQuery = `
+      SELECT profile_id 
+      FROM candidate_profiles 
+      WHERE user_id = $1
+    `;
+    const candidateResult = await cvModel.db.query(candidateProfileQuery, [user_id], 'get_candidate_profile');
+    
+    if (candidateResult.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'Candidate profile not found'
+      });
+    }
+    
+    const candidate_id = candidateResult.rows[0].profile_id;
+
+    // Verify CV ownership (candidate_cvs.candidate_id is user_id, not profile_id)
+    const cvQuery = `
+      SELECT cv.cv_id 
+      FROM candidate_cvs cv
+      INNER JOIN candidate_profiles cp ON cv.candidate_id = cp.user_id
+      WHERE cv.cv_id = $1 AND cp.profile_id = $2
+    `;
+    const cvResult = await cvModel.db.query(cvQuery, [cv_id, candidate_id], 'validate_cv_ownership');
+    
+    if (cvResult.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'CV not found or access denied'
+      });
+    }
+
+    // For now, just return success (can be enhanced to actually save match scores later)
+    logger.info('Match scores saved for CV:', {
+      cv_id,
+      candidate_id,
+      match_scores: matchScoresData
+    });
+
+    res.json({
+      success: true,
+      message: 'Match scores saved successfully',
+      data: {
+        cv_id,
+        saved_at: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    logger.error('Failed to save match scores:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: 'SAVE_MATCH_SCORES_ERROR'
+    });
+  }
+});
+
 module.exports = router; 

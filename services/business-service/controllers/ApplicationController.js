@@ -26,26 +26,27 @@ const createApplicationSchema = Joi.object({
   job_id: Joi.string().uuid().required(),
   cv_id: Joi.string().uuid().optional(),
   cover_letter: Joi.string().max(5000).optional(),
+  match_score: Joi.number().min(0).max(100).precision(2).allow(null).optional(),
   source: Joi.string().valid('DIRECT', 'SOCIAL_MEDIA', 'REFERRAL', 'HEADHUNTER', 'CAREER_FAIR').default('DIRECT')
 });
 
 const updateApplicationStatusSchema = Joi.object({
-  current_status: Joi.string().valid('APPLIED', 'SCREENING', 'INTERVIEW', 'ASSESSMENT', 'OFFER', 'HIRED', 'REJECTED', 'WITHDRAWN').required(),
+  current_status: Joi.string().valid('SUBMITTED', 'REVIEWING', 'SHORTLISTED', 'INTERVIEWED', 'OFFERED', 'HIRED', 'REJECTED', 'WITHDRAWN').required(),
   reason: Joi.string().max(1000).optional(),
   scheduled_date: Joi.date().optional()
 });
 
 const bulkUpdateSchema = Joi.object({
   application_ids: Joi.array().items(Joi.string().uuid()).min(1).max(100).required(),
-  current_status: Joi.string().valid('APPLIED', 'SCREENING', 'INTERVIEW', 'ASSESSMENT', 'OFFER', 'HIRED', 'REJECTED', 'WITHDRAWN').required(),
+  current_status: Joi.string().valid('SUBMITTED', 'REVIEWING', 'SHORTLISTED', 'INTERVIEWED', 'OFFERED', 'HIRED', 'REJECTED', 'WITHDRAWN').required(),
   reason: Joi.string().max(1000).optional()
 });
 
 const searchApplicationsSchema = Joi.object({
   job_id: Joi.string().uuid().optional(),
   current_status: Joi.alternatives().try(
-    Joi.string().valid('APPLIED', 'SCREENING', 'INTERVIEW', 'ASSESSMENT', 'OFFER', 'HIRED', 'REJECTED', 'WITHDRAWN'),
-    Joi.array().items(Joi.string().valid('APPLIED', 'SCREENING', 'INTERVIEW', 'ASSESSMENT', 'OFFER', 'HIRED', 'REJECTED', 'WITHDRAWN'))
+    Joi.string().valid('SUBMITTED', 'REVIEWING', 'SHORTLISTED', 'INTERVIEWED', 'OFFERED', 'HIRED', 'REJECTED', 'WITHDRAWN'),
+    Joi.array().items(Joi.string().valid('SUBMITTED', 'REVIEWING', 'SHORTLISTED', 'INTERVIEWED', 'OFFERED', 'HIRED', 'REJECTED', 'WITHDRAWN'))
   ).optional(),
   search: Joi.string().optional(),
   date_from: Joi.date().optional(),
@@ -148,8 +149,45 @@ class ApplicationController {
         });
       }
 
-      const { job_id, cv_id, cover_letter } = value;
-      const candidate_id = req.user.user_id;
+      const { job_id, cv_id, cover_letter, source } = value;
+      let { match_score } = value;
+      const user_id = req.user.user_id;
+
+      // Ensure match_score is a valid number or null
+      if (match_score !== undefined && match_score !== null) {
+        match_score = parseFloat(match_score);
+        if (isNaN(match_score) || match_score < 0 || match_score > 100) {
+          return res.status(400).json({
+            success: false,
+            message: 'Validation failed',
+            errors: [{ field: 'match_score', message: 'match_score must be a number between 0 and 100' }]
+          });
+        }
+      }
+
+      // Verify candidate profile exists (but use user_id as candidate_id in applications)
+      const candidateProfileQuery = `
+        SELECT profile_id 
+        FROM candidate_profiles 
+        WHERE user_id = $1
+      `;
+      const candidateResult = await this.applicationModel.db.query(candidateProfileQuery, [user_id], 'get_candidate_profile');
+      
+      console.log('🔍 Debug candidate lookup:', {
+        user_id,
+        candidateResult: candidateResult.rows
+      });
+      
+      if (candidateResult.rows.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'Candidate profile not found. Please complete your profile first.',
+          debug: { user_id }
+        });
+      }
+      
+      // Use user_id as candidate_id since applications.candidate_id references users.user_id
+      const candidate_id = user_id;
 
       // Check if already applied
       const existingApplication = await this.applicationModel.findOne({
@@ -164,17 +202,43 @@ class ApplicationController {
         });
       }
 
-      // Create application
+      // Validate CV belongs to candidate if cv_id is provided (using user_id)
+      if (cv_id) {
+        const cvQuery = `
+          SELECT cv_id 
+          FROM candidate_cvs 
+          WHERE cv_id = $1 AND candidate_id = $2
+        `;
+        const cvResult = await this.applicationModel.db.query(cvQuery, [cv_id, user_id], 'validate_cv_ownership');
+        
+        console.log('🔍 Debug createApplication CV validation:', {
+          cv_id,
+          candidate_id,
+          user_id,
+          cvResult: cvResult.rows,
+          queryUsed: cvQuery
+        });
+        
+        if (cvResult.rows.length === 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'CV not found or access denied',
+            debug: { cv_id, candidate_id, user_id }
+          });
+        }
+      }
+
+      // Create application - let database set current_status to DEFAULT
       const applicationData = {
         job_id,
         candidate_id,
         cv_id,
         cover_letter,
-        current_status: 'APPLIED', // Fixed: use current_status instead of status
-        submitted_at: new Date() // Fixed: use submitted_at instead of applied_at (matches database schema)
+        match_score,
+        source
       };
 
-      const application = await this.applicationModel.create(applicationData);
+      const application = await this.applicationModel.createApplication(applicationData);
 
       // Get job and candidate info for email
       try {
@@ -1855,13 +1919,58 @@ class ApplicationController {
   async getMatchScore(req, res) {
     try {
       const { jobId } = req.params;
+      const { cv_id } = req.query; // Get cv_id from query params
+      const user_id = req.user.user_id;
 
-      const candidateId = req.user.candidate_profile_id;
-      if (!candidateId) {
+      // Get candidate profile ID from user ID (applications table expects profile_id)
+      const candidateProfileQuery = `
+        SELECT profile_id 
+        FROM candidate_profiles 
+        WHERE user_id = $1
+      `;
+      const candidateResult = await this.applicationModel.db.query(candidateProfileQuery, [user_id], 'get_candidate_profile');
+      
+      console.log('🔍 Debug getMatchScore candidate lookup:', {
+        user_id,
+        candidateResult: candidateResult.rows
+      });
+      
+      if (candidateResult.rows.length === 0) {
         return res.status(403).json({
           success: false,
-          message: 'Candidate profile not found'
+          message: 'Candidate profile not found',
+          debug: { user_id }
         });
+      }
+      
+      const candidateId = candidateResult.rows[0].profile_id;
+
+      // If cv_id provided, verify it belongs to candidate via user_id
+      if (cv_id) {
+        const cvQuery = `
+          SELECT cv.cv_id 
+          FROM candidate_cvs cv
+          INNER JOIN candidate_profiles cp ON cv.candidate_id = cp.user_id
+          WHERE cv.cv_id = $1 AND cp.profile_id = $2
+        `;
+        const cvResult = await this.applicationModel.db.query(cvQuery, [cv_id, candidateId], 'validate_cv_ownership');
+        
+        console.log('🔍 Debug CV validation:', {
+          cv_id,
+          candidateId,
+          user_id,
+          cvResult: cvResult.rows,
+          queryUsed: cvQuery
+        });
+        
+        if (cvResult.rows.length === 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'No CV found for candidate',
+            error: 'CV not found or access denied',
+            debug: { cv_id, candidateId, user_id }
+          });
+        }
       }
 
       const matchScore = await this.applicationModel.calculateMatchScore(candidateId, jobId);
