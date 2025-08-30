@@ -14,30 +14,55 @@ interface ApplicationDetails {
   current_status: string;
   cover_letter?: string;
   cv_id?: string;
-  applied_at: string;
+  submitted_at: string;
   updated_at: string;
-  job?: {
-    job_id: string;
-    title: string;
-    company: {
-      name: string;
-      logo?: string;
-    };
-    employment_type: string;
-    work_type: string;
-    location: string;
-    salary_min?: number;
-    salary_max?: number;
-  };
-  cv?: {
-    cv_id: string;
-    cv_title: string;
-    cv_file_url: string;
-  };
+  ai_match_score?: number;
+  source?: string;
+  
+  // Job information from business API
+  job_title?: string;
+  experience_level?: string;
+  employment_type?: string;
+  salary_min?: number;
+  salary_max?: number;
+  currency?: string;
+  remote_work_option?: string;
+  
+  // Company information
+  company_name?: string;
+  logo_url?: string;
+  industry?: string;
+  city_name?: string;
+  district_name?: string;
+  
+  // Candidate information
+  candidate_name?: string;
+  candidate_email?: string;
+  phone_number?: string;
+  location?: string;
+  about_me?: string;
+  education_level?: string;
+  years_experience?: number;
+  current_job_title?: string;
+  resume_url?: string;
+  
+  // Status history from business API
   status_history?: Array<{
+    from_status: string;
+    to_status: string;
+    changed_by: string;
+    change_reason?: string;
+    created_at: string;
+    changed_by_name?: string;
+  }>;
+  
+  // Test results
+  test_results?: Array<{
+    test_name: string;
+    test_type: string;
+    percentage: number;
     status: string;
-    changed_at: string;
-    reason?: string;
+    created_at: string;
   }>;
 }
 
@@ -66,14 +91,14 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, on
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
-      case 'REVIEWING': return 'bg-blue-100 text-blue-800';
-      case 'SHORTLISTED': return 'bg-green-100 text-green-800';
-      case 'INTERVIEWING': return 'bg-purple-100 text-purple-800';
-      case 'TESTING': return 'bg-indigo-100 text-indigo-800';
-      case 'OFFERED': return 'bg-emerald-100 text-emerald-800';
+      case 'APPLIED': return 'bg-blue-100 text-blue-800';
+      case 'SCREENING': return 'bg-yellow-100 text-yellow-800';
+      case 'INTERVIEW': return 'bg-purple-100 text-purple-800';
+      case 'ASSESSMENT': return 'bg-indigo-100 text-indigo-800';
+      case 'OFFER': return 'bg-emerald-100 text-emerald-800';
       case 'HIRED': return 'bg-green-100 text-green-800';
       case 'REJECTED': return 'bg-red-100 text-red-800';
+      case 'WITHDRAWN': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -128,21 +153,39 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, on
           </button>
           
           <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                {application.job?.title || 'Job Application'}
-              </h1>
-              <p className="text-lg text-gray-600 mb-4">
-                {application.job?.company?.name || 'Company'}
-              </p>
-              <div className="flex items-center space-x-4 text-sm text-gray-500">
-                <div className="flex items-center">
-                  <Calendar className="w-4 h-4 mr-1" />
-                  Applied: {formatDate(application.applied_at)}
+            <div className="flex items-start space-x-4">
+              {application.logo_url ? (
+                <img 
+                  src={application.logo_url} 
+                  alt={`${application.company_name} logo`}
+                  className="w-16 h-16 rounded-lg object-cover"
+                />
+              ) : (
+                <div className="w-16 h-16 bg-blue-500 rounded-lg flex items-center justify-center text-white text-xl font-bold">
+                  {application.company_name?.charAt(0) || 'C'}
                 </div>
-                <div className="flex items-center">
-                  <Clock className="w-4 h-4 mr-1" />
-                  Updated: {formatDate(application.updated_at)}
+              )}
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                  {application.job_title || 'Job Application'}
+                </h1>
+                <p className="text-lg text-gray-600 mb-4">
+                  {application.company_name || 'Company'}
+                </p>
+                <div className="flex items-center space-x-4 text-sm text-gray-500">
+                  <div className="flex items-center">
+                    <Calendar className="w-4 h-4 mr-1" />
+                    Applied: {formatDate(application.submitted_at)}
+                  </div>
+                  <div className="flex items-center">
+                    <Clock className="w-4 h-4 mr-1" />
+                    Updated: {formatDate(application.updated_at)}
+                  </div>
+                  {application.ai_match_score && (
+                    <div className="flex items-center text-green-600 font-medium">
+                      Match: {Math.round(application.ai_match_score)}%
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -166,27 +209,50 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, on
               <div className="space-y-3">
                 <div>
                   <span className="font-medium text-gray-700">Position:</span>
-                  <span className="ml-2 text-gray-600">{application.job?.title}</span>
+                  <span className="ml-2 text-gray-600">{application.job_title}</span>
                 </div>
                 <div>
                   <span className="font-medium text-gray-700">Company:</span>
-                  <span className="ml-2 text-gray-600">{application.job?.company?.name}</span>
+                  <span className="ml-2 text-gray-600">{application.company_name}</span>
                 </div>
                 <div>
                   <span className="font-medium text-gray-700">Location:</span>
-                  <span className="ml-2 text-gray-600">{application.job?.location}</span>
+                  <span className="ml-2 text-gray-600">
+                    {application.city_name}
+                    {application.district_name && `, ${application.district_name}`}
+                  </span>
                 </div>
                 <div>
                   <span className="font-medium text-gray-700">Type:</span>
                   <span className="ml-2 text-gray-600">
-                    {application.job?.employment_type} • {application.job?.work_type}
+                    {application.employment_type} • {application.remote_work_option}
                   </span>
                 </div>
-                {application.job?.salary_min && application.job?.salary_max && (
+                {application.experience_level && (
+                  <div>
+                    <span className="font-medium text-gray-700">Level:</span>
+                    <span className="ml-2 text-gray-600">{application.experience_level}</span>
+                  </div>
+                )}
+                {application.industry && (
+                  <div>
+                    <span className="font-medium text-gray-700">Industry:</span>
+                    <span className="ml-2 text-gray-600">{application.industry}</span>
+                  </div>
+                )}
+                {application.salary_min && application.salary_max && (
                   <div>
                     <span className="font-medium text-gray-700">Salary:</span>
                     <span className="ml-2 text-gray-600">
-                      ${application.job.salary_min.toLocaleString()} - ${application.job.salary_max.toLocaleString()}
+                      {new Intl.NumberFormat('vi-VN', { 
+                        style: 'currency', 
+                        currency: application.currency || 'VND',
+                        minimumFractionDigits: 0 
+                      }).format(application.salary_min)} - {new Intl.NumberFormat('vi-VN', { 
+                        style: 'currency', 
+                        currency: application.currency || 'VND',
+                        minimumFractionDigits: 0 
+                      }).format(application.salary_max)}
                     </span>
                   </div>
                 )}
@@ -216,18 +282,21 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, on
                 <div className="space-y-4">
                   {application.status_history.map((status, index) => (
                     <div key={index} className="flex items-start space-x-3 pb-4 border-b border-gray-100 last:border-b-0">
-                      <div className={`w-3 h-3 rounded-full mt-2 ${getStatusColor(status.status).replace('bg-', 'bg-').split(' ')[0]}`}></div>
+                      <div className={`w-3 h-3 rounded-full mt-2 ${getStatusColor(status.to_status).replace('bg-', 'bg-').split(' ')[0]}`}></div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
                           <span className="font-medium text-gray-900">
-                            {getStatusDisplayName(status.status)}
+                            {status.from_status ? `${getStatusDisplayName(status.from_status)} → ` : ''}{getStatusDisplayName(status.to_status)}
                           </span>
                           <span className="text-sm text-gray-500">
-                            {formatDate(status.changed_at)}
+                            {formatDate(status.created_at)}
                           </span>
                         </div>
-                        {status.reason && (
-                          <p className="text-sm text-gray-600 mt-1">{status.reason}</p>
+                        {status.change_reason && (
+                          <p className="text-sm text-gray-600 mt-1">{status.change_reason}</p>
+                        )}
+                        {status.changed_by_name && (
+                          <p className="text-xs text-gray-500 mt-1">Changed by: {status.changed_by_name}</p>
                         )}
                       </div>
                     </div>
@@ -255,19 +324,25 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, on
                     </span>
                   </p>
                 </div>
+                {application.source && (
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Source:</span>
+                    <p className="text-sm text-gray-600">{application.source}</p>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* CV Used */}
-            {application.cv && (
+            {application.resume_url && (
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">CV Used</h3>
                 <div className="flex items-start space-x-3">
                   <FileText className="w-8 h-8 text-gray-400 flex-shrink-0" />
                   <div className="flex-1">
-                    <p className="font-medium text-gray-900">{application.cv.cv_title}</p>
+                    <p className="font-medium text-gray-900">Resume</p>
                     <a
-                      href={application.cv.cv_file_url}
+                      href={application.resume_url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-[#007BFF] hover:text-[#0056b3]"
@@ -275,6 +350,33 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, on
                       View CV
                     </a>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Test Results */}
+            {application.test_results && application.test_results.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Test Results</h3>
+                <div className="space-y-3">
+                  {application.test_results.map((test, index) => (
+                    <div key={index} className="p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="font-medium text-gray-900">{test.test_name}</p>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          test.percentage >= 70 ? 'bg-green-100 text-green-800' : 
+                          test.percentage >= 50 ? 'bg-yellow-100 text-yellow-800' : 
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {Math.round(test.percentage)}%
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600">{test.test_type}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Completed: {formatDate(test.created_at)}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

@@ -2,7 +2,7 @@ import LogoFooter from '../../assets/Logo_footer.png';
 
 export const Footer = () => {
   return (
-    <footer className="bg-gray-900 text-white py-16">
+    <footer className="bg-gray-900 text-white py-16 mt-0" style={{ marginBottom: 0 }}>
       <div className="w-full px-6 lg:px-20">
         <div className="grid lg:grid-cols-4 gap-8 mb-12">
           {/* Company Info */}

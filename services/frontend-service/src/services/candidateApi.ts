@@ -209,14 +209,20 @@ export const candidateApi = {
   },
 
   getMyApplications: async (params?: {
-    status?: 'PENDING' | 'REVIEWING' | 'SHORTLISTED' | 'INTERVIEWING' | 'TESTING' | 'OFFERED' | 'HIRED' | 'REJECTED';
+    current_status?: 'SUBMITTED' | 'REVIEWING' | 'SHORTLISTED' | 'INTERVIEWED' | 'OFFERED' | 'HIRED' | 'REJECTED' | 'WITHDRAWN';
     page?: number;
     limit?: number;
     orderBy?: 'created_at' | 'updated_at';
     direction?: 'ASC' | 'DESC';
   }) => {
     try {
-      const response = await apiClient.get('/api/v1/applications/my-applications', { params });
+      // Filter out undefined values to avoid sending them to API
+      const cleanParams = params ? Object.fromEntries(
+        Object.entries(params).filter(([_, value]) => value !== undefined)
+      ) : {};
+      
+      
+      const response = await apiClient.get('/api/v1/applications/my-applications', { params: cleanParams });
       return response.data;
     } catch (error: any) {
       // If user is not authenticated, return empty applications

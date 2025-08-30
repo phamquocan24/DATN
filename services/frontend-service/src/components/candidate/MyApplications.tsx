@@ -12,7 +12,7 @@ interface Application {
   company: string;
   role: string;
   dateApplied: string;
-  status: 'PENDING' | 'REVIEWING' | 'SHORTLISTED' | 'INTERVIEWING' | 'TESTING' | 'OFFERED' | 'HIRED' | 'REJECTED';
+  status: 'SUBMITTED' | 'REVIEWING' | 'SHORTLISTED' | 'INTERVIEWED' | 'OFFERED' | 'HIRED' | 'REJECTED' | 'WITHDRAWN';
   logo: string;
   logoColor: string;
   cv_id?: string;
@@ -107,6 +107,27 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [withdrawingApplication, setWithdrawingApplication] = useState<string | null>(null);
   const [showDropdown, setShowDropdown] = useState<string | null>(null);
+  
+  // Withdraw modal states
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [applicationToWithdraw, setApplicationToWithdraw] = useState<Application | null>(null);
+  const [withdrawReason, setWithdrawReason] = useState('');
+
+  // Helper function to map status tab to API status
+  const getAPIStatus = (tabStatus: string): any => {
+    const statusMap: { [key: string]: string } = {
+      'pending': 'SUBMITTED',
+      'reviewing': 'REVIEWING', 
+      'interviewing': 'INTERVIEWED',
+      'testing': 'SHORTLISTED',
+      'rejected': 'REJECTED',
+      'hired': 'HIRED',
+      'withdrawn': 'WITHDRAWN'
+    };
+    return statusMap[tabStatus] || tabStatus.toUpperCase();
+  };
+
+
 
   // Fetch user profile data
   useEffect(() => {
@@ -138,17 +159,112 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
     };
   }, [showDropdown]);
 
+  // Debug dropdown status
+  useEffect(() => {
+    if (showDropdown) {
+      const app = applications.find(a => a.id === showDropdown);
+      if (app) {
+        console.log('🔍 Dropdown opened for:', app.company, 'Status:', app.status, 'Can withdraw:', (app.status !== 'WITHDRAWN' && app.status !== 'HIRED' && app.status !== 'REJECTED'));
+      }
+    }
+  }, [showDropdown, applications]);
+
+  // Handle withdraw modal
+  const handleWithdrawClick = (application: Application) => {
+    setApplicationToWithdraw(application);
+    setShowWithdrawModal(true);
+    setShowDropdown(null);
+  };
+
+  const handleWithdrawCancel = () => {
+    setShowWithdrawModal(false);
+    setApplicationToWithdraw(null);
+    setWithdrawReason('');
+  };
+
+  const handleWithdrawConfirm = async () => {
+    if (!applicationToWithdraw) return;
+    
+    try {
+      setWithdrawingApplication(applicationToWithdraw.id);
+      await candidateApi.withdrawApplication(applicationToWithdraw.id, withdrawReason || 'Candidate withdrew application');
+      
+      // Refresh applications list
+      const apiParams: any = {
+        page: currentPage,
+        limit: pageLimit,
+        orderBy: 'created_at',
+        direction: 'DESC'
+      };
+      
+      // Only add status if not 'all'
+      if (selectedStatusTab !== 'all') {
+        apiParams.current_status = getAPIStatus(selectedStatusTab);
+      }
+      
+      const response = await candidateApi.getMyApplications(apiParams);
+      const applicationsArray = Array.isArray(response) ? response : (response?.data || []);
+      
+      const transformedApplications = applicationsArray.map((app: any, index: number) => {
+        const companyName = app.company_name || app.job?.company?.name || 'Company';
+        const logoColors = [
+          'bg-green-500 text-white',
+          'bg-blue-500 text-white', 
+          'bg-red-500 text-white',
+          'bg-purple-500 text-white',
+          'bg-cyan-500 text-white'
+        ];
+        
+        return {
+          id: app.application_id || app.id,
+          application_id: app.application_id,
+          job_id: app.job_id,
+          candidate_id: app.candidate_id,
+          company: companyName,
+          role: app.job_title || app.position || app.job?.title || 'Position',
+          dateApplied: new Date(app.applied_at || app.created_at || Date.now()).toLocaleDateString(),
+          status: app.current_status || app.status || 'SUBMITTED',
+          logo: companyName.charAt(0).toUpperCase(),
+          logoColor: logoColors[index % logoColors.length],
+          cv_id: app.cv_id,
+          cover_letter: app.cover_letter,
+          applied_at: app.applied_at,
+          updated_at: app.updated_at,
+          job_title: app.job_title,
+          company_name: app.company_name
+        };
+      });
+      
+      setApplications(transformedApplications);
+      setShowWithdrawModal(false);
+      setApplicationToWithdraw(null);
+      setWithdrawReason('');
+    } catch (error) {
+      console.error('Error withdrawing application:', error);
+      alert('Failed to withdraw application');
+    } finally {
+      setWithdrawingApplication(null);
+    }
+  };
+
   useEffect(() => {
     const fetchApplications = async () => {
       setIsLoading(true);
       try {
-        const response = await candidateApi.getMyApplications({
+        const apiParams: any = {
           page: currentPage,
           limit: pageLimit,
-          status: selectedStatusTab !== 'all' ? selectedStatusTab.toUpperCase() as any : undefined,
           orderBy: 'created_at',
           direction: 'DESC'
-        });
+        };
+        
+        // Only add status if not 'all'
+        if (selectedStatusTab !== 'all') {
+          apiParams.current_status = getAPIStatus(selectedStatusTab);
+        }
+        
+        
+        const response = await candidateApi.getMyApplications(apiParams);
         
         // Handle business-service API response structure
         const applicationsArray = Array.isArray(response)
@@ -161,27 +277,45 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
         }
         
         // Transform API data to match component interface
-        const transformedApplications = applicationsArray.map((app: any) => ({
-          id: app.application_id || app.id,
-          application_id: app.application_id,
-          job_id: app.job_id,
-          candidate_id: app.candidate_id,
-          company: app.job_title || app.company_name || app.job?.company?.name || 'Company',
-          role: app.job_title || app.position || app.job?.title || 'Position',
-          dateApplied: new Date(app.applied_at || app.created_at || Date.now()).toLocaleDateString(),
-          status: app.current_status || app.status || 'PENDING',
-          logo: (app.job_title || app.company_name || app.job?.company?.name || 'C').charAt(0).toUpperCase(),
-          logoColor: 'bg-blue-500 text-white',
-          cv_id: app.cv_id,
-          cover_letter: app.cover_letter,
-          applied_at: app.applied_at,
-          updated_at: app.updated_at,
-          job_title: app.job_title,
-          company_name: app.company_name
-        }));
+        const transformedApplications = applicationsArray.map((app: any, index: number) => {
+          const companyName = app.company_name || app.job?.company?.name || 'Company';
+          const logoColors = [
+            'bg-green-500 text-white',
+            'bg-blue-500 text-white', 
+            'bg-red-500 text-white',
+            'bg-purple-500 text-white',
+            'bg-cyan-500 text-white'
+          ];
+          
+          return {
+            id: app.application_id || app.id,
+            application_id: app.application_id,
+            job_id: app.job_id,
+            candidate_id: app.candidate_id,
+            company: companyName,
+            role: app.job_title || app.position || app.job?.title || 'Position',
+            dateApplied: new Date(app.applied_at || app.created_at || Date.now()).toLocaleDateString(),
+            status: app.current_status || app.status || 'SUBMITTED',
+            logo: companyName.charAt(0).toUpperCase(),
+            logoColor: logoColors[index % logoColors.length],
+            cv_id: app.cv_id,
+            cover_letter: app.cover_letter,
+            applied_at: app.applied_at,
+            updated_at: app.updated_at,
+            job_title: app.job_title,
+            company_name: app.company_name
+          };
+        });
         
         setApplications(transformedApplications);
         setError(null);
+        
+        // Debug: Log application statuses
+        console.log('🔍 Application statuses:', transformedApplications.map((app: Application) => ({ 
+          id: app.id, 
+          company: app.company, 
+          status: app.status 
+        })));
       } catch (err) {
         setError('Failed to load applications.');
         console.error('Error fetching applications:', err);
@@ -226,102 +360,67 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
     setSelectedApplication(null);
   };
 
-  const handleWithdrawApplication = async (applicationId: string, reason?: string) => {
-    try {
-      setWithdrawingApplication(applicationId);
-      await candidateApi.withdrawApplication(applicationId, reason);
-      
-      // Refresh applications list
-      const response = await candidateApi.getMyApplications({
-        page: currentPage,
-        limit: pageLimit,
-        status: selectedStatusTab !== 'all' ? selectedStatusTab.toUpperCase() as any : undefined,
-        orderBy: 'created_at',
-        direction: 'DESC'
-      });
-      const applicationsArray = Array.isArray(response) ? response : (response?.data || []);
-      
-      const transformedApplications = applicationsArray.map((app: any) => ({
-        id: app.application_id || app.id,
-        application_id: app.application_id,
-        job_id: app.job_id,
-        candidate_id: app.candidate_id,
-        company: app.job_title || app.company_name || app.job?.company?.name || 'Company',
-        role: app.job_title || app.position || app.job?.title || 'Position',
-        dateApplied: new Date(app.applied_at || app.created_at || Date.now()).toLocaleDateString(),
-        status: app.current_status || app.status || 'PENDING',
-        logo: (app.job_title || app.company_name || app.job?.company?.name || 'C').charAt(0).toUpperCase(),
-        logoColor: 'bg-blue-500 text-white',
-        cv_id: app.cv_id,
-        cover_letter: app.cover_letter,
-        applied_at: app.applied_at,
-        updated_at: app.updated_at,
-        job_title: app.job_title,
-        company_name: app.company_name
-      }));
-      
-      setApplications(transformedApplications);
-      alert('Application withdrawn successfully');
-    } catch (error) {
-      console.error('Error withdrawing application:', error);
-      alert('Failed to withdraw application');
-    } finally {
-      setWithdrawingApplication(null);
-    }
-  };
+
 
   const statusTabs = [
     { id: 'all', label: 'All', count: applications.length },
-    { id: 'pending', label: 'Pending', count: applications.filter(app => app.status === 'PENDING').length },
+    { id: 'pending', label: 'Pending', count: applications.filter(app => app.status === 'SUBMITTED').length },
     { id: 'reviewing', label: 'Reviewing', count: applications.filter(app => app.status === 'REVIEWING').length },
-    { id: 'interviewing', label: 'Interviewing', count: applications.filter(app => app.status === 'INTERVIEWING').length },
-    { id: 'testing', label: 'Testing', count: applications.filter(app => app.status === 'TESTING').length },
+    { id: 'interviewing', label: 'Interviewing', count: applications.filter(app => app.status === 'INTERVIEWED').length },
+    { id: 'testing', label: 'Testing', count: applications.filter(app => app.status === 'SHORTLISTED').length },
     { id: 'rejected', label: 'Rejected', count: applications.filter(app => app.status === 'REJECTED').length },
-    { id: 'hired', label: 'Hired', count: applications.filter(app => app.status === 'HIRED').length }
+    { id: 'hired', label: 'Hired', count: applications.filter(app => app.status === 'HIRED').length },
+    { id: 'withdrawn', label: 'Withdrawn', count: applications.filter(app => app.status === 'WITHDRAWN').length }
   ];
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'PENDING':
-        return 'bg-gray-100 text-gray-700 border border-gray-200';
+      case 'SUBMITTED':
+        return 'bg-blue-500 text-white shadow-sm hover:shadow-md transition-shadow';
       case 'REVIEWING':
-        return 'bg-orange-100 text-orange-700 border border-orange-200';
+        return 'bg-amber-500 text-white shadow-sm hover:shadow-md transition-shadow';
       case 'SHORTLISTED':
-        return 'bg-blue-100 text-blue-700 border border-blue-200';
-      case 'INTERVIEWING':
-        return 'bg-yellow-100 text-yellow-700 border border-yellow-200';
-      case 'Rejected':
-        return 'bg-red-100 text-red-700 border border-red-200';
+        return 'bg-purple-500 text-white shadow-sm hover:shadow-md transition-shadow';
+      case 'INTERVIEWED':
+        return 'bg-indigo-500 text-white shadow-sm hover:shadow-md transition-shadow';
+      case 'OFFERED':
+        return 'bg-green-500 text-white shadow-sm hover:shadow-md transition-shadow';
+      case 'REJECTED':
+        return 'bg-red-500 text-white shadow-sm hover:shadow-md transition-shadow';
+      case 'HIRED':
+        return 'bg-emerald-600 text-white shadow-sm hover:shadow-md transition-shadow';
+      case 'WITHDRAWN':
+        return 'bg-gray-400 text-white shadow-sm hover:shadow-md transition-shadow';
       default:
-        return 'bg-gray-100 text-gray-700 border border-gray-200';
+        return 'bg-slate-400 text-white shadow-sm hover:shadow-md transition-shadow';
     }
   };
 
   const getStatusDisplayName = (status: string) => {
     switch (status) {
-      case 'PENDING':
-        return 'Pending';
+      case 'SUBMITTED':
+        return 'Applied';
       case 'REVIEWING':
-        return 'Reviewing';
+        return 'In Review';
       case 'SHORTLISTED':
-        return 'Shortlisted';
-      case 'INTERVIEWING':
+        return 'Mini-test';
+      case 'INTERVIEWED':
         return 'Interviewing';
-      case 'TESTING':
-        return 'Testing';
       case 'OFFERED':
         return 'Offered';
       case 'HIRED':
         return 'Hired';
       case 'REJECTED':
         return 'Rejected';
+      case 'WITHDRAWN':
+        return 'Withdrawn';
       default:
         return status;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="bg-gray-50 flex" style={{ minHeight: 'calc(100vh - 64px)' }}>
       {/* Sidebar */}
                 <DashboardSidebar
             activeTab={activeTab}
@@ -456,16 +555,16 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
               </div>
 
               {/* Table */}
-              <div className="overflow-x-auto">
+              <div className="overflow-hidden">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roles</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Applied</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                      <th className="px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">#</th>
+                      <th className="px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">Company Name</th>
+                      <th className="px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">Roles</th>
+                      <th className="px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">Date Applied</th>
+                      <th className="px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -501,9 +600,12 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
                           {application.dateApplied}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(application.status)}`}>
-                            {getStatusDisplayName(application.status)}
-                          </span>
+                          <div className="flex items-center">
+                            <span className={`inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-full ${getStatusColor(application.status)}`}>
+                              <div className="w-1.5 h-1.5 bg-white rounded-full mr-2 opacity-80"></div>
+                              {getStatusDisplayName(application.status)}
+                            </span>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="relative">
@@ -523,22 +625,7 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
                             {showDropdown === application.id && (
                               <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10">
                                 <div className="py-1">
-                                  <button
-                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setCurrentView('application-detail');
-                                      setSelectedApplication(application);
-                                      setShowDropdown(null);
-                                    }}
-                                  >
-                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                    </svg>
-                                    View Application Details
-                                  </button>
-                                  
+                                  {/* Debug status - moved to useEffect */}
                                   <button
                                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                                     onClick={(e) => {
@@ -548,29 +635,26 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
                                     }}
                                   >
                                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2h8zM9 7h6v10H9V7z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                     </svg>
                                     View Job Details
                                   </button>
                                   
-                                  {(application.status === 'PENDING' || application.status === 'REVIEWING') && (
+                                  {(application.status !== 'WITHDRAWN' && application.status !== 'HIRED' && application.status !== 'REJECTED') && (
                                     <button
                                       className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                        setShowDropdown(null);
-                                if (confirm('Are you sure you want to withdraw this application?')) {
-                                  handleWithdrawApplication(application.id, 'Candidate withdrew application');
-                                }
-                              }}
-                              disabled={withdrawingApplication === application.id}
-                            >
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleWithdrawClick(application);
+                                      }}
+                                      disabled={withdrawingApplication === application.id}
+                                    >
                                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                       </svg>
                                       {withdrawingApplication === application.id ? 'Withdrawing...' : 'Withdraw Application'}
-                            </button>
-                          )}
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             )}
@@ -582,65 +666,60 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
                 </table>
               </div>
 
-              {/* Pagination */}
+              {/* Improved Pagination */}
               {pagination.totalPages > 1 && (
-                <div className="px-6 py-3 border-t border-gray-200">
+                <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
                   <div className="flex items-center justify-between">
-                    <div className="text-sm text-gray-700">
-                      Showing {((currentPage - 1) * pageLimit) + 1} to {Math.min(currentPage * pageLimit, pagination.total)} of {pagination.total} applications
+                    <div className="text-sm text-gray-600">
+                      Showing <span className="font-medium">{((currentPage - 1) * pageLimit) + 1}</span> to <span className="font-medium">{Math.min(currentPage * pageLimit, pagination.total)}</span> of <span className="font-medium">{pagination.total}</span> applications
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-1">
                       <button 
                         onClick={() => setCurrentPage(prev => prev - 1)}
                         disabled={currentPage <= 1}
-                        className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
+                        Previous
                       </button>
-                      <div className="flex items-center space-x-1">
-                        {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                          const pageNum = i + 1;
+                      
+                      <div className="flex items-center">
+                        {Array.from({ length: Math.min(7, pagination.totalPages) }, (_, i) => {
+                          let pageNum;
+                          if (pagination.totalPages <= 7) {
+                            pageNum = i + 1;
+                          } else {
+                            if (currentPage <= 4) {
+                              pageNum = i + 1;
+                            } else if (currentPage >= pagination.totalPages - 3) {
+                              pageNum = pagination.totalPages - 6 + i;
+                            } else {
+                              pageNum = currentPage - 3 + i;
+                            }
+                          }
+                          
                           const isCurrentPage = pageNum === currentPage;
                           return (
                             <button
                               key={pageNum}
                               onClick={() => setCurrentPage(pageNum)}
-                              className={`px-3 py-1 text-sm font-medium rounded ${
+                              className={`px-3 py-2 text-sm font-medium border-t border-b ${
                                 isCurrentPage
-                                  ? 'text-white bg-[#007BFF]'
-                                  : 'text-gray-700 hover:text-gray-900'
+                                  ? 'text-[#007BFF] bg-blue-50 border-[#007BFF] border-l border-r'
+                                  : 'text-gray-500 bg-white border-gray-300 hover:bg-gray-50'
                               }`}
                             >
                               {pageNum}
                             </button>
                           );
                         })}
-                        {pagination.totalPages > 5 && (
-                          <>
-                            <span className="px-2 text-sm text-gray-500">...</span>
-                            <button
-                              onClick={() => setCurrentPage(pagination.totalPages)}
-                              className={`px-3 py-1 text-sm font-medium rounded ${
-                                currentPage === pagination.totalPages
-                                  ? 'text-white bg-[#007BFF]'
-                                  : 'text-gray-700 hover:text-gray-900'
-                              }`}
-                            >
-                              {pagination.totalPages}
-                            </button>
-                          </>
-                        )}
                       </div>
+                      
                       <button 
                         onClick={() => setCurrentPage(prev => prev + 1)}
                         disabled={currentPage >= pagination.totalPages}
-                        className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
+                        Next
                       </button>
                     </div>
                   </div>
@@ -650,6 +729,63 @@ const MyApplications: React.FC<MyApplicationsProps> = ({
           </>
         )}
       </div>
+
+      {/* Withdraw Confirmation Modal */}
+      {showWithdrawModal && applicationToWithdraw && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
+                  <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">Withdraw Application</h3>
+                  <p className="text-sm text-gray-500">This action cannot be undone.</p>
+                </div>
+              </div>
+              
+              <div className="mb-4">
+                <p className="text-sm text-gray-700 mb-2">
+                  Are you sure you want to withdraw your application for <span className="font-medium">{applicationToWithdraw.role}</span> at <span className="font-medium">{applicationToWithdraw.company}</span>?
+                </p>
+              </div>
+              
+              <div className="mb-4">
+                <label htmlFor="withdrawReason" className="block text-sm font-medium text-gray-700 mb-2">
+                  Reason for withdrawal (optional)
+                </label>
+                <textarea
+                  id="withdrawReason"
+                  value={withdrawReason}
+                  onChange={(e) => setWithdrawReason(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#007BFF] focus:border-[#007BFF]"
+                  rows={3}
+                  placeholder="Please provide a reason for withdrawing your application..."
+                />
+              </div>
+              
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  onClick={handleWithdrawCancel}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#007BFF]"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleWithdrawConfirm}
+                  disabled={withdrawingApplication === applicationToWithdraw.id}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {withdrawingApplication === applicationToWithdraw.id ? 'Withdrawing...' : 'Withdraw Application'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

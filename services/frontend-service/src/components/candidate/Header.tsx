@@ -34,7 +34,7 @@ export const Header: React.FC<HeaderProps> = ({ onPageChange, currentPage, onAut
 
   return (
     <>
-      <header className="bg-white border-b border-gray-100 px-6 lg:px-8">
+      <header className="bg-white border-b border-gray-100 px-6 lg:px-8 m-0" style={{ marginTop: 0, marginBottom: 0 }}>
         <div className="flex items-center justify-between h-16 w-full">
             {/* Logo */}
             <div className="flex items-center">

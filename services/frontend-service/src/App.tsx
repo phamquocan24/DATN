@@ -668,7 +668,7 @@ const MainContent = () => {
   };
 
   const renderCandidateLayout = () => (
-    <div className="bg-white">
+    <div className="bg-white m-0 p-0" style={{ margin: 0, padding: 0 }}>
       <Header 
         onPageChange={handlePageChange} 
         currentPage={currentPage} 
