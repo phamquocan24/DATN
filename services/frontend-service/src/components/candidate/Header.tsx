@@ -5,7 +5,7 @@ import UserIcon from '../../assets/user-outlined.png';
 import NotificationPanel from './NotificationPanel';
 import { useCandidateNotifications } from '../../hooks/useCandidateNotifications';
 
-type CurrentPage = 'home' | 'find-jobs' | 'agent-ai' | 'favorite-jobs' | 'companies' | 'find-companies' | 'browse-companies' | 'job-detail' | 'company-profile' | 'resume' | 'profile' | 'dashboard' | 'my-applications' | 'test-management' | 'settings' | 'help-center';
+type CurrentPage = 'home' | 'about' | 'guide' | 'find-jobs' | 'agent-ai' | 'favorite-jobs' | 'companies' | 'find-companies' | 'browse-companies' | 'job-detail' | 'company-profile' | 'resume' | 'profile' | 'dashboard' | 'my-applications' | 'test-management' | 'settings' | 'help-center';
 
 interface HeaderProps {
   onPageChange: (page: CurrentPage) => void;
@@ -54,6 +54,26 @@ export const Header: React.FC<HeaderProps> = ({ onPageChange, currentPage, onAut
                 }`}
               >
                 Home
+              </button>
+              <button 
+                onClick={() => onPageChange('about')}
+                className={`font-medium py-4 ${
+                  currentPage === 'about' 
+                    ? 'text-[#007BFF] border-b-2 border-[#007BFF]' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                About
+              </button>
+              <button 
+                onClick={() => onPageChange('guide')}
+                className={`font-medium py-4 ${
+                  currentPage === 'guide' 
+                    ? 'text-[#007BFF] border-b-2 border-[#007BFF]' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Guide
               </button>
               <div className="relative group">
                 <button 

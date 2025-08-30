@@ -26,6 +26,8 @@ import {
   Settings,
   HelpCenter,
 } from './components';
+import About from './components/common/About';
+import Guide from './components/common/Guide';
 import {
   AdminDashboard,
   AdminJobListings,
@@ -47,10 +49,12 @@ import api from './services/api';
 import authService from './services/authService';
 import firebaseService from './services/firebase';
 
-type CurrentPage = 'home' | 'find-jobs' | 'agent-ai' | 'favorite-jobs' | 'companies' | 'find-companies' | 'browse-companies' | 'job-detail' | 'company-profile' | 'resume' | 'profile' | 'dashboard' | 'my-applications' | 'test-management' | 'settings' | 'help-center';
+type CurrentPage = 'home' | 'about' | 'guide' | 'find-jobs' | 'agent-ai' | 'favorite-jobs' | 'companies' | 'find-companies' | 'browse-companies' | 'job-detail' | 'company-profile' | 'resume' | 'profile' | 'dashboard' | 'my-applications' | 'test-management' | 'settings' | 'help-center';
 
 const pageToPath: Record<CurrentPage, string> = {
   home: '/',
+  about: '/about',
+  guide: '/guide',
   'find-jobs': '/find-jobs',
   'agent-ai': '/agent-ai',
   'favorite-jobs': '/favorite-jobs',
@@ -545,6 +549,10 @@ const MainContent = () => {
             <JobList onJobClick={handleJobClick} onFindJobsClick={handleFindJobsClick} onResumeClick={() => handlePageChange('resume')} />
           </>
         );
+      case 'about':
+        return <About />;
+      case 'guide':
+        return <Guide />;
       case 'find-jobs':
         return <FindJobs onJobClick={handleJobClick} onCompanyClick={handleCompanyClick} />;
 

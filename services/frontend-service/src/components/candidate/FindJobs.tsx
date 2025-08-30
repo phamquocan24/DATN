@@ -892,14 +892,16 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
               </div>
 
                 {/* New Jobs Pagination */}
-                <Pagination
-                  currentPage={pagination.page}
-                  totalPages={Math.ceil(pagination.total / pagination.limit)}
-                  totalItems={pagination.total}
-                  itemsPerPage={pagination.limit}
-                  onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
-                  showInfo={false}
-                />
+                {pagination.total > pagination.limit && (
+                  <Pagination
+                    currentPage={pagination.page}
+                    totalPages={Math.ceil(pagination.total / pagination.limit)}
+                    totalItems={pagination.total}
+                    itemsPerPage={pagination.limit}
+                    onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
+                    showInfo={true}
+                  />
+                )}
 
               {/* Suitable Jobs Section */}
               <div>
@@ -970,59 +972,14 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
 
               {/* Suitable Jobs Pagination */}
               {suitableJobsPagination.total > suitableJobsPagination.limit && (
-              <div className="flex items-center justify-center space-x-2 mt-8">
-                  <button 
-                    onClick={() => setSuitableJobsPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
-                    disabled={suitableJobsPagination.page === 1}
-                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                  
-                  {/* Page numbers */}
-                  {Array.from({ length: Math.min(5, suitableJobsPagination.totalPages) }, (_, i) => {
-                    const pageNum = Math.max(1, suitableJobsPagination.page - 2) + i;
-                    if (pageNum > suitableJobsPagination.totalPages) return null;
-                    
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setSuitableJobsPagination(prev => ({ ...prev, page: pageNum }))}
-                        className={`w-8 h-8 rounded font-medium ${
-                          pageNum === suitableJobsPagination.page
-                            ? 'bg-[#007BFF] text-white'
-                            : 'text-gray-600 hover:bg-gray-100'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                  
-                  {suitableJobsPagination.totalPages > 5 && suitableJobsPagination.page < suitableJobsPagination.totalPages - 2 && (
-                    <>
-                <span className="text-gray-400">...</span>
-                      <button
-                        onClick={() => setSuitableJobsPagination(prev => ({ ...prev, page: prev.totalPages }))}
-                        className="w-8 h-8 text-gray-600 hover:bg-gray-100 rounded"
-                      >
-                        {suitableJobsPagination.totalPages}
-                      </button>
-                    </>
-                  )}
-                  
-                  <button 
-                    onClick={() => setSuitableJobsPagination(prev => ({ ...prev, page: Math.min(prev.totalPages, prev.page + 1) }))}
-                    disabled={suitableJobsPagination.page === suitableJobsPagination.totalPages}
-                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
+                <Pagination
+                  currentPage={suitableJobsPagination.page}
+                  totalPages={Math.ceil(suitableJobsPagination.total / suitableJobsPagination.limit)}
+                  totalItems={suitableJobsPagination.total}
+                  itemsPerPage={suitableJobsPagination.limit}
+                  onPageChange={(page) => setSuitableJobsPagination(prev => ({ ...prev, page }))}
+                  showInfo={true}
+                />
               )}
             </div>
           </div>

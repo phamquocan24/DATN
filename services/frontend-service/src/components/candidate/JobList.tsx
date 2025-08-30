@@ -26,6 +26,40 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick, o
     total: 0
   });
 
+  // Auto-rotation states
+  const [featuredJobsSlice, setFeaturedJobsSlice] = useState(0);
+  const [latestJobsSlice, setLatestJobsSlice] = useState(0);
+  const featuredJobsPerSlice = 4;
+  const latestJobsPerSlice = 6;
+
+  // Auto-rotation for featured jobs every 10 seconds
+  useEffect(() => {
+    if (featuredJobs.length > featuredJobsPerSlice) {
+      const interval = setInterval(() => {
+        setFeaturedJobsSlice(prev => {
+          const maxSlices = Math.ceil(featuredJobs.length / featuredJobsPerSlice);
+          return (prev + 1) % maxSlices;
+        });
+      }, 10000); // 10 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [featuredJobs.length, featuredJobsPerSlice]);
+
+  // Auto-rotation for latest jobs every 12 seconds  
+  useEffect(() => {
+    if (latestJobs.length > latestJobsPerSlice) {
+      const interval = setInterval(() => {
+        setLatestJobsSlice(prev => {
+          const maxSlices = Math.ceil(latestJobs.length / latestJobsPerSlice);
+          return (prev + 1) % maxSlices;
+        });
+      }, 12000); // 12 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [latestJobs.length, latestJobsPerSlice]);
+
   useEffect(() => {
     const fetchJobs = async () => {
       setIsLoading(true);
@@ -99,9 +133,9 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick, o
           capacity: job.max_applications || 1
         });
 
-        // Use first 4 jobs as featured (or could be jobs with featured flag)
-        const featuredJobsData = allJobsArray.slice(0, 4).map(transformJob);
-        const latestJobsData = latestJobsArray.slice(0, 6).map(transformJob);
+        // Load more jobs for rotation
+        const featuredJobsData = allJobsArray.slice(0, 12).map(transformJob); // Load 12 for rotation
+        const latestJobsData = latestJobsArray.slice(0, 18).map(transformJob); // Load 18 for rotation
 
         setFeaturedJobs(featuredJobsData);
         setLatestJobs(latestJobsData);
@@ -445,10 +479,27 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick, o
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredJobs.map((job) => (
-              <JobCard key={job.id} job={job} cardStyle="featured" onJobClick={onJobClick} />
-            ))}
+            {featuredJobs
+              .slice(featuredJobsSlice * featuredJobsPerSlice, (featuredJobsSlice + 1) * featuredJobsPerSlice)
+              .map((job) => (
+                <JobCard key={`${job.id}-${featuredJobsSlice}`} job={job} cardStyle="featured" onJobClick={onJobClick} />
+              ))}
           </div>
+          
+          {/* Featured Jobs Rotation Indicators */}
+          {featuredJobs.length > featuredJobsPerSlice && (
+            <div className="flex justify-center mt-6 space-x-2">
+              {Array.from({ length: Math.ceil(featuredJobs.length / featuredJobsPerSlice) }, (_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setFeaturedJobsSlice(i)}
+                  className={`w-3 h-3 rounded-full transition-colors ${
+                    i === featuredJobsSlice ? 'bg-[#007BFF]' : 'bg-gray-300 hover:bg-gray-400'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
           </div>
         </div>
 
@@ -471,10 +522,27 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick, o
           </div>
 
           <div className="grid md:grid-cols-2 gap-6 mb-8">
-            {latestJobs.map((job) => (
-              <JobCard key={job.id} job={job} cardStyle="latest" onJobClick={onJobClick} />
-            ))}
+            {latestJobs
+              .slice(latestJobsSlice * latestJobsPerSlice, (latestJobsSlice + 1) * latestJobsPerSlice)
+              .map((job) => (
+                <JobCard key={`${job.id}-${latestJobsSlice}`} job={job} cardStyle="latest" onJobClick={onJobClick} />
+              ))}
           </div>
+          
+          {/* Latest Jobs Rotation Indicators */}
+          {latestJobs.length > latestJobsPerSlice && (
+            <div className="flex justify-center mb-8 space-x-2">
+              {Array.from({ length: Math.ceil(latestJobs.length / latestJobsPerSlice) }, (_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setLatestJobsSlice(i)}
+                  className={`w-3 h-3 rounded-full transition-colors ${
+                    i === latestJobsSlice ? 'bg-[#007BFF]' : 'bg-gray-300 hover:bg-gray-400'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
           
           {/* Latest Jobs Pagination */}
           {latestJobsPagination.total > latestJobsPagination.limit && (
