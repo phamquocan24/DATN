@@ -1127,10 +1127,10 @@ export const Resume: React.FC = () => {
 
             {resumes.length === 0 && !isLoading ? (
               <div className="text-center text-gray-500">
-                <p>No resumes uploaded yet. Upload your first CV below!</p>
+                <p>No professional profiles uploaded yet. Add your first career document below!</p>
                 {availableJobs.length === 0 && (
                   <p className="text-sm text-yellow-600 mt-2">
-                    Note: Job matching may not be available. Please ensure your profile is complete.
+                    Note: AI matching may not be available. Please ensure your profile is complete.
                   </p>
                 )}
               </div>

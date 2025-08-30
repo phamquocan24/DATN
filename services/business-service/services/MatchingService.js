@@ -1,4 +1,4 @@
-const Database = require('../models/Database');
+const { Database } = require('../models/Database');
 const winston = require('winston');
 
 // Setup logger
@@ -751,6 +751,8 @@ class MatchingService extends Database {
       throw error;
     }
   }
+
+
 }
 
 module.exports = MatchingService; 

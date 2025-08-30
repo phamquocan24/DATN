@@ -827,13 +827,13 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
               <div className="mb-8">
                 <div className="flex items-start justify-between mb-6">
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-900">New Jobs</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">Fresh Opportunities</h2>
                       <p className="text-sm text-gray-500 mt-1">
                         {isLoading 
-                          ? 'Loading jobs...'
+                          ? 'Loading opportunities...'
                           : error 
-                            ? 'Failed to load jobs'
-                            : `Showing ${jobs.length} of ${pagination.total} results`
+                            ? 'Failed to load opportunities'
+                            : `Showing ${jobs.length} of ${pagination.total} career opportunities`
                         }
                       </p>
                   </div>
@@ -884,8 +884,8 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
                   ) : (
                     <div className="text-center py-12">
                       <div className="text-gray-400 text-6xl mb-4">🔍</div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No jobs found</h3>
-                      <p className="text-gray-500">Try adjusting your search criteria or filters</p>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No positions found</h3>
+                      <p className="text-gray-500">Try refining your search criteria or explore different filters</p>
                     </div>
                   )}
                 </div>
@@ -907,11 +907,11 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
               <div>
                 <div className="flex items-start justify-between mb-6">
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Suitable Jobs</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">AI-Matched Positions</h2>
                     <p className="text-sm text-gray-500 mt-1">
                       {suitableJobsError 
-                        ? 'Failed to load recommendations'
-                        : `Showing ${Math.min(suitableJobsPagination.limit, suitableJobs.length)} of ${suitableJobsPagination.total} personalized recommendations`
+                        ? 'Failed to load AI matches'
+                        : `Showing ${Math.min(suitableJobsPagination.limit, suitableJobs.length)} of ${suitableJobsPagination.total} AI-curated matches`
                       }
                     </p>
                   </div>
@@ -948,7 +948,7 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
                   ) : suitableJobsError ? (
                     <div className="text-center py-8">
                       <div className="text-red-500 mb-2">⚠️ {suitableJobsError}</div>
-                      <p className="text-gray-500 mt-2">Please try again or login to see personalized recommendations</p>
+                      <p className="text-gray-500 mt-2">Please try again or login to see AI-powered job matches</p>
                       <button 
                         onClick={fetchSuitableJobs} 
                         className="mt-3 text-blue-500 hover:underline"
@@ -963,8 +963,8 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
                   ) : (
                     <div className="text-center py-12">
                       <div className="text-gray-400 text-6xl mb-4">🎯</div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No recommendations yet</h3>
-                      <p className="text-gray-500">Complete your profile to get personalized job recommendations</p>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No AI matches yet</h3>
+                      <p className="text-gray-500">Complete your profile to unlock intelligent job matching</p>
                     </div>
                   )}
                 </div>

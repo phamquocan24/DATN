@@ -42,6 +42,7 @@ const otpRoutes = require('./modules/otp');
 // Import controllers
 const companyRoutes = require('./controllers/CompanyController');
 const cvRoutes = require('./controllers/CVController');
+const cvProcessingRoutes = require('./controllers/CVProcessingController');
 const adminRoutes = require('./controllers/AdminController');
 const userControllerRoutes = require('./controllers/UserController');
 const jobRoutes = require('./controllers/JobController');
@@ -393,6 +394,7 @@ app.use('/api/v1/firebase', firebaseRoutes);
 app.use('/api/v1/otp', otpRoutes);
 app.use('/api/v1/companies', companyRoutes);
 app.use('/api/v1/cvs', cvRoutes);
+app.use('/api/v1/cv-processing', cvProcessingRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/users', userControllerRoutes);
 app.use('/api/v1/jobs', jobRoutes);

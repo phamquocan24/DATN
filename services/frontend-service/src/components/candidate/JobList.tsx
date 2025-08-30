@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { JobApplication } from './JobApplication';
 import candidateApi from '../../services/candidateApi';
-import favoritesService from '../../services/favoritesService';
-import Pagination from '../common/Pagination';
 import { FeaturedJobSkeleton } from '../common/SkeletonLoader';
 import { isTokenValid } from '../../services/tokenUtils';
 import bookmarkCache from '../../services/bookmarkCache';
@@ -22,15 +20,15 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick, o
   const [error, setError] = useState<string | null>(null);
   const [latestJobsPagination, setLatestJobsPagination] = useState({
     page: 1,
-    limit: 6,
+    limit: 18, // Fetch 18 jobs to enable 3 slices (18 / 6 = 3 slices)
     total: 0
   });
 
   // Auto-rotation states
   const [featuredJobsSlice, setFeaturedJobsSlice] = useState(0);
   const [latestJobsSlice, setLatestJobsSlice] = useState(0);
-  const featuredJobsPerSlice = 4;
-  const latestJobsPerSlice = 6;
+  const featuredJobsPerSlice = 8; // 2 rows x 4 columns
+  const latestJobsPerSlice = 6; // 3 rows x 2 columns
 
   // Auto-rotation for featured jobs every 10 seconds
   useEffect(() => {
@@ -134,12 +132,20 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick, o
         });
 
         // Load more jobs for rotation
-        const featuredJobsData = allJobsArray.slice(0, 12).map(transformJob); // Load 12 for rotation
-        const latestJobsData = latestJobsArray.slice(0, 18).map(transformJob); // Load 18 for rotation
+        const featuredJobsData = allJobsArray.slice(0, 16).map(transformJob); // Load 16 for rotation (2 slices of 8)
+        const latestJobsData = latestJobsArray.slice(0, 18).map(transformJob); // Load 18 for rotation (3 slices of 6)
 
         setFeaturedJobs(featuredJobsData);
         setLatestJobs(latestJobsData);
         setError(null);
+        
+        // Debug log
+        console.log('Jobs loaded:', {
+          featured: featuredJobsData.length,
+          latest: latestJobsData.length,
+          featuredSlices: Math.ceil(featuredJobsData.length / 8),
+          latestSlices: Math.ceil(latestJobsData.length / 6)
+        });
       } catch (err) {
         setError('Failed to load job listings.');
         console.error('Error fetching jobs:', err);
@@ -171,9 +177,13 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick, o
               </div>
               <div className="h-6 bg-gray-200 rounded w-32 animate-pulse"></div>
             </div>
-            <div className="grid lg:grid-cols-4 md:grid-cols-2 gap-6">
-              {Array.from({ length: 4 }, (_, i) => (
-                <FeaturedJobSkeleton key={i} />
+            <div className="space-y-6">
+              {Array.from({ length: 2 }, (_, rowIndex) => (
+                <div key={`skeleton-featured-row-${rowIndex}`} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {Array.from({ length: 4 }, (_, colIndex) => (
+                    <FeaturedJobSkeleton key={`skeleton-featured-${rowIndex}-${colIndex}`} />
+                  ))}
+                </div>
               ))}
             </div>
           </div>
@@ -188,9 +198,13 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick, o
               </div>
               <div className="h-6 bg-gray-200 rounded w-32 animate-pulse"></div>
             </div>
-            <div className="grid md:grid-cols-2 gap-6">
-              {Array.from({ length: latestJobsPagination.limit }, (_, i) => (
-                <FeaturedJobSkeleton key={i} />
+            <div className="space-y-6">
+              {Array.from({ length: 3 }, (_, rowIndex) => (
+                <div key={`skeleton-latest-row-${rowIndex}`} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {Array.from({ length: 2 }, (_, colIndex) => (
+                    <FeaturedJobSkeleton key={`skeleton-latest-${rowIndex}-${colIndex}`} />
+                  ))}
+                </div>
               ))}
             </div>
           </div>
@@ -249,6 +263,203 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick, o
         return 'bg-rose-100 text-rose-700';
       case 'finance':
         return 'bg-amber-100 text-amber-700';
+      
+      // Skills & Technologies
+      case 'quality assurance':
+      case 'qa':
+      case 'testing':
+        return 'bg-cyan-100 text-cyan-700';
+      case 'software development':
+      case 'development':
+      case 'programming':
+        return 'bg-blue-100 text-blue-700';
+      case 'devops':
+      case 'dev ops':
+        return 'bg-red-100 text-red-700';
+      case 'ai':
+      case 'artificial intelligence':
+      case 'machine learning':
+      case 'ml':
+        return 'bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700';
+      case 'data science':
+      case 'data analysis':
+        return 'bg-emerald-100 text-emerald-700';
+      case 'mobile development':
+      case 'mobile':
+      case 'ios':
+      case 'android':
+        return 'bg-green-100 text-green-700';
+      case 'frontend':
+      case 'front-end':
+      case 'ui/ux':
+        return 'bg-orange-100 text-orange-700';
+      case 'backend':
+      case 'back-end':
+      case 'server':
+        return 'bg-slate-100 text-slate-700';
+      case 'fullstack':
+      case 'full-stack':
+        return 'bg-indigo-100 text-indigo-700';
+      case 'cloud':
+      case 'aws':
+      case 'azure':
+      case 'gcp':
+        return 'bg-sky-100 text-sky-700';
+      case 'database':
+      case 'sql':
+      case 'nosql':
+        return 'bg-teal-100 text-teal-700';
+      case 'security':
+      case 'cybersecurity':
+        return 'bg-red-100 text-red-700';
+      case 'content marketing':
+      case 'content':
+        return 'bg-pink-100 text-pink-700';
+      case 'supply chain':
+        return 'bg-purple-100 text-purple-700';
+      case 'hardware engineering':
+      case 'hardware':
+        return 'bg-gray-100 text-gray-700';
+      
+      // Business & Management
+      case 'product management':
+      case 'product manager':
+        return 'bg-violet-100 text-violet-700';
+      case 'business analysis':
+      case 'business analyst':
+        return 'bg-indigo-100 text-indigo-700';
+      case 'project management':
+      case 'project manager':
+        return 'bg-amber-100 text-amber-700';
+      case 'team leadership':
+      case 'leadership':
+        return 'bg-rose-100 text-rose-700';
+      case 'risk management':
+        return 'bg-red-100 text-red-700';
+      
+      // Methodologies
+      case 'agile':
+      case 'scrum':
+        return 'bg-green-100 text-green-700';
+      case 'kanban':
+        return 'bg-blue-100 text-blue-700';
+      case 'waterfall':
+        return 'bg-slate-100 text-slate-700';
+      
+      // Design & Tools
+      case 'figma':
+      case 'sketch':
+      case 'adobe xd':
+        return 'bg-pink-100 text-pink-700';
+      case 'adobe photoshop':
+      case 'photoshop':
+        return 'bg-blue-100 text-blue-700';
+      case 'adobe illustrator':
+      case 'illustrator':
+        return 'bg-orange-100 text-orange-700';
+      case 'wireframing':
+      case 'prototyping':
+        return 'bg-purple-100 text-purple-700';
+      
+      // Programming Languages
+      case 'java':
+      case 'java development':
+        return 'bg-red-100 text-red-700';
+      case 'python':
+        return 'bg-green-100 text-green-700';
+      case 'javascript':
+      case 'js':
+        return 'bg-yellow-100 text-yellow-700';
+      case 'typescript':
+      case 'ts':
+        return 'bg-blue-100 text-blue-700';
+      case 'react.js':
+      case 'react':
+        return 'bg-cyan-100 text-cyan-700';
+      case 'node.js':
+      case 'nodejs':
+        return 'bg-green-100 text-green-700';
+      case 'angular':
+        return 'bg-red-100 text-red-700';
+      case 'vue.js':
+      case 'vue':
+        return 'bg-green-100 text-green-700';
+      case 'php':
+        return 'bg-purple-100 text-purple-700';
+      case 'c#':
+      case 'csharp':
+        return 'bg-purple-100 text-purple-700';
+      case 'swift':
+        return 'bg-orange-100 text-orange-700';
+      case 'kotlin':
+        return 'bg-purple-100 text-purple-700';
+      
+      // Testing & QA
+      case 'selenium':
+      case 'appium':
+        return 'bg-cyan-100 text-cyan-700';
+      case 'jest':
+      case 'cypress':
+        return 'bg-green-100 text-green-700';
+      case 'junit':
+      case 'pytest':
+        return 'bg-orange-100 text-orange-700';
+      case 'postman':
+        return 'bg-amber-100 text-amber-700';
+      
+      // Analytics & Data
+      case 'power bi':
+      case 'tableau':
+        return 'bg-blue-100 text-blue-700';
+      case 'google analytics':
+        return 'bg-orange-100 text-orange-700';
+      case 'pandas':
+      case 'numpy':
+        return 'bg-blue-100 text-blue-700';
+      case 'tensorflow':
+      case 'pytorch':
+        return 'bg-orange-100 text-orange-700';
+      case 'big data':
+      case 'hadoop':
+      case 'apache spark':
+        return 'bg-yellow-100 text-yellow-700';
+      
+      // Soft Skills
+      case 'communication':
+      case 'teamwork':
+        return 'bg-green-100 text-green-700';
+      case 'problem solving':
+      case 'critical thinking':
+        return 'bg-purple-100 text-purple-700';
+      case 'time management':
+        return 'bg-blue-100 text-blue-700';
+      case 'customer service':
+        return 'bg-pink-100 text-pink-700';
+      
+      // Domains
+      case 'fintech':
+        return 'bg-green-100 text-green-700';
+      case 'healthtech':
+        return 'bg-red-100 text-red-700';
+      case 'edtech':
+        return 'bg-blue-100 text-blue-700';
+      case 'e-commerce':
+        return 'bg-purple-100 text-purple-700';
+      case 'blockchain':
+      case 'cryptocurrency':
+        return 'bg-yellow-100 text-yellow-700';
+      
+      // Version Control & Tools
+      case 'git':
+      case 'github':
+      case 'gitlab':
+        return 'bg-gray-100 text-gray-700';
+      case 'jira':
+      case 'confluence':
+        return 'bg-blue-100 text-blue-700';
+      case 'slack':
+      case 'trello':
+        return 'bg-green-100 text-green-700';
       
       // Special Tags
       case 'feature':
@@ -468,33 +679,40 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick, o
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-3xl font-bold text-gray-900">
-              Featured <span className="text-[#007BFF]">jobs</span>
+              Premium <span className="text-[#007BFF]">Opportunities</span>
             </h2>
             <button onClick={onFindJobsClick} className="text-[#007BFF] hover:text-[#007BFF] font-medium flex items-center">
-              Show all jobs
+              Explore all positions
               <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredJobs
-              .slice(featuredJobsSlice * featuredJobsPerSlice, (featuredJobsSlice + 1) * featuredJobsPerSlice)
-              .map((job) => (
-                <JobCard key={`${job.id}-${featuredJobsSlice}`} job={job} cardStyle="featured" onJobClick={onJobClick} />
-              ))}
+          {/* Premium Opportunities - 2 rows x 4 columns */}
+          <div className="space-y-6">
+            {Array.from({ length: 2 }, (_, rowIndex) => (
+              <div key={`featured-row-${rowIndex}`} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {featuredJobs
+                  .slice(featuredJobsSlice * featuredJobsPerSlice + rowIndex * 4, featuredJobsSlice * featuredJobsPerSlice + (rowIndex + 1) * 4)
+                  .map((job, colIndex) => (
+                    <JobCard key={`${job.id}-${featuredJobsSlice}-${rowIndex}-${colIndex}`} job={job} cardStyle="featured" onJobClick={onJobClick} />
+                  ))}
+              </div>
+            ))}
           </div>
           
           {/* Featured Jobs Rotation Indicators */}
           {featuredJobs.length > featuredJobsPerSlice && (
-            <div className="flex justify-center mt-6 space-x-2">
+            <div className="flex justify-center mt-8 space-x-2">
               {Array.from({ length: Math.ceil(featuredJobs.length / featuredJobsPerSlice) }, (_, i) => (
                 <button
                   key={i}
                   onClick={() => setFeaturedJobsSlice(i)}
-                  className={`w-3 h-3 rounded-full transition-colors ${
-                    i === featuredJobsSlice ? 'bg-[#007BFF]' : 'bg-gray-300 hover:bg-gray-400'
+                  className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                    i === featuredJobsSlice 
+                      ? 'bg-[#007BFF] scale-110' 
+                      : 'bg-gray-300 hover:bg-gray-400 hover:scale-105'
                   }`}
                 />
               ))}
@@ -511,50 +729,71 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick, o
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-3xl font-bold text-gray-900">
-              Latest <span className="text-[#007BFF]">jobs open</span>
+              Recent <span className="text-[#007BFF]">Openings</span>
             </h2>
             <button onClick={onFindJobsClick} className="text-[#007BFF] hover:text-[#007BFF] font-medium flex items-center">
-              Show all jobs
+              Explore all positions
               <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
-            {latestJobs
-              .slice(latestJobsSlice * latestJobsPerSlice, (latestJobsSlice + 1) * latestJobsPerSlice)
-              .map((job) => (
-                <JobCard key={`${job.id}-${latestJobsSlice}`} job={job} cardStyle="latest" onJobClick={onJobClick} />
-              ))}
+          {/* Recent Openings - 3 rows x 2 columns */}
+          <div className="space-y-6 mb-8">
+            {Array.from({ length: 3 }, (_, rowIndex) => {
+              const startIndex = latestJobsSlice * latestJobsPerSlice + rowIndex * 2;
+              const endIndex = latestJobsSlice * latestJobsPerSlice + (rowIndex + 1) * 2;
+              const slicedJobs = latestJobs.slice(startIndex, endIndex);
+              
+              console.log(`Latest Jobs Row ${rowIndex}:`, {
+                latestJobsSlice,
+                latestJobsPerSlice,
+                startIndex,
+                endIndex,
+                totalJobs: latestJobs.length,
+                slicedJobs: slicedJobs.length,
+                jobTitles: slicedJobs.map(j => j.title)
+              });
+              
+              return (
+                <div key={`latest-row-${rowIndex}`} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {slicedJobs.map((job, colIndex) => (
+                    <JobCard key={`${job.id}-${latestJobsSlice}-${rowIndex}-${colIndex}`} job={job} cardStyle="latest" onJobClick={onJobClick} />
+                  ))}
+                </div>
+              );
+            })}
           </div>
           
           {/* Latest Jobs Rotation Indicators */}
           {latestJobs.length > latestJobsPerSlice && (
-            <div className="flex justify-center mb-8 space-x-2">
-              {Array.from({ length: Math.ceil(latestJobs.length / latestJobsPerSlice) }, (_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setLatestJobsSlice(i)}
-                  className={`w-3 h-3 rounded-full transition-colors ${
-                    i === latestJobsSlice ? 'bg-[#007BFF]' : 'bg-gray-300 hover:bg-gray-400'
-                  }`}
-                />
-              ))}
+            <div className="flex justify-center space-x-2">
+              {Array.from({ length: Math.ceil(latestJobs.length / latestJobsPerSlice) }, (_, i) => {
+                console.log(`Latest Jobs Slice Indicator ${i}:`, {
+                  totalJobs: latestJobs.length,
+                  latestJobsPerSlice,
+                  maxSlices: Math.ceil(latestJobs.length / latestJobsPerSlice),
+                  currentSlice: latestJobsSlice,
+                  isActive: i === latestJobsSlice
+                });
+                
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setLatestJobsSlice(i)}
+                    className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                      i === latestJobsSlice 
+                        ? 'bg-[#007BFF] scale-110' 
+                        : 'bg-gray-300 hover:bg-gray-400 hover:scale-105'
+                    }`}
+                  />
+                );
+              })}
             </div>
           )}
           
-          {/* Latest Jobs Pagination */}
-          {latestJobsPagination.total > latestJobsPagination.limit && (
-            <Pagination
-              currentPage={latestJobsPagination.page}
-              totalPages={Math.ceil(latestJobsPagination.total / latestJobsPagination.limit)}
-              totalItems={latestJobsPagination.total}
-              itemsPerPage={latestJobsPagination.limit}
-              onPageChange={(page) => setLatestJobsPagination(prev => ({ ...prev, page }))}
-              showInfo={true}
-            />
-          )}
+
         </div>
       </div>
       

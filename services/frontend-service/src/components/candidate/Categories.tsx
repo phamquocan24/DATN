@@ -50,22 +50,42 @@ export const Categories: React.FC<CategoriesProps> = ({ onFindJobsClick }) => {
           .map(([name]) => name)
           .slice(0, 12); // Take top 8 industries
 
-        // Step 2: Fetch job counts for each real industr66
+        // Step 2: Fetch job counts for each real industry
         const categoriesWithCounts = await Promise.all(
           realIndustries.map(async (industryName) => {
             try {
-              const response = await candidateApi.searchJobs({
-                categories: industryName,
-                limit: 1, // We only need the count, not the actual jobs
-                page: 1
-              });
+              // Search jobs by companies in this industry  
+              const companiesInIndustry = companies.filter(company => 
+                company.industry === industryName
+              ).map(company => company.company_id);
               
-              const jobCount = response?.pagination?.total || 0;
+              if (companiesInIndustry.length === 0) {
+                return {
+                  name: industryName,
+                  jobs: 0,
+                  available: false
+                };
+              }
+              
+              // Get job count for all companies in this industry
+              let totalJobs = 0;
+              for (const companyId of companiesInIndustry) {
+                try {
+                  const response = await candidateApi.searchJobs({
+                    company_id: companyId,
+                    limit: 1, // We only need the count
+                    page: 1
+                  });
+                  totalJobs += response?.pagination?.total || 0;
+                } catch (error) {
+                  console.error(`Error fetching jobs for company ${companyId}:`, error);
+                }
+              }
               
               return {
                 name: industryName,
-                jobs: jobCount,
-                available: jobCount > 0
+                jobs: totalJobs,
+                available: totalJobs > 0
               };
             } catch (error) {
               console.error(`Error fetching jobs for industry ${industryName}:`, error);

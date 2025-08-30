@@ -5,6 +5,7 @@ import { CTA } from './CTA';
 import GroupUnderline from '../../assets/Group.png';
 import { FiArrowRight, FiArrowLeft } from 'react-icons/fi';
 import { companyApi, Company as ApiCompany } from '../../services/companyApi';
+import candidateApi from '../../services/candidateApi';
 
 
 
@@ -30,6 +31,42 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
   // State for companies by selected category
   const [companiesByCategory, setCompaniesByCategory] = useState<ApiCompany[]>([]);
 
+  // State for company job counts
+  const [companyJobCounts, setCompanyJobCounts] = useState<Record<string, number>>({});
+
+  // Function to fetch job count for a specific company
+  const fetchCompanyJobCount = async (companyId: string): Promise<number> => {
+    try {
+      const response = await candidateApi.searchJobs({
+        company_id: companyId,
+        limit: 1,
+        page: 1
+      });
+      return response?.pagination?.total || 0;
+    } catch (error) {
+      console.error(`Error fetching jobs for company ${companyId}:`, error);
+      return 0;
+    }
+  };
+
+  // Function to fetch job counts for multiple companies
+  const fetchJobCounts = async (companies: ApiCompany[]) => {
+    const jobCounts: Record<string, number> = {};
+    
+    // Process companies in batches to avoid overwhelming the API
+    const batchSize = 5;
+    for (let i = 0; i < companies.length; i += batchSize) {
+      const batch = companies.slice(i, i + batchSize);
+      const promises = batch.map(async (company) => {
+        const count = await fetchCompanyJobCount(company.company_id);
+        jobCounts[company.company_id] = count;
+      });
+      await Promise.all(promises);
+    }
+    
+    setCompanyJobCounts(prev => ({ ...prev, ...jobCounts }));
+  };
+
   // Fetch recommended companies from API
   useEffect(() => {
     const fetchRecommendedCompanies = async () => {
@@ -44,7 +81,12 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
         });
         
         if (response.success) {
-          setRecommendedCompanies(response.data || []);
+          const companies = response.data || [];
+          setRecommendedCompanies(companies);
+          // Fetch job counts for recommended companies
+          if (companies.length > 0) {
+            fetchJobCounts(companies);
+          }
         }
       } catch (error: any) {
         console.error('Error fetching recommended companies:', error);
@@ -111,7 +153,12 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
         });
         
         if (response.success) {
-          setCompaniesByCategory(response.data || []);
+          const companies = response.data || [];
+          setCompaniesByCategory(companies);
+          // Fetch job counts for companies by category
+          if (companies.length > 0) {
+            fetchJobCounts(companies);
+          }
         }
       } catch (error: any) {
         console.error('Error fetching companies by category:', error);
@@ -156,19 +203,22 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
 
 
 
-  const ApiCompanyCard = ({ company }: { company: ApiCompany }) => (
-    <div 
-      className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 group cursor-pointer text-left transform"
-      onClick={() => onCompanyClick?.(company.company_id)}
-    >
-      <div className="flex items-start justify-between mb-4">
-        <div className="w-12 h-12 rounded-lg flex items-center justify-center font-bold bg-blue-500 text-white">
-          {company.company_name?.charAt(0).toUpperCase() || 'C'}
+  const ApiCompanyCard = ({ company }: { company: ApiCompany }) => {
+    const jobCount = companyJobCounts[company.company_id] || 0;
+    
+    return (
+      <div 
+        className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 group cursor-pointer text-left transform"
+        onClick={() => onCompanyClick?.(company.company_id)}
+      >
+        <div className="flex items-start justify-between mb-4">
+          <div className="w-12 h-12 rounded-lg flex items-center justify-center font-bold bg-blue-500 text-white">
+            {company.company_name?.charAt(0).toUpperCase() || 'C'}
+          </div>
+          <span className="text-sm text-[#007BFF] bg-[#007BFF]/10 px-3 py-1 rounded-full">
+            {jobCount} Jobs
+          </span>
         </div>
-        <span className="text-sm text-[#007BFF] bg-[#007BFF]/10 px-3 py-1 rounded-full">
-          0 Jobs
-        </span>
-      </div>
 
       <h3 className="font-semibold text-gray-900 group-hover:text-[#007BFF] transition-colors text-lg mb-2">
         {company.company_name}
@@ -190,25 +240,30 @@ export const Companies: React.FC<CompaniesProps> = ({ onCompanyClick }) => {
             </span>
           )}
         </div>
-    </div>
-  );
-
-  const SmallApiCompanyCard = ({ company }: { company: ApiCompany }) => (
-    <div 
-      className="bg-white border border-gray-200 rounded-lg p-4 hover:border-[#007BFF]/30 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group text-center cursor-pointer transform"
-      onClick={() => onCompanyClick?.(company.company_id)}
-    >
-      <div className={`w-24 h-24 rounded-full flex items-center justify-center font-bold bg-blue-500 text-white mx-auto mb-4 text-3xl`}>
-        {company.company_name?.charAt(0).toUpperCase() || 'C'}
       </div>
-      <h3 className="font-semibold text-gray-900 group-hover:text-[#007BFF] transition-colors text-lg mb-2">
-        {company.company_name}
-      </h3>
-      <span className="text-sm text-[#007BFF] bg-[#007BFF]/10 px-3 py-1 rounded-full">
-        0 Jobs
-      </span>
-    </div>
-  );
+    );
+  };
+
+  const SmallApiCompanyCard = ({ company }: { company: ApiCompany }) => {
+    const jobCount = companyJobCounts[company.company_id] || 0;
+    
+    return (
+      <div 
+        className="bg-white border border-gray-200 rounded-lg p-4 hover:border-[#007BFF]/30 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group text-center cursor-pointer transform"
+        onClick={() => onCompanyClick?.(company.company_id)}
+      >
+        <div className={`w-24 h-24 rounded-full flex items-center justify-center font-bold bg-blue-500 text-white mx-auto mb-4 text-3xl`}>
+          {company.company_name?.charAt(0).toUpperCase() || 'C'}
+        </div>
+        <h3 className="font-semibold text-gray-900 group-hover:text-[#007BFF] transition-colors text-lg mb-2">
+          {company.company_name}
+        </h3>
+        <span className="text-sm text-[#007BFF] bg-[#007BFF]/10 px-3 py-1 rounded-full">
+          {jobCount} Jobs
+        </span>
+      </div>
+    );
+  };
 
   const getCategoryIcon = (categoryName: string) => {
     switch (categoryName) {
