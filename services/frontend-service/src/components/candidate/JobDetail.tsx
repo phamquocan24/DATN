@@ -43,10 +43,11 @@ interface JobDetailProps {
   onBack: () => void;
   onJobClick?: (jobId: string) => void;
   onCompanyClick?: (companyId: string) => void;
+  onResumeClick?: () => void;
   applicationStatus?: 'PENDING' | 'REVIEWING' | 'SHORTLISTED' | 'INTERVIEWING' | 'TESTING' | 'OFFERED' | 'HIRED' | 'REJECTED';
 }
 
-const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, onJobClick, onCompanyClick, applicationStatus: initialStatus }) => {
+const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, onJobClick, onCompanyClick, onResumeClick, applicationStatus: initialStatus }) => {
     const [isApplicationOpen, setIsApplicationOpen] = useState(false);
     
 
@@ -640,6 +641,7 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, onJobClick, onCompan
                 <JobApplication 
                     isOpen={isApplicationOpen}
                     onClose={handleCloseApplication}
+                    onResumeClick={onResumeClick}
                     job={job}
                 />
 

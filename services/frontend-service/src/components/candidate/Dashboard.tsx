@@ -32,6 +32,7 @@ interface DashboardProps {
   onTestManagementClick?: () => void;
   onSettingsClick?: () => void;
   onHelpCenterClick?: () => void;
+  onResumeClick?: () => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ 
@@ -40,7 +41,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   onMyApplicationsClick, 
   onTestManagementClick,
   onSettingsClick,
-  onHelpCenterClick
+  onHelpCenterClick,
+  onResumeClick
 }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [currentView, setCurrentView] = useState<'dashboard' | 'job-detail'>('dashboard');
@@ -771,6 +773,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           logoColor: selectedJob.logoColor
         }}
         onClose={handleCloseApplicationModal}
+        onResumeClick={onResumeClick}
       />
     )}
   </>

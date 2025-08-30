@@ -4,6 +4,7 @@ import candidateApi from '../../services/candidateApi';
 interface JobApplicationProps {
   isOpen: boolean;
   onClose: () => void;
+  onResumeClick?: () => void;
   job: {
     job_id: string; // Primary ID (UUID from database)
     id?: number | string; // Fallback for legacy data
@@ -16,15 +17,12 @@ interface JobApplicationProps {
   };
 }
 
-export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose, job }) => {
+export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose, onResumeClick, job }) => {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     phone: '',
-    currentJobTitle: '',
-    linkedinUrl: '',
-    portfolioUrl: '',
-    additionalInfo: '',
+    coverLetter: '',
     resumeFile: null as File | null
   });
 
@@ -71,8 +69,7 @@ export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose,
           ...prev,
           fullName: profile.full_name || prev.fullName,
           email: profile.email || prev.email,
-          phone: profile.phone_number || prev.phone,
-          currentJobTitle: profile.current_position || prev.currentJobTitle,
+          phone: profile.phone || profile.phone_number || prev.phone,
         }));
       }
     } catch (error) {
@@ -84,7 +81,7 @@ export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose,
   };
 
   const handleInputChange = (field: string, value: string) => {
-    if (field === 'additionalInfo') {
+    if (field === 'coverLetter') {
       if (value.length <= maxCharacters) {
         setFormData(prev => ({ ...prev, [field]: value }));
         setCharacterCount(value.length);
@@ -115,11 +112,26 @@ export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose,
         return;
       }
       
+      // Get AI match score if CV is selected
+      let aiMatchScore = null;
+      if (selectedCVId) {
+        try {
+          const matchResponse = await candidateApi.calculateMatchScore(selectedCVId, jobId);
+          if (matchResponse.success && matchResponse.data) {
+            aiMatchScore = matchResponse.data.match_score;
+          }
+        } catch (error) {
+          console.warn('Failed to calculate AI match score:', error);
+          // Continue without AI match score
+        }
+      }
+
       // Prepare application data according to business-service API
       const applicationData = {
         job_id: jobId,
         cv_id: selectedCVId || undefined,
-        cover_letter: formData.additionalInfo || undefined,
+        cover_letter: formData.coverLetter || undefined,
+        ai_match_score: aiMatchScore,
         source: 'DIRECT' as const
       };
 
@@ -137,10 +149,7 @@ export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose,
           fullName: '',
           email: '',
           phone: '',
-          currentJobTitle: '',
-          linkedinUrl: '',
-          portfolioUrl: '',
-          additionalInfo: '',
+          coverLetter: '',
           resumeFile: null
         });
         setSelectedCVId('');
@@ -266,125 +275,19 @@ export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose,
                 />
               </div>
 
-              {/* Current Job Title */}
+              {/* Cover Letter */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Current or previous job title
-                </label>
-                <input
-                  type="text"
-                  value={formData.currentJobTitle}
-                  onChange={(e) => handleInputChange('currentJobTitle', e.target.value)}
-                  placeholder={loadingProfile ? "Loading profile..." : "What's your current or previous job title?"}
-                  disabled={loadingProfile}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#007BFF] focus:border-[#007BFF] disabled:bg-gray-50"
-                />
-              </div>
-
-              {/* Links Section */}
-              <div>
-                <h5 className="text-sm font-medium text-gray-900 mb-4 uppercase tracking-wide">LINKS</h5>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      LinkedIn URL
-                    </label>
-                    <input
-                      type="url"
-                      value={formData.linkedinUrl}
-                      onChange={(e) => handleInputChange('linkedinUrl', e.target.value)}
-                      placeholder="Link to your LinkedIn URL"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#007BFF] focus:border-[#007BFF]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Portfolio URL
-                    </label>
-                    <input
-                      type="url"
-                      value={formData.portfolioUrl}
-                      onChange={(e) => handleInputChange('portfolioUrl', e.target.value)}
-                      placeholder="Link to your portfolio URL"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#007BFF] focus:border-[#007BFF]"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Additional Information */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Additional information
+                  Cover Letter (Optional)
                 </label>
                 <div className="relative">
                   <textarea
-                    value={formData.additionalInfo}
-                    onChange={(e) => handleInputChange('additionalInfo', e.target.value)}
-                    placeholder="Add a cover letter or anything else you want to share"
+                    value={formData.coverLetter}
+                    onChange={(e) => handleInputChange('coverLetter', e.target.value)}
+                    placeholder="Add a cover letter to enhance your application"
                     rows={4}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#007BFF] focus:border-[#007BFF] resize-none"
                   />
-                  
-                  {/* Text Formatting Toolbar */}
-                  <div className="flex items-center space-x-2 mt-2 p-2 border-t border-gray-200">
-                    <button
-                      type="button"
-                      className="p-1 text-gray-500 hover:text-gray-700 rounded"
-                      title="Bold"
-                    >
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M4 2a1 1 0 00-1 1v14a1 1 0 001 1h6a3 3 0 003-3 3 3 0 00-3-3 3 3 0 003-3 3 3 0 00-3-3H4zm2 2h3a1 1 0 110 2H6V4zm0 4h4a1 1 0 110 2H6V8z" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      className="p-1 text-gray-500 hover:text-gray-700 rounded"
-                      title="Italic"
-                    >
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M7 3a1 1 0 000 2h1.5L6 15H5a1 1 0 100 2h6a1 1 0 100-2h-1.5L12 5H13a1 1 0 100-2H7z" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      className="p-1 text-gray-500 hover:text-gray-700 rounded"
-                      title="Underline"
-                    >
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10 2a1 1 0 00-1 1v6a3 3 0 106 0V3a1 1 0 10-2 0v6a1 1 0 11-2 0V3a1 1 0 00-1-1zM3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      className="p-1 text-gray-500 hover:text-gray-700 rounded"
-                      title="Bullet List"
-                    >
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 16a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      className="p-1 text-gray-500 hover:text-gray-700 rounded"
-                      title="Numbered List"
-                    >
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      className="p-1 text-gray-500 hover:text-gray-700 rounded"
-                      title="Link"
-                    >
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" />
-                      </svg>
-                    </button>
-                  </div>
                   
                   <div className="flex justify-between text-xs text-gray-500 mt-2">
                     <span>Maximum {maxCharacters} characters</span>
@@ -430,10 +333,17 @@ export const JobApplication: React.FC<JobApplicationProps> = ({ isOpen, onClose,
                     </p>
                     <button
                       type="button"
-                      onClick={() => window.open('/candidate/profile', '_blank')}
+                      onClick={() => {
+                        if (onResumeClick) {
+                          onResumeClick();
+                          onClose();
+                        } else {
+                          window.open('/resume', '_blank');
+                        }
+                      }}
                       className="mt-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-1 rounded text-sm transition-colors"
                     >
-                      Go to Profile to Upload CV
+                      Go to Resume
                     </button>
                   </div>
                 )}

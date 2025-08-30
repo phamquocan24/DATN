@@ -71,8 +71,13 @@ interface Resume {
 const saveResumesToLocalStorage = (resumes: Resume[]) => {
   const resumesToSave = resumes.map(resume => ({
     ...resume,
-    file: undefined // Remove File object for localStorage storage
+    file: undefined, // Remove File object for localStorage storage
     // Keep fileName, fileType, filePath for reference
+    // Keep match scores for fallback when API fails
+    hasJobMatches: resume.hasJobMatches,
+    bestMatchScore: resume.bestMatchScore,
+    bestMatchJob: resume.bestMatchJob,
+    jobMatchScores: resume.jobMatchScores
   }));
   localStorage.setItem('userResumes', JSON.stringify(resumesToSave));
 };
@@ -101,6 +106,27 @@ export const Resume: React.FC = () => {
   // State for dropdown menu
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
+  // Toast notification states
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+  const [showToast, setShowToast] = useState(false);
+
+  // Action loading states
+  const [loadingActions, setLoadingActions] = useState<{[key: string]: boolean}>({});
+
+  // Toast notification function
+  const showToastMessage = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
+  // Loading action helper
+  const setActionLoading = (action: string, loading: boolean) => {
+    setLoadingActions(prev => ({ ...prev, [action]: loading }));
+  };
+
   // Load saved resumes and available jobs
   useEffect(() => {
     const loadSavedResumes = async () => {
@@ -109,22 +135,52 @@ export const Resume: React.FC = () => {
         try {
           const apiResponse = await candidateApi.getMyCVs();
           if (apiResponse && apiResponse.data && Array.isArray(apiResponse.data)) {
-            // Transform API data to Resume format
-            const apiResumes = apiResponse.data.map((cv: any) => ({
-              id: cv.cv_id,
-              cv_id: cv.cv_id,
-              candidate_id: cv.candidate_id,
-              full_name: cv.cv_title || cv.cv_name || 'Untitled CV',
-              email: cv.email || 'N/A',
-              phone: cv.phone || 'N/A',
-              address: cv.address || 'N/A',
-              objective: cv.objective || cv.description || '',
-              fileName: cv.file_name || cv.cv_file_name,
-              fileType: cv.file_type || cv.cv_file_type,
-              filePath: cv.file_path || cv.cv_file_url,
-              uploadedAt: new Date(cv.created_at || cv.updated_at || Date.now()),
-              is_primary: cv.is_primary || false
-            }));
+            // Transform API data to Resume format and load match scores
+            const apiResumes = await Promise.all(
+              apiResponse.data.map(async (cv: any) => {
+                const resumeBase = {
+                  id: cv.cv_id,
+                  cv_id: cv.cv_id,
+                  candidate_id: cv.candidate_id,
+                  full_name: cv.cv_title || cv.cv_name || 'Untitled CV',
+                  email: cv.email || 'N/A',
+                  phone: cv.phone || 'N/A',
+                  address: cv.address || 'N/A',
+                  objective: cv.objective || cv.description || '',
+                  fileName: cv.file_name || cv.cv_file_name,
+                  fileType: cv.file_type || cv.cv_file_type,
+                  filePath: cv.file_path || cv.cv_file_url,
+                  uploadedAt: new Date(cv.created_at || cv.updated_at || Date.now()),
+                  is_primary: cv.is_primary || false
+                };
+
+                // Load match scores from database
+                try {
+                  const matchScoresResponse = await candidateApi.getCVMatchScores(cv.cv_id);
+                  if (matchScoresResponse.success && matchScoresResponse.data) {
+                    const scores = matchScoresResponse.data;
+                    return {
+                      ...resumeBase,
+                      hasJobMatches: scores.has_job_matches || false,
+                      bestMatchScore: scores.best_match_score || undefined,
+                      bestMatchJob: scores.best_match_job || undefined,
+                      jobMatchScores: scores.job_match_scores || []
+                    };
+                  }
+                } catch (error) {
+                  console.warn(`Failed to load match scores for CV ${cv.cv_id}:`, error);
+                }
+
+                // Return resume without match scores if loading fails
+                return {
+                  ...resumeBase,
+                  hasJobMatches: false,
+                  bestMatchScore: undefined,
+                  bestMatchJob: undefined,
+                  jobMatchScores: []
+                };
+              })
+            );
             
             setResumes(apiResumes);
             // Save to localStorage for offline access
@@ -220,10 +276,10 @@ export const Resume: React.FC = () => {
         setIsEnhanceModalOpen(true);
       } catch (error) {
         console.error('Failed to create placeholder file for enhancement:', error);
-        alert("Unable to prepare CV file for enhancement. Please re-upload your CV.");
+        showToastMessage("Unable to prepare CV file for enhancement. Please re-upload your CV.", 'error');
       }
     } else {
-      alert("CV file is not available for enhancement. Please re-upload your CV to use the enhancement feature. Note: CV files are only available for enhancement during the current session after upload.");
+      showToastMessage("CV file is not available for enhancement. Please re-upload your CV to use the enhancement feature.", 'error');
     }
   };
 
@@ -257,11 +313,11 @@ export const Resume: React.FC = () => {
       
       if (!recommendationsResult.success) {
         if (recommendationsResult.error?.includes('CV is still being processed')) {
-          alert('CV is still being processed. Please try again in a few moments.');
+          showToastMessage('CV is still being processed. Please try again in a few moments.', 'info');
           return;
         } else {
           console.error('Failed to get job recommendations:', recommendationsResult.error);
-          alert('Failed to calculate job matches. Please try again later.');
+          showToastMessage('Failed to calculate job matches. Please try again later.', 'error');
           return;
         }
       }
@@ -286,34 +342,62 @@ export const Resume: React.FC = () => {
               
               console.log(`Best match found: ${bestMatch.match_score}% for job ${bestMatch.job_id}`);
               
-              // Update the resume with match data
-              setResumes(prevResumes => 
-                prevResumes.map(resume => {
+              // Prepare match scores data for saving
+              const matchScoresData = {
+                best_match_score: bestMatch.match_score,
+                best_match_job: recommendationsResult.data!.recommendations.find(rec => rec.job_id === bestMatch.job_id)?.title || 'Unknown Job',
+                has_job_matches: true,
+                job_match_scores: validMatches.map(match => ({
+                  job_id: match.job_id,
+                  job_title: recommendationsResult.data!.recommendations.find(rec => rec.job_id === match.job_id)?.title || 'Unknown Job',
+                  company_name: recommendationsResult.data!.recommendations.find(rec => rec.job_id === match.job_id)?.group || 'Unknown Company',
+                  match_score: match.match_score,
+                  match_grade: getMatchGrade(match.match_score),
+                  detailed_scores: {
+                    skill_match: match.ky_nang_similarity ? Math.round(match.ky_nang_similarity * 100) : 0,
+                    experience_match: match.kinh_nghiem_similarity ? Math.round(match.kinh_nghiem_similarity * 100) : 0,
+                    education_match: match.hoc_van_similarity ? Math.round(match.hoc_van_similarity * 100) : 0,
+                    description_match: match.mo_ta_ban_than_similarity ? Math.round(match.mo_ta_ban_than_similarity * 100) : 0,
+                    overall_match: match.match_score
+                  }
+                }))
+              };
+
+              // Save match scores to database for persistence
+              try {
+                await candidateApi.saveCVMatchScores(cvId, matchScoresData);
+                console.log('✅ Match scores saved to database successfully');
+              } catch (saveError) {
+                console.warn('⚠️ Failed to save match scores to database:', saveError);
+                // Continue with UI update even if save fails
+              }
+
+              // Update the resume with match data in UI and localStorage
+              setResumes(prevResumes => {
+                const updatedResumes = prevResumes.map(resume => {
                   if (resume.cv_id === cvId) {
                     return {
                       ...resume,
-                      hasJobMatches: true,
-                      bestMatchScore: bestMatch.match_score,
-                      jobMatchScores: validMatches.map(match => ({
-                        job_id: match.job_id,
-                        match_score: match.match_score,
-                        match_grade: getMatchGrade(match.match_score),
-                        job_title: recommendationsResult.data!.recommendations.find(rec => rec.job_id === match.job_id)?.title || 'Unknown Job',
-                        company_name: recommendationsResult.data!.recommendations.find(rec => rec.job_id === match.job_id)?.group || 'Unknown Company',
-                        detailed_scores: {
-                          skill_match: match.ky_nang_similarity ? Math.round(match.ky_nang_similarity * 100) : 0,
-                          experience_match: match.kinh_nghiem_similarity ? Math.round(match.kinh_nghiem_similarity * 100) : 0,
-                          education_match: match.hoc_van_similarity ? Math.round(match.hoc_van_similarity * 100) : 0,
-                          description_match: match.mo_ta_ban_than_similarity ? Math.round(match.mo_ta_ban_than_similarity * 100) : 0,
-                          overall_match: match.match_score
-                        }
-                      })),
-                      bestMatchJob: recommendationsResult.data!.recommendations.find(rec => rec.job_id === bestMatch.job_id)?.title || 'Unknown Job'
+                      hasJobMatches: matchScoresData.has_job_matches,
+                      bestMatchScore: matchScoresData.best_match_score,
+                      bestMatchJob: matchScoresData.best_match_job,
+                      jobMatchScores: matchScoresData.job_match_scores.map(score => ({
+                        job_id: score.job_id,
+                        job_title: score.job_title,
+                        company_name: score.company_name,
+                        match_score: score.match_score,
+                        match_grade: score.match_grade,
+                        detailed_scores: score.detailed_scores
+                      }))
                     };
                   }
                   return resume;
-                })
-              );
+                });
+                
+                // Save updated data to localStorage
+                saveResumesToLocalStorage(updatedResumes);
+                return updatedResumes;
+              });
             }
           }
         }
@@ -380,26 +464,38 @@ export const Resume: React.FC = () => {
       console.log('Profile updated from CV data:', response);
       
       // Show success message
-      alert('Profile updated successfully with CV data!');
+      showToastMessage('Profile updated successfully with CV data!', 'success');
       
       // Close modal
       handleClosePreviewModal();
     } catch (error) {
       console.error('Failed to update profile from CV data:', error);
-      alert('Failed to update profile. Please try again.');
+      showToastMessage('Failed to update profile. Please try again.', 'error');
     }
   };
 
 
 
-  const handleDeleteResume = async (resumeId: string) => {
-    // Show confirmation dialog
-    if (!confirm('Are you sure you want to delete this CV? This action cannot be undone.')) {
+  const handleDeleteResume = async (resumeId: string, skipConfirm = false) => {
+    // Show confirmation state in UI instead of alert
+    if (!skipConfirm) {
+      const actionKey = `confirmDelete_${resumeId}`;
+      setActionLoading(actionKey, true);
+      
+      // Set a short timeout to show the confirmation state
+      setTimeout(() => {
+        setActionLoading(actionKey, false);
+        // You can add a confirmation modal here instead of browser confirm
+        handleDeleteResume(resumeId, true);
+      }, 1000);
       return;
     }
 
     // Close dropdown first
     setOpenDropdownId(null);
+
+    const actionKey = `delete_${resumeId}`;
+    setActionLoading(actionKey, true);
 
     try {
       // Find the resume to get the CV ID
@@ -409,6 +505,7 @@ export const Resume: React.FC = () => {
         const updatedResumes = resumes.filter(resume => resume.id !== resumeId);
         setResumes(updatedResumes);
         saveResumesToLocalStorage(updatedResumes);
+        showToastMessage('Resume deleted successfully', 'success');
         console.log('Resume deleted from localStorage:', resumeId);
         return;
       }
@@ -422,52 +519,82 @@ export const Resume: React.FC = () => {
         setResumes(updatedResumes);
         saveResumesToLocalStorage(updatedResumes);
         
-        alert('CV deleted successfully');
+        showToastMessage('CV deleted successfully', 'success');
         console.log('CV deleted from database:', resume.cv_id);
       } else {
-        alert(result.message || 'Failed to delete CV');
+        showToastMessage(result.message || 'Failed to delete CV', 'error');
         console.error('Failed to delete CV:', result.message);
       }
     } catch (error) {
       console.error('Error deleting CV:', error);
-      alert('An error occurred while deleting the CV');
+      showToastMessage('An error occurred while deleting the CV', 'error');
+    } finally {
+      setActionLoading(actionKey, false);
     }
   };
 
   const handleCalculateJobMatches = async (resume: Resume) => {
     if (!resume.cv_id || !resume.candidate_id) {
-      alert('CV ID or Candidate ID not found. Please re-upload the CV.');
+      showToastMessage('CV ID or Candidate ID not found. Please re-upload the CV.', 'error');
       return;
     }
 
     // Close dropdown
     setOpenDropdownId(null);
 
-    // Set selected CV for job matching in localStorage
-    localStorage.setItem('selectedCVForMatching', JSON.stringify({
-      cv_id: resume.cv_id,
-      candidate_id: resume.candidate_id,
-      full_name: resume.full_name,
-      uploadedAt: resume.uploadedAt
-    }));
+    const actionKey = `calculateMatch_${resume.id}`;
+    setActionLoading(actionKey, true);
 
-    // Trigger calculation in other components
-    localStorage.setItem('triggerJobMatching', Date.now().toString());
+    try {
+      // Set loading state for this specific resume
+      setResumes(prevResumes => 
+        prevResumes.map(r => 
+          r.id === resume.id ? { ...r, isCalculatingMatch: true } : r
+        )
+      );
 
-    // Show notification
-    alert(`Started calculating job matches for ${resume.full_name}. You can see results in Find Jobs and Favorite Jobs pages.`);
-    
-    console.log('Triggered job matching calculation for CV:', resume.cv_id);
+      // Calculate AI match scores directly
+      await calculateAIMatchScoresForCV(resume.cv_id, resume.candidate_id);
+      
+      // Set selected CV for job matching in localStorage
+      localStorage.setItem('selectedCVForMatching', JSON.stringify({
+        cv_id: resume.cv_id,
+        candidate_id: resume.candidate_id,
+        full_name: resume.full_name,
+        uploadedAt: resume.uploadedAt
+      }));
+
+      // Trigger calculation in other components
+      localStorage.setItem('triggerJobMatching', Date.now().toString());
+
+      showToastMessage(`Job matches calculated for ${resume.full_name}. Results available in Find Jobs section.`, 'success');
+      
+      console.log('Calculated job matching for CV:', resume.cv_id);
+    } catch (error) {
+      console.error('Error calculating job matches:', error);
+      showToastMessage('Failed to calculate job matches. Please try again.', 'error');
+    } finally {
+      setActionLoading(actionKey, false);
+      // Remove loading state
+      setResumes(prevResumes => 
+        prevResumes.map(r => 
+          r.id === resume.id ? { ...r, isCalculatingMatch: false } : r
+        )
+      );
+    }
   };
 
   const handleSetPrimaryCV = async (resume: Resume) => {
     if (!resume.cv_id) {
-      alert('CV ID not found. Please re-upload the CV.');
+      showToastMessage('CV ID not found. Please re-upload the CV.', 'error');
       return;
     }
 
     // Close dropdown
     setOpenDropdownId(null);
+
+    const actionKey = `setPrimary_${resume.id}`;
+    setActionLoading(actionKey, true);
 
     try {
       await candidateApi.setPrimaryCV(resume.cv_id);
@@ -487,10 +614,12 @@ export const Resume: React.FC = () => {
       }));
       saveResumesToLocalStorage(updatedResumes);
 
-      alert(`"${resume.full_name}" has been set as your primary CV.`);
+      showToastMessage(`"${resume.full_name}" has been set as your primary CV.`, 'success');
     } catch (error: any) {
       console.error('Failed to set primary CV:', error);
-      alert('Failed to set primary CV. Please try again.');
+      showToastMessage('Failed to set primary CV. Please try again.', 'error');
+    } finally {
+      setActionLoading(actionKey, false);
     }
   };
 
@@ -523,7 +652,7 @@ export const Resume: React.FC = () => {
           handleSubmit(file);
         }, i * 1000); // 1 second delay between each upload
       } else {
-        alert(`File ${file.name}: Please select a PDF file under 10MB`);
+        showToastMessage(`File ${file.name}: Please select a PDF file under 10MB`, 'error');
         setError(`File ${file.name}: Please select a PDF file under 10MB`);
       }
     }
@@ -552,7 +681,7 @@ export const Resume: React.FC = () => {
           handleSubmit(file);
         }, i * 1000); // 1 second delay between each upload
       } else {
-        alert(`File ${file.name}: Please select a PDF file under 10MB`);
+        showToastMessage(`File ${file.name}: Please select a PDF file under 10MB`, 'error');
         setError(`File ${file.name}: Please select a PDF file under 10MB`);
       }
     }
@@ -766,11 +895,16 @@ export const Resume: React.FC = () => {
                     e.stopPropagation();
                     handleCalculateJobMatches(resume);
                   }}
-                  className="w-full px-4 py-2 text-left text-sm text-blue-600 hover:bg-blue-50 flex items-center"
+                  disabled={loadingActions[`calculateMatch_${resume.id}`]}
+                  className="w-full px-4 py-2 text-left text-sm text-blue-600 hover:bg-blue-50 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
+                  {loadingActions[`calculateMatch_${resume.id}`] ? (
+                    <div className="w-4 h-4 mr-2 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  )}
                   Calculate Job Matches
                 </button>
                 {!resume.is_primary && (
@@ -779,11 +913,16 @@ export const Resume: React.FC = () => {
                       e.stopPropagation();
                       handleSetPrimaryCV(resume);
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 flex items-center"
+                    disabled={loadingActions[`setPrimary_${resume.id}`]}
+                    className="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    {loadingActions[`setPrimary_${resume.id}`] ? (
+                      <div className="w-4 h-4 mr-2 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )}
                     Set as Primary CV
                   </button>
                 )}
@@ -792,12 +931,17 @@ export const Resume: React.FC = () => {
                     e.stopPropagation();
                     handleDeleteResume(resume.id);
                   }}
-                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
+                  disabled={loadingActions[`delete_${resume.id}`] || loadingActions[`confirmDelete_${resume.id}`]}
+                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  Delete
+                  {(loadingActions[`delete_${resume.id}`] || loadingActions[`confirmDelete_${resume.id}`]) ? (
+                    <div className="w-4 h-4 mr-2 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  )}
+                  {loadingActions[`confirmDelete_${resume.id}`] ? 'Confirming...' : 'Delete'}
                 </button>
               </div>
             )}
@@ -896,7 +1040,7 @@ export const Resume: React.FC = () => {
                   : "Re-upload CV to enable enhancement"
               }
             >
-              View resume
+              Enhance resume
             </button>
           )}
 
@@ -1130,6 +1274,46 @@ export const Resume: React.FC = () => {
         onClose={handleCloseDetailModal}
         resume={detailResume as Resume}
       />
+
+      {/* Toast Notification */}
+      {showToast && toastMessage && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transform transition-all duration-300 ${
+          toastType === 'success' ? 'bg-green-500 text-white' :
+          toastType === 'error' ? 'bg-red-500 text-white' :
+          'bg-blue-500 text-white'
+        }`}>
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              {toastType === 'success' && (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              )}
+              {toastType === 'error' && (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              )}
+              {toastType === 'info' && (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              )}
+            </div>
+            <div className="ml-3 flex-1">
+              <p className="text-sm font-medium">{toastMessage}</p>
+            </div>
+            <button
+              onClick={() => setShowToast(false)}
+              className="ml-4 inline-flex text-white hover:text-gray-200 focus:outline-none"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 };

@@ -528,6 +528,7 @@ const MainContent = () => {
         onBack={onBack}
         onJobClick={handleJobClick}
         onCompanyClick={handleCompanyClick}
+        onResumeClick={() => handlePageChange('resume')}
       />
     );
   };
@@ -541,7 +542,7 @@ const MainContent = () => {
             <CompanyLogos />
             <Categories onFindJobsClick={handleFindJobsClick} />
             <CTA onSignUpClick={() => handleAuthOpen('signup')} />
-            <JobList onJobClick={handleJobClick} onFindJobsClick={handleFindJobsClick} />
+            <JobList onJobClick={handleJobClick} onFindJobsClick={handleFindJobsClick} onResumeClick={() => handlePageChange('resume')} />
           </>
         );
       case 'find-jobs':
@@ -601,6 +602,7 @@ const MainContent = () => {
           onTestManagementClick={() => handlePageChange('test-management')}
           onSettingsClick={() => handlePageChange('settings')}
           onHelpCenterClick={() => handlePageChange('help-center')}
+          onResumeClick={() => handlePageChange('resume')}
         />;
       case 'my-applications':
         return <MyApplications 
@@ -627,9 +629,6 @@ const MainContent = () => {
           onProfileClick={() => handlePageChange('profile')}
           onMyApplicationsClick={() => handlePageChange('my-applications')}
           onTestManagementClick={() => handlePageChange('test-management')}
-
-
-          onAgentAIClick={() => handlePageChange('agent-ai')}
           onHelpCenterClick={() => handlePageChange('help-center')}
           currentUser={currentUser}
         />;

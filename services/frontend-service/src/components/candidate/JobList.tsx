@@ -8,9 +8,10 @@ import bookmarkCache from '../../services/bookmarkCache';
 interface JobListProps {
   onJobClick?: (jobId: string) => void;
   onFindJobsClick: () => void;
+  onResumeClick?: () => void;
 }
 
-export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick }) => {
+export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick, onResumeClick }) => {
   const [isApplicationOpen, setIsApplicationOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [featuredJobs, setFeaturedJobs] = useState<any[]>([]);
@@ -423,6 +424,7 @@ export const JobList: React.FC<JobListProps> = ({ onJobClick, onFindJobsClick })
         <JobApplication 
           isOpen={isApplicationOpen}
           onClose={handleCloseApplication}
+          onResumeClick={onResumeClick}
           job={{
             job_id: selectedJob.job_id, // Primary ID from database
             id: selectedJob.id, // Fallback for legacy data

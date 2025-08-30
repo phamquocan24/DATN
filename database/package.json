@@ -12,7 +12,11 @@
     "db:test": "node setup.js test",
     "db:backup": "pg_dump $DATABASE_URL > backup_$(date +%Y%m%d_%H%M%S).sql",
     "db:restore": "psql $DATABASE_URL < $1",
-    "db:console": "psql $DATABASE_URL"
+    "db:console": "psql $DATABASE_URL",
+    "seed:jobs": "node seed-jobs.js",
+    "seed:jobs:preview": "node seed-jobs.js --dry-run",
+    "seed:jobs:clean": "node seed-jobs.js --clean --stats",
+    "seed:jobs:force": "node seed-jobs.js --force --stats"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

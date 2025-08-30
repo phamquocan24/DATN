@@ -180,6 +180,7 @@ export const candidateApi = {
     job_id: string;
     cv_id?: string;
     cover_letter?: string;
+    ai_match_score?: number;
     source?: 'DIRECT' | 'SOCIAL_MEDIA' | 'REFERRAL' | 'HEADHUNTER' | 'CAREER_FAIR';
   }) => {
     const response = await apiClient.post('/api/v1/applications', applicationData);
@@ -209,6 +210,59 @@ export const candidateApi = {
   withdrawApplication: async (applicationId: string, reason?: string) => {
     const response = await apiClient.post(`/api/v1/applications/${applicationId}/withdraw`, { reason });
     return response.data;
+  },
+
+  calculateMatchScore: async (cvId: string, jobId: string) => {
+    const response = await apiClient.get(`/api/v1/applications/match-score/${jobId}`, {
+      params: { cv_id: cvId }
+    });
+    return response.data;
+  },
+
+  // Save CV match scores to database for persistence
+  saveCVMatchScores: async (cvId: string, matchScores: {
+    best_match_score?: number;
+    best_match_job?: string;
+    has_job_matches?: boolean;
+    job_match_scores?: Array<{
+      job_id: string;
+      job_title: string;
+      company_name: string;
+      match_score: number;
+      match_grade: string;
+      detailed_scores?: {
+        skill_match: number;
+        experience_match: number;
+        education_match: number;
+        description_match: number;
+        overall_match: number;
+      };
+    }>;
+  }) => {
+    const response = await apiClient.post(`/api/v1/cvs/${cvId}/match-scores`, matchScores);
+    return response.data;
+  },
+
+  // Get CV match scores from database
+  getCVMatchScores: async (cvId: string) => {
+    try {
+      const response = await apiClient.get(`/api/v1/cvs/${cvId}/match-scores`);
+      return response.data;
+    } catch (error: any) {
+      // Return empty scores if not found
+      if (error.response?.status === 404) {
+        return {
+          success: true,
+          data: {
+            best_match_score: null,
+            best_match_job: null,
+            has_job_matches: false,
+            job_match_scores: []
+          }
+        };
+      }
+      throw error;
+    }
   },
 
   getApplicationById: async (applicationId: string, includeDetails?: boolean) => {
