@@ -1,128 +1,131 @@
-// PM2 Ecosystem Configuration for DATN Project
 module.exports = {
   apps: [
     // API Gateway
     {
       name: 'api-gateway',
-      script: '../api-gateway/server.js',
+      script: './api-gateway/server.js',
       instances: 1,
       exec_mode: 'cluster',
       env: {
         NODE_ENV: 'production',
-        PORT: 3000
+        PORT: 4000,
+        BUSINESS_SERVICE_URL: 'http://localhost:5001'
       },
       error_file: '/var/log/datn/api-gateway-error.log',
       out_file: '/var/log/datn/api-gateway-out.log',
       log_file: '/var/log/datn/api-gateway.log',
       time: true,
-      autorestart: true,
-      watch: false,
       max_memory_restart: '500M',
-      min_uptime: '10s',
-      max_restarts: 10
+      restart_delay: 3000,
+      max_restarts: 10,
+      min_uptime: '10s'
     },
 
-    // Business Service
+    // Business Service (Main API)
     {
-      name: 'business-service',
-      script: '../services/business-service/server.js',
-      instances: 1,
+      name: 'business-service', 
+      script: './services/business-service/server.js',
+      instances: 2,
       exec_mode: 'cluster',
       env: {
         NODE_ENV: 'production',
-        PORT: 5000
+        PORT: 5001
       },
       error_file: '/var/log/datn/business-service-error.log',
-      out_file: '/var/log/datn/business-service-out.log',
+      out_file: '/var/log/datn/business-service-out.log', 
       log_file: '/var/log/datn/business-service.log',
       time: true,
-      autorestart: true,
-      watch: false,
       max_memory_restart: '1G',
-      min_uptime: '10s',
-      max_restarts: 10
+      restart_delay: 3000,
+      max_restarts: 10,
+      min_uptime: '10s'
+    },
+
+    // Frontend Service (Serve built files)
+    {
+      name: 'frontend-service',
+      script: './deployment/serve-frontend.js',
+      instances: 1,
+      exec_mode: 'fork',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 5173
+      },
+      error_file: '/var/log/datn/frontend-error.log',
+      out_file: '/var/log/datn/frontend-out.log',
+      log_file: '/var/log/datn/frontend.log',
+      time: true,
+      max_memory_restart: '200M',
+      restart_delay: 3000
     },
 
     // AI Service - CV Processing
     {
       name: 'ai-cv-service',
-      script: 'extract_and_improve_cv/venv/bin/python',
-      args: 'extract_and_improve_cv/main.py',
-      interpreter: 'none',
+      script: './services/ai-service/extract_and_improve_cv/venv/bin/python',
+      args: 'main.py',
+      cwd: './services/ai-service/extract_and_improve_cv',
       instances: 1,
+      exec_mode: 'fork',
+      interpreter: 'none',
       env: {
-        FLASK_ENV: 'production',
-        PORT: 8003,
-        PYTHONPATH: '/opt/datn-recruitment/services/ai-service/extract_and_improve_cv'
+        SERVICE_PORT: 8003,
+        SERVICE_HOST: '0.0.0.0'
       },
       error_file: '/var/log/datn/ai-cv-error.log',
       out_file: '/var/log/datn/ai-cv-out.log',
       log_file: '/var/log/datn/ai-cv.log',
       time: true,
-      autorestart: true,
-      watch: false,
-      max_memory_restart: '800M',
-      min_uptime: '30s',
-      max_restarts: 5
+      max_memory_restart: '1G',
+      restart_delay: 5000,
+      max_restarts: 5,
+      min_uptime: '10s'
     },
 
-    // AI Service - Job Matching
+    // AI Service - JD-CV Matching  
     {
       name: 'ai-matching-service',
-      script: 'jd-cv-matching/venv/bin/python',
-      args: 'jd-cv-matching/app/main.py',
-      interpreter: 'none',
+      script: './services/ai-service/jd-cv-matching/venv/bin/python',
+      args: 'app/main.py',
+      cwd: './services/ai-service/jd-cv-matching',
       instances: 1,
+      exec_mode: 'fork',
+      interpreter: 'none',
       env: {
-        FLASK_ENV: 'production',
-        PORT: 8001,
-        PYTHONPATH: '/opt/datn-recruitment/services/ai-service/jd-cv-matching'
+        SERVICE_PORT: 8001,
+        SERVICE_HOST: '0.0.0.0'
       },
       error_file: '/var/log/datn/ai-matching-error.log',
       out_file: '/var/log/datn/ai-matching-out.log',
       log_file: '/var/log/datn/ai-matching.log',
       time: true,
-      autorestart: true,
-      watch: false,
-      max_memory_restart: '800M',
-      min_uptime: '30s',
-      max_restarts: 5
+      max_memory_restart: '1G',
+      restart_delay: 5000,
+      max_restarts: 5,
+      min_uptime: '10s'
     },
 
     // AI Service - Question Generation
     {
       name: 'ai-question-service',
-      script: 'generating-and-evaluating-questions-for-test/venv/bin/python',
-      args: 'generating-and-evaluating-questions-for-test/app/main.py',
-      interpreter: 'none',
+      script: './services/ai-service/generating-and-evaluating-questions-for-test/venv/bin/python',
+      args: 'app/main.py', 
+      cwd: './services/ai-service/generating-and-evaluating-questions-for-test',
       instances: 1,
+      exec_mode: 'fork',
+      interpreter: 'none',
       env: {
-        FLASK_ENV: 'production',
-        PORT: 8002,
-        PYTHONPATH: '/opt/datn-recruitment/services/ai-service/generating-and-evaluating-questions-for-test'
+        SERVICE_PORT: 8002,
+        SERVICE_HOST: '0.0.0.0'
       },
       error_file: '/var/log/datn/ai-question-error.log',
       out_file: '/var/log/datn/ai-question-out.log',
-      log_file: '/var/log/datn/ai-question.log',
+      log_file: '/var/log/datn/ai-question.log', 
       time: true,
-      autorestart: true,
-      watch: false,
-      max_memory_restart: '800M',
-      min_uptime: '30s',
-      max_restarts: 5
+      max_memory_restart: '1G',
+      restart_delay: 5000,
+      max_restarts: 5,
+      min_uptime: '10s'
     }
-  ],
-
-  // Deployment configuration
-  deploy: {
-    production: {
-      user: 'root',
-      host: 'your-server-ip',
-      ref: 'origin/main',
-      repo: 'git@github.com:your-username/your-repo.git',
-      path: '/opt/datn-recruitment',
-      'post-deploy': 'npm install && pm2 reload ecosystem.config.js --env production',
-      'pre-setup': 'apt update && apt install -y git nodejs npm python3 python3-pip postgresql'
-    }
-  }
+  ]
 };
