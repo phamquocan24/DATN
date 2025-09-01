@@ -179,15 +179,21 @@ export const testApi = {
       }
 
       // Use direct fetch for AI service as it's on different port
-      const response = await fetch('http://localhost:8002/api/v1/ai/generate-interview-questions', {
+      console.log('🔄 Calling AI service with job_id:', data.job_id);
+      const timestamp = Date.now();
+      const response = await fetch(`http://localhost:8002/api/v1/ai/generate-interview-questions?t=${timestamp}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
           // Remove auth token as AI service may not need it
         },
         body: JSON.stringify({ job_id: data.job_id }) // Only send job_id
       });
+      
+      console.log('📊 AI service response status:', response.status);
 
       if (!response.ok) {
         let errorMessage = `HTTP error! status: ${response.status}`;
