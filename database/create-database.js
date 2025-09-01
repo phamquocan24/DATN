@@ -25,8 +25,8 @@ const logger = winston.createLogger({
  */
 async function createDatabase() {
   const dbName = process.env.POSTGRES_DB || 'userdb';
-  const dbUser = process.env.POSTGRES_USER || 'cv_user';
-  const dbPassword = process.env.POSTGRES_PASSWORD || 'cv_password';
+  const dbUser = process.env.POSTGRES_USER || 'postgres';
+  const dbPassword = process.env.POSTGRES_PASSWORD || 'postgres';
   const dbHost = process.env.POSTGRES_HOST || 'localhost';
   const dbPort = process.env.POSTGRES_PORT || 5432;
 

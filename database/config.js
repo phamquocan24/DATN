@@ -8,7 +8,7 @@ const winston = require('winston');
  */
 class DatabaseConfig {
   constructor() {
-    const dbUrl = `postgresql://${process.env.POSTGRES_USER || 'cv_user'}:${process.env.POSTGRES_PASSWORD || 'cv_password'}@${process.env.POSTGRES_HOST || 'localhost'}:${process.env.POSTGRES_PORT || 5432}/${process.env.POSTGRES_DB || 'userdb'}`;
+    const dbUrl = `postgresql://${process.env.POSTGRES_USER || 'postgres'}:${process.env.POSTGRES_PASSWORD || 'postgres'}@${process.env.POSTGRES_HOST || 'localhost'}:${process.env.POSTGRES_PORT || 5432}/${process.env.POSTGRES_DB || 'userdb'}`;
 
     this.config = {
       connectionString: process.env.DATABASE_URL || dbUrl,

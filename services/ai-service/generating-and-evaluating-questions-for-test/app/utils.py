@@ -11,7 +11,7 @@ import json
 from datetime import datetime
 
 LLM_API_URL = os.getenv("LLM_API_URL", "https://api.groq.com/openai/v1/chat/completions")
-LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "llama3-8b-8192")
+LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "llama-3.1-8b-instant")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
 # --------- Pydantic Schemas ---------
@@ -379,23 +379,31 @@ def get_answer_details(result_id: str, db: Session):
 def get_job(db: Session, job_id: str) -> Optional[Job]:
     # Convert UUID string to appropriate format for database query
     try:
-        # If job_id is UUID string, we need to handle it properly
-        # Since database uses BigInteger, we'll query by string representation
-        return db.query(Job).filter(Job.job_id == job_id).first()
+        import uuid
+        # Convert string to UUID object for proper comparison
+        uuid_obj = uuid.UUID(job_id)
+        return db.query(Job).filter(Job.job_id == uuid_obj).first()
+    except ValueError as e:
+        print(f"Invalid UUID format for job ID {job_id}: {e}")
+        return None
     except Exception as e:
         print(f"Error querying job with ID {job_id}: {e}")
         return None
 
 def get_or_create_job_test(db: Session, job_id: str) -> JobTest:
-    test = db.query(JobTest).filter(JobTest.job_id == job_id).first()
+    import uuid
+    uuid_obj = uuid.UUID(job_id)
+    test = db.query(JobTest).filter(JobTest.job_id == uuid_obj).first()
     if test:
         return test
-    test = JobTest(job_id=job_id, test_name="Auto Generated Test")
+    test = JobTest(job_id=uuid_obj, test_name="Auto Generated Test")
     db.add(test); db.commit(); db.refresh(test)
     return test
 
 def create_question(db: Session, test_id: str, question_text: str, explanation: str = "") -> TestQuestion:
-    q = TestQuestion(test_id=test_id, question_text=question_text, explanation=explanation)
+    import uuid
+    uuid_obj = uuid.UUID(test_id)
+    q = TestQuestion(test_id=uuid_obj, question_text=question_text, explanation=explanation)
     db.add(q); db.commit(); db.refresh(q)
     return q
 

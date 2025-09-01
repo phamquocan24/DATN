@@ -43,8 +43,8 @@ def generate_interview_questions(payload: GenerateQuestionRequest, db: Session =
             raise HTTPException(status_code=404, detail=f"Job not found with ID: {payload.job_id}")
 
         # 2. Gọi AI để sinh câu hỏi (kết quả là list[dict])
-        # Try to get job description from different possible field names
-        job_desc = job.job_description or job.description or ""
+        # Get job description from the description field as per database schema
+        job_desc = job.description or ""
         print(f"Job description found: {len(job_desc)} characters")
         
         if not job_desc.strip():

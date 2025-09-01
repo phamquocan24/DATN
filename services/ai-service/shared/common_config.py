@@ -9,8 +9,8 @@ load_dotenv()
 
 # Database configuration (shared)
 class DatabaseConfig:
-    USER = os.getenv("POSTGRES_USER") or os.getenv("DB_USER", "cv_user")
-    PASSWORD = os.getenv("POSTGRES_PASSWORD") or os.getenv("DB_PASSWORD", "cv_password")
+    USER = os.getenv("POSTGRES_USER") or os.getenv("DB_USER", "postgres")
+    PASSWORD = os.getenv("POSTGRES_PASSWORD") or os.getenv("DB_PASSWORD", "postgres")
     HOST = os.getenv("POSTGRES_HOST") or os.getenv("DB_HOST", "localhost")
     PORT = os.getenv("POSTGRES_PORT") or os.getenv("DB_PORT", "5432")
     NAME = os.getenv("POSTGRES_DB") or os.getenv("DB_NAME", "userdb")
