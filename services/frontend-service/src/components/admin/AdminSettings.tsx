@@ -10,6 +10,7 @@ import NotificationPanel from './NotificationPanelAdmin';
 
 interface AdminSettingsProps {
   currentUser?: any;
+  onLogout?: () => void;
 }
 
 const AdminSettings: React.FC<AdminSettingsProps> = ({ currentUser }) => {

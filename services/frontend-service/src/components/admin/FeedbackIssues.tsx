@@ -20,6 +20,7 @@ interface FeedbackItem {
 
 interface FeedbackIssuesProps {
   currentUser?: any;
+  onLogout?: () => void;
 }
 
 const FeedbackIssues: React.FC<FeedbackIssuesProps> = ({ currentUser }) => {

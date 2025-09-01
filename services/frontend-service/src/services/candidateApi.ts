@@ -810,6 +810,43 @@ export const candidateApi = {
       console.error('Failed to ensure candidate profile:', error);
       throw error;
     }
+  },
+
+  // Download CV file for enhancement
+  downloadCVFile: async (cvId: string): Promise<File> => {
+    try {
+      const response = await apiClient.get(`/api/v1/cvs/${cvId}/download`, {
+        responseType: 'blob'
+      });
+
+      // Get filename from Content-Disposition header
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = 'cv.pdf';
+      
+      if (contentDisposition) {
+        const matches = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (matches && matches[1]) {
+          filename = matches[1];
+        }
+      }
+
+      // Get MIME type from response
+      const contentType = response.headers['content-type'] || 'application/pdf';
+      
+      // Create File object from blob
+      const file = new File([response.data], filename, { type: contentType });
+      
+      console.log('✅ CV file downloaded successfully:', {
+        filename,
+        contentType,
+        size: file.size
+      });
+      
+      return file;
+    } catch (error: any) {
+      console.error('❌ Failed to download CV file:', error);
+      throw new Error(error.response?.data?.error || 'Failed to download CV file');
+    }
   }
 };
 

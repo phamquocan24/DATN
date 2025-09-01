@@ -1478,4 +1478,173 @@ router.post('/:cv_id/match-scores', authenticateToken, requireRole(['CANDIDATE']
   }
 });
 
+/**
+ * @swagger
+ * /api/v1/cvs/{cv_id}/download:
+ *   get:
+ *     summary: Download CV file
+ *     description: Download CV file for enhancement (candidates only)
+ *     tags: [CVs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: cv_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: CV ID
+ *     responses:
+ *       200:
+ *         description: CV file returned
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *           application/msword:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *           application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       403:
+ *         description: Access denied
+ *       404:
+ *         description: CV or file not found
+ *       500:
+ *         description: Internal server error
+ */
+// Download CV file (Candidates only)
+router.get('/:cv_id/download', authenticateToken, requireRole(['CANDIDATE']), async (req, res) => {
+  try {
+    const { cv_id } = req.params;
+    const user_id = req.user.user_id;
+
+    if (!cvModel.isValidUUID(cv_id)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid CV ID format',
+        code: 'INVALID_UUID'
+      });
+    }
+
+    // Get CV information and verify ownership
+    const cv = await cvModel.getCVById(cv_id);
+    
+    if (!cv) {
+      return res.status(404).json({
+        success: false,
+        error: 'CV not found',
+        code: 'CV_NOT_FOUND'
+      });
+    }
+
+    // Check ownership (candidates can only download their own CVs)
+    if (cv.candidate_id !== user_id) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied',
+        code: 'ACCESS_DENIED'
+      });
+    }
+
+    // Log CV data for debugging
+    logger.info('CV data for download:', {
+      cv_id,
+      file_path: cv.file_path,
+      filename: cv.filename,
+      original_filename: cv.original_filename,
+      file_type: cv.file_type,
+      cv_file_url: cv.cv_file_url,
+      cv_file_name: cv.cv_file_name,
+      cv_file_type: cv.cv_file_type
+    });
+
+    // Use the correct field name from database schema
+    const filePath = cv.file_path || cv.cv_file_url;
+    const fileName = cv.original_filename || cv.filename || cv.cv_file_name || 'cv.pdf';
+    const fileType = cv.file_type || cv.cv_file_type || 'pdf';
+    
+    if (!filePath) {
+      logger.error('CV file path is undefined:', {
+        cv_id,
+        cv: cv
+      });
+      
+      return res.status(404).json({
+        success: false,
+        error: 'CV file path not found in database',
+        code: 'FILE_PATH_MISSING'
+      });
+    }
+
+    // Build full file path
+    const fullFilePath = path.join(__dirname, '..', filePath);
+    
+    // Check if file exists
+    if (!fs.existsSync(fullFilePath)) {
+      logger.error('CV file not found on disk:', {
+        cv_id,
+        file_path: fullFilePath,
+        original_file_path: filePath
+      });
+      
+      return res.status(404).json({
+        success: false,
+        error: 'CV file not found on server',
+        code: 'FILE_NOT_FOUND'
+      });
+    }
+
+    // Set appropriate headers
+    const fileTypeNormalized = fileType.toLowerCase().replace('.', '');
+    const mimeType = fileTypeNormalized === 'pdf' ? 'application/pdf' :
+                    fileTypeNormalized === 'doc' ? 'application/msword' :
+                    fileTypeNormalized === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' :
+                    'application/octet-stream';
+
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+
+    // Stream the file
+    const fileStream = fs.createReadStream(fullFilePath);
+    fileStream.pipe(res);
+
+    fileStream.on('error', (error) => {
+      logger.error('Error streaming CV file:', {
+        cv_id,
+        error: error.message,
+        file_path: fullFilePath
+      });
+      
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          error: 'Failed to read CV file',
+          code: 'FILE_READ_ERROR'
+        });
+      }
+    });
+
+    logger.info('CV file downloaded successfully', {
+      cv_id,
+      user_id,
+      file_name: fileName
+    });
+
+  } catch (error) {
+    logger.error('Failed to download CV file:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: 'CV_DOWNLOAD_ERROR'
+    });
+  }
+});
+
 module.exports = router; 

@@ -22,6 +22,7 @@ interface Job {
 
 interface JobListingsProps {
   currentUser?: any;
+  onLogout?: () => void;
 }
 
 const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {

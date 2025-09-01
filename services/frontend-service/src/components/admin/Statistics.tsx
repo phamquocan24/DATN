@@ -16,6 +16,7 @@ ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointE
 
 interface StatisticsProps {
   currentUser?: any;
+  onLogout?: () => void;
 }
 
 const Statistics: React.FC<StatisticsProps> = ({ currentUser }) => {

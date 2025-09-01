@@ -190,19 +190,39 @@ export const EnhanceResumeModal: React.FC<EnhanceResumeModalProps> = ({ isOpen, 
     // Check if we have a valid File object
     let fileToProcess = resume.file;
     
-    // If the file is not available or not a proper File object (happens when loaded from localStorage)
+    // If the file is not available or not a proper File object
     if (!fileToProcess || typeof fileToProcess !== 'object' || !fileToProcess.name) {
-      setError("Resume file is not available. Please re-upload your CV to use the enhancement feature.");
+      console.error('🚫 No file object found in resume:', {
+        hasFile: !!fileToProcess,
+        fileType: typeof fileToProcess,
+        fileName: fileToProcess?.name,
+        cv_id: resume.cv_id,
+        filePath: resume.filePath
+      });
+      
+      setError("Resume file is not available. Please try clicking the 'Enhance resume' button again to download the CV file.");
       setStep('error');
       return;
     }
 
     // Additional check to ensure it's a proper File object
     if (!(fileToProcess instanceof File)) {
-      setError("Invalid file format. Please re-upload your CV to use the enhancement feature.");
+      console.error('🚫 Invalid file object type:', {
+        fileToProcess,
+        isFile: fileToProcess instanceof File,
+        constructor: fileToProcess.constructor.name
+      });
+      
+      setError("Invalid file format detected. Please try clicking the 'Enhance resume' button again to re-download the CV file.");
       setStep('error');
       return;
     }
+
+    console.log('✅ File validation passed:', {
+      fileName: fileToProcess.name,
+      fileSize: fileToProcess.size,
+      fileType: fileToProcess.type
+    });
 
     try {
       const result = await cvApi.improveCV({

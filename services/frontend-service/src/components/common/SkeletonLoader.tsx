@@ -146,6 +146,43 @@ export const FeaturedJobSkeleton: React.FC = () => {
   );
 };
 
+// Resume Card Skeleton
+export const ResumeCardSkeleton: React.FC = () => {
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-6 hover:border-[#007BFF]/30 transition-all duration-200 group text-left cursor-pointer hover:shadow-md">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-3 min-w-0 flex-1">
+          <Skeleton circle width="w-12" height="h-12" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton width="w-32" height="h-5" />
+            <Skeleton width="w-40" height="h-4" />
+          </div>
+        </div>
+        <div className="flex items-center space-x-2 flex-shrink-0">
+          <Skeleton width="w-16" height="h-4" />
+          <Skeleton width="w-6" height="h-6" />
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <Skeleton width="w-full" height="h-4" className="mb-2" />
+        <Skeleton width="w-5/6" height="h-4" className="mb-1" />
+        <Skeleton width="w-3/4" height="h-4" />
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col space-y-2">
+          <Skeleton width="w-24" height="h-6" />
+          <Skeleton width="w-20" height="h-4" />
+        </div>
+        <div className="flex flex-col items-end space-y-2">
+          <Skeleton width="w-28" height="h-8" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Page Content Skeleton
 export const PageSkeleton: React.FC<{ 
   title?: boolean;

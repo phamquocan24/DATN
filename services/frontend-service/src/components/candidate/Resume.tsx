@@ -4,6 +4,7 @@ import GroupUnderline from '../../assets/Group.png';
 import { EnhanceResumeModal } from './EnhanceResumeModal';
 import CVPreviewModal from './CVPreviewModal';
 import CVDetailModal from './CVDetailModal';
+import { ResumeCardSkeleton } from '../common/SkeletonLoader';
 
 import cvApi, { CVExtractResponse } from '../../services/cvApi';
 // Removed matchingApi import - using aiMatchingApi instead
@@ -307,25 +308,36 @@ export const Resume: React.FC = () => {
     loadAvailableJobs();
   }, []);
 
-  const handleOpenEnhanceModal = (resume: Resume) => {
+  const handleOpenEnhanceModal = async (resume: Resume) => {
     // Check if we have a valid File object
     if (resume.file && resume.file instanceof File) {
       setSelectedResume(resume);
       setIsEnhanceModalOpen(true);
-    } else if (resume.fileName && resume.fileType && resume.filePath) {
-      // For CVs stored on server, create a placeholder file reference
+    } else if (resume.cv_id && resume.fileName && resume.fileType && resume.filePath) {
+      // For CVs stored on server, download the actual file
       try {
-        // Create a placeholder file object for enhancement (actual file is on server)
-        const placeholderFile = new File([''], resume.fileName, { type: resume.fileType });
-        const resumeWithFile = { ...resume, file: placeholderFile };
+        showToastMessage("Downloading CV for enhancement...", 'info');
+        
+        // Download the actual file from server
+        const downloadedFile = await candidateApi.downloadCVFile(resume.cv_id);
+        
+        // Create resume with downloaded file
+        const resumeWithFile = { ...resume, file: downloadedFile };
         setSelectedResume(resumeWithFile);
         setIsEnhanceModalOpen(true);
-      } catch (error) {
-        console.error('Failed to create placeholder file for enhancement:', error);
-        showToastMessage("Unable to prepare CV file for enhancement. Please re-upload your CV.", 'error');
+        
+        console.log('✅ CV downloaded and ready for enhancement:', {
+          cv_id: resume.cv_id,
+          filename: downloadedFile.name,
+          size: downloadedFile.size
+        });
+        
+      } catch (error: any) {
+        console.error('❌ Failed to download CV for enhancement:', error);
+        showToastMessage(`Unable to download CV for enhancement: ${error.message}`, 'error');
       }
     } else {
-      showToastMessage("CV file is not available for enhancement. Please re-upload your CV to use the enhancement feature.", 'error');
+      showToastMessage("CV file information is not available for enhancement. Please re-upload your CV to use the enhancement feature.", 'error');
     }
   };
 
@@ -1027,16 +1039,20 @@ export const Resume: React.FC = () => {
       </div>
 
       <p className="text-gray-600 text-sm mb-4 line-clamp-3 leading-relaxed">
-        {resume.objective || resume.extractedData?.objective || (
-          resume.bestMatchJob && !resume.isCalculatingMatch ? (
-            <span className="text-blue-600 font-medium">
-              Best for: {resume.bestMatchJob}
-            </span>
-          ) : (
-            <span className="text-gray-400 italic">
-              {resume.isCalculatingMatch ? 'Analyzing job matches...' : 'No job matches calculated yet'}
-            </span>
-          )
+        {resume.isCalculatingMatch ? (
+          <span className="text-blue-600 italic">
+            Analyzing job matches...
+          </span>
+        ) : resume.hasJobMatches && resume.bestMatchJob ? (
+          <span className="text-blue-600 font-medium">
+            Best for: {resume.bestMatchJob}
+          </span>
+        ) : resume.objective || resume.extractedData?.objective ? (
+          resume.objective || resume.extractedData?.objective
+        ) : (
+          <span className="text-gray-400 italic">
+            No job matches calculated yet
+          </span>
         )}
       </p>
 
@@ -1203,7 +1219,13 @@ export const Resume: React.FC = () => {
               </p>
             </div>
 
-            {resumes.length === 0 && !isLoading ? (
+            {isLoading ? (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <ResumeCardSkeleton key={i} />
+                ))}
+              </div>
+            ) : resumes.length === 0 ? (
               <div className="text-center text-gray-500">
                 <p>No professional profiles uploaded yet. Add your first career document below!</p>
                 {availableJobs.length === 0 && (

@@ -5,6 +5,7 @@ import adminApi from '../../services/adminApi';
 
 interface CandidateManagementProps {
   currentUser?: any;
+  onLogout?: () => void;
 }
 
 const CandidateManagement: React.FC<CandidateManagementProps> = ({ currentUser }) => {

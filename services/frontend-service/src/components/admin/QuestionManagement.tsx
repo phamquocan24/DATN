@@ -28,6 +28,7 @@ interface TestItem {
 
 interface QuestionManagementProps {
   currentUser?: any;
+  onLogout?: () => void;
 }
 
 const QuestionManagement: React.FC<QuestionManagementProps> = ({ currentUser }) => {

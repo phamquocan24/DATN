@@ -43,6 +43,7 @@ interface Log {
 
 interface ActivityLogProps {
   currentUser?: any;
+  onLogout?: () => void;
 }
 
 // Helper functions
