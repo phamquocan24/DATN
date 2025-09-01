@@ -12,7 +12,6 @@ export { default as JobApplicants } from './JobApplicants';
 export { default as JobApplications } from './JobApplications';
 export { default as JobDetailsTab } from './JobDetailsTab';
 export { default as JobManagement } from './JobManagement';
-export { default as Messages } from './Messages';
 export { default as PostNewJob } from './PostNewJob';
 export { default as MySchedule } from './MySchedule'; 
 export { default as Settings } from './Settings';

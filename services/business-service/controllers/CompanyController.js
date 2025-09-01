@@ -38,7 +38,7 @@ const createCompanySchema = Joi.object({
   city_id: Joi.string().uuid().optional(),
   district_id: Joi.string().uuid().optional(),
   industry: Joi.string().max(100).optional(),
-  company_size: Joi.string().valid('STARTUP', 'SMALL', 'MEDIUM', 'LARGE', 'ENTERPRISE').optional(),
+  company_size: Joi.string().valid('1-10', '11-50', '51-200', '201-500', '501-1000', '1000+').optional(),
   company_logo_url: Joi.string().uri().optional().allow(''),
   tax_code: Joi.string().max(50).optional().allow(''),
   founded_year: Joi.number().integer().min(1800).max(new Date().getFullYear()).optional()
@@ -54,7 +54,7 @@ const updateCompanySchema = Joi.object({
   city_id: Joi.string().uuid().optional(),
   district_id: Joi.string().uuid().optional(),
   industry: Joi.string().max(100).optional(),
-  company_size: Joi.string().valid('STARTUP', 'SMALL', 'MEDIUM', 'LARGE', 'ENTERPRISE').optional(),
+  company_size: Joi.string().valid('1-10', '11-50', '51-200', '201-500', '501-1000', '1000+').optional(),
   company_logo_url: Joi.string().uri().optional().allow(''),
   tax_code: Joi.string().max(50).optional().allow(''),
   founded_year: Joi.number().integer().min(1800).max(new Date().getFullYear()).optional()
@@ -119,8 +119,8 @@ const updateCompanySchema = Joi.object({
  *                 example: "Information Technology"
  *               company_size:
  *                 type: string
- *                 enum: [STARTUP, SMALL, MEDIUM, LARGE, ENTERPRISE]
- *                 example: "MEDIUM"
+ *                 enum: [1-10, 11-50, 51-200, 201-500, 501-1000, 1000+]
+ *                 example: "51-200"
  *               company_logo_url:
  *                 type: string
  *                 format: uri
@@ -508,8 +508,8 @@ router.get('/:company_id', async (req, res) => {
  *                 example: "Information Technology"
  *               company_size:
  *                 type: string
- *                 enum: [STARTUP, SMALL, MEDIUM, LARGE, ENTERPRISE]
- *                 example: "LARGE"
+ *                 enum: [1-10, 11-50, 51-200, 201-500, 501-1000, 1000+]
+ *                 example: "201-500"
  *               company_logo_url:
  *                 type: string
  *                 format: uri

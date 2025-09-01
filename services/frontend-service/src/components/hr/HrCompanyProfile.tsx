@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiEdit, FiExternalLink, FiPlus, FiArrowRight } from 'react-icons/fi';
+import { FiEdit, FiExternalLink, FiPlus } from 'react-icons/fi';
 import { FaHtml5, FaCss3Alt, FaJs, FaGem, FaTwitter, FaFacebookF, FaLinkedinIn, FaEnvelope, FaPhoneAlt, FaInstagram, FaStethoscope, FaSwimmingPool, FaVideo, FaMountain, FaCoffee, FaTrain } from 'react-icons/fa';
 import { SiFramer } from 'react-icons/si';
 import companyLogo from '../../assets/Nomad.png';
@@ -23,6 +23,11 @@ const HrCompanyProfile: React.FC = () => {
     const [companyJobs, setCompanyJobs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [hasCompany, setHasCompany] = useState<boolean>(true);
+    const [showCreateForm, setShowCreateForm] = useState(false);
+    const [showEditForm, setShowEditForm] = useState(false);
+    const [createLoading, setCreateLoading] = useState(false);
+    const [updateLoading, setUpdateLoading] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -37,7 +42,9 @@ const HrCompanyProfile: React.FC = () => {
             // Get current HR user's company ID
             const companyId = getCompanyId();
             if (!companyId) {
-                setError('No company ID found. Please contact administrator.');
+                console.log('No company ID found - account needs to create company');
+                setHasCompany(false);
+                setLoading(false);
                 return;
             }
 
@@ -103,6 +110,103 @@ const HrCompanyProfile: React.FC = () => {
         }
     };
 
+    const handleCreateCompany = async (formData: any) => {
+        try {
+            setCreateLoading(true);
+            setError(null);
+
+            const createData = {
+                company_name: formData.companyName,
+                company_description: formData.description || undefined,
+                company_website: formData.website || undefined,
+                company_address: formData.address || undefined,
+                city_id: formData.cityId || undefined,
+                district_id: formData.districtId || undefined,
+                industry: formData.industry || undefined,
+                company_size: formData.companySize || undefined,
+                tax_code: formData.taxCode || undefined,
+                founded_year: formData.foundedYear ? parseInt(formData.foundedYear) : undefined
+            };
+
+            // Remove undefined values to avoid sending empty strings
+            Object.keys(createData).forEach(key => {
+                if ((createData as any)[key] === undefined || (createData as any)[key] === '') {
+                    delete (createData as any)[key];
+                }
+            });
+
+            console.log('Creating company with data:', createData);
+
+            const response = await companyApi.createCompany(createData);
+            console.log('Company creation response:', response);
+
+            if (response.success) {
+                setShowCreateForm(false);
+                setHasCompany(true);
+                // Reload company data
+                await loadCompanyData();
+            } else {
+                setError(response.message || 'Failed to create company');
+            }
+        } catch (err: any) {
+            console.error('Error creating company:', err);
+            setError(err.message || 'Failed to create company');
+        } finally {
+            setCreateLoading(false);
+        }
+    };
+
+    const handleUpdateCompany = async (formData: any) => {
+        try {
+            setUpdateLoading(true);
+            setError(null);
+
+            const companyId = getCompanyId();
+            if (!companyId) {
+                setError('No company ID found');
+                return;
+            }
+
+            const updateData = {
+                company_name: formData.companyName,
+                company_description: formData.description || undefined,
+                company_website: formData.website || undefined,
+                company_address: formData.address || undefined,
+                city_id: formData.cityId || undefined,
+                district_id: formData.districtId || undefined,
+                industry: formData.industry || undefined,
+                company_size: formData.companySize || undefined,
+                tax_code: formData.taxCode || undefined,
+                founded_year: formData.foundedYear ? parseInt(formData.foundedYear) : undefined
+            };
+
+            // Remove undefined values to avoid sending empty strings
+            Object.keys(updateData).forEach(key => {
+                if ((updateData as any)[key] === undefined || (updateData as any)[key] === '') {
+                    delete (updateData as any)[key];
+                }
+            });
+
+            console.log('Updating company with data:', updateData);
+
+            const response = await companyApi.updateCompany(companyId, updateData);
+            console.log('Company update response:', response);
+
+            if (response.success) {
+                setShowEditForm(false);
+                // Reload company data
+                await loadCompanyData();
+            } else {
+                setError(response.message || 'Failed to update company');
+            }
+        } catch (err: any) {
+            console.error('Error updating company:', err);
+            setError(err.message || 'Failed to update company');
+        } finally {
+            setUpdateLoading(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center p-8">
@@ -126,6 +230,327 @@ const HrCompanyProfile: React.FC = () => {
             </div>
         );
     }
+
+  // Company Form Component
+  const CompanyForm: React.FC<{
+    isEdit?: boolean;
+    initialData?: any;
+    onSubmit: (data: any) => void;
+    onCancel: () => void;
+    isLoading: boolean;
+  }> = ({ isEdit = false, initialData, onSubmit, onCancel, isLoading }) => {
+    const [formData, setFormData] = useState({
+      companyName: initialData?.companyName || '',
+      description: initialData?.companyInfo?.description || '',
+      website: initialData?.companyInfo?.website || '',
+      address: initialData?.companyInfo?.address || '',
+      industry: initialData?.companyInfo?.industry || '',
+      companySize: initialData?.companyInfo?.size || '',
+      taxCode: initialData?.taxCode || '',
+      foundedYear: initialData?.foundedYear || ''
+    });
+
+    const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+
+    const validateForm = () => {
+      const errors: {[key: string]: string} = {};
+
+      // Required fields validation
+      if (!formData.companyName.trim()) {
+        errors.companyName = 'Company name is required';
+      }
+
+      if (!formData.industry.trim()) {
+        errors.industry = 'Industry is required';
+      }
+
+      if (!formData.address.trim()) {
+        errors.address = 'Address is required';
+      }
+
+      if (!formData.companySize) {
+        errors.companySize = 'Company size is required';
+      }
+
+      // Optional but format validation
+      if (formData.website && !formData.website.match(/^https?:\/\/.+/)) {
+        errors.website = 'Website must be a valid URL (starting with http:// or https://)';
+      }
+
+      if (formData.foundedYear && (parseInt(formData.foundedYear) < 1800 || parseInt(formData.foundedYear) > new Date().getFullYear())) {
+        errors.foundedYear = `Founded year must be between 1800 and ${new Date().getFullYear()}`;
+      }
+
+      setValidationErrors(errors);
+      return Object.keys(errors).length === 0;
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      
+      if (validateForm()) {
+        onSubmit(formData);
+      }
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+      const { name, value } = e.target;
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+      
+      // Clear validation error for this field when user starts typing
+      if (validationErrors[name]) {
+        setValidationErrors(prev => ({
+          ...prev,
+          [name]: ''
+        }));
+      }
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-l-lg rounded-tr-lg rounded-br-lg w-full max-w-2xl max-h-[90vh] flex flex-col">
+          <div className="p-6 pb-4 border-b border-gray-200">
+            <h2 className="text-xl font-semibold">
+              {isEdit ? 'Edit Company Profile' : 'Create Company Profile'}
+            </h2>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-6 pt-4">
+            <form id="company-form" onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Company Name *
+                </label>
+                <input
+                  type="text"
+                  name="companyName"
+                  value={formData.companyName}
+                  onChange={handleChange}
+                  required
+                  className={`w-full p-2 border rounded-md focus:outline-none focus:ring-2 ${
+                    validationErrors.companyName 
+                      ? 'border-red-500 focus:ring-red-500' 
+                      : 'border-gray-300 focus:ring-blue-500'
+                  }`}
+                />
+                {validationErrors.companyName && (
+                  <p className="text-red-500 text-xs mt-1">{validationErrors.companyName}</p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Website
+                </label>
+                <input
+                  type="url"
+                  name="website"
+                  value={formData.website}
+                  onChange={handleChange}
+                  className={`w-full p-2 border rounded-md focus:outline-none focus:ring-2 ${
+                    validationErrors.website 
+                      ? 'border-red-500 focus:ring-red-500' 
+                      : 'border-gray-300 focus:ring-blue-500'
+                  }`}
+                />
+                {validationErrors.website && (
+                  <p className="text-red-500 text-xs mt-1">{validationErrors.website}</p>
+                )}
+              </div>
+              
+
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Industry *
+                </label>
+                <input
+                  type="text"
+                  name="industry"
+                  value={formData.industry}
+                  onChange={handleChange}
+                  required
+                  className={`w-full p-2 border rounded-md focus:outline-none focus:ring-2 ${
+                    validationErrors.industry 
+                      ? 'border-red-500 focus:ring-red-500' 
+                      : 'border-gray-300 focus:ring-blue-500'
+                  }`}
+                />
+                {validationErrors.industry && (
+                  <p className="text-red-500 text-xs mt-1">{validationErrors.industry}</p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Company Size *
+                </label>
+                <select
+                  name="companySize"
+                  value={formData.companySize}
+                  onChange={handleChange}
+                  required
+                  className={`w-full p-2 border rounded-md focus:outline-none focus:ring-2 ${
+                    validationErrors.companySize 
+                      ? 'border-red-500 focus:ring-red-500' 
+                      : 'border-gray-300 focus:ring-blue-500'
+                  }`}
+                >
+                  <option value="">Select size</option>
+                  <option value="1-10">1-10 employees</option>
+                  <option value="11-50">11-50 employees</option>
+                  <option value="51-200">51-200 employees</option>
+                  <option value="201-500">201-500 employees</option>
+                  <option value="501-1000">501-1000 employees</option>
+                  <option value="1000+">1000+ employees</option>
+                </select>
+                {validationErrors.companySize && (
+                  <p className="text-red-500 text-xs mt-1">{validationErrors.companySize}</p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tax Code
+                </label>
+                <input
+                  type="text"
+                  name="taxCode"
+                  value={formData.taxCode}
+                  onChange={handleChange}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Founded Year
+                </label>
+                <input
+                  type="number"
+                  name="foundedYear"
+                  value={formData.foundedYear}
+                  onChange={handleChange}
+                  min="1800"
+                  max={new Date().getFullYear()}
+                  className={`w-full p-2 border rounded-md focus:outline-none focus:ring-2 ${
+                    validationErrors.foundedYear 
+                      ? 'border-red-500 focus:ring-red-500' 
+                      : 'border-gray-300 focus:ring-blue-500'
+                  }`}
+                />
+                {validationErrors.foundedYear && (
+                  <p className="text-red-500 text-xs mt-1">{validationErrors.foundedYear}</p>
+                )}
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Address *
+              </label>
+              <input
+                type="text"
+                name="address"
+                value={formData.address}
+                onChange={handleChange}
+                required
+                className={`w-full p-2 border rounded-md focus:outline-none focus:ring-2 ${
+                  validationErrors.address 
+                    ? 'border-red-500 focus:ring-red-500' 
+                    : 'border-gray-300 focus:ring-blue-500'
+                }`}
+              />
+              {validationErrors.address && (
+                <p className="text-red-500 text-xs mt-1">{validationErrors.address}</p>
+              )}
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                rows={4}
+                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            </form>
+          </div>
+          
+          <div className="p-6 pt-4 border-t border-gray-200">
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={isLoading}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="company-form"
+                disabled={isLoading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                {isLoading ? 'Saving...' : (isEdit ? 'Update Company' : 'Create Company')}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Show create form if no company exists
+  if (!hasCompany && !loading) {
+    return (
+      <div style={{fontFamily:'ABeeZee, sans-serif'}}>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-normal text-gray-800">Company Profile</h1>
+        </div>
+        
+        <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
+          <div className="max-w-md mx-auto">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              Create Your Company Profile
+            </h2>
+            <p className="text-gray-600 mb-6">
+              To start posting jobs and managing applications, you need to create a company profile first.
+            </p>
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
+            >
+              Create Company Profile
+            </button>
+          </div>
+        </div>
+        
+        {showCreateForm && (
+          <CompanyForm
+            onSubmit={handleCreateCompany}
+            onCancel={() => setShowCreateForm(false)}
+            isLoading={createLoading}
+          />
+        )}
+        
+        {error && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-red-800">{error}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const getTagStyle = (tag: string) => {
     switch (tag) {
@@ -246,7 +671,10 @@ const HrCompanyProfile: React.FC = () => {
                         <IoEarth className="w-4 h-4" />
                         Public View
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2 border border-[#007BFF] text-[#007BFF] rounded-md bg-white hover:bg-blue-50 text-sm font-medium">
+                    <button 
+                        onClick={() => setShowEditForm(true)}
+                        className="flex items-center gap-2 px-4 py-2 border border-[#007BFF] text-[#007BFF] rounded-md bg-white hover:bg-blue-50 text-sm font-medium"
+                    >
                         <FiEdit className="w-4 h-4" />
                         Profile Settings
                     </button>
@@ -503,14 +931,14 @@ const HrCompanyProfile: React.FC = () => {
                 onClick={() => setShowMoreJobs(true)} 
                 className="text-[#007BFF] text-sm font-medium flex items-center gap-1 hover:underline"
               >
-                Show all jobs <FiArrowRight/>
+                Show all jobs
               </button>
             )}
             <button 
               onClick={() => navigate('/hr/job-management')} 
               className="text-[#007BFF] text-sm font-medium flex items-center gap-1 hover:underline"
             >
-              Show more <FiArrowRight/>
+              Show more
             </button>
           </div>
         </div>
@@ -581,6 +1009,30 @@ const HrCompanyProfile: React.FC = () => {
           </button>
         )}
       </div>
+      
+      {/* Edit Form Modal */}
+      {showEditForm && (
+        <CompanyForm
+          isEdit={true}
+          initialData={companyDetails}
+          onSubmit={handleUpdateCompany}
+          onCancel={() => setShowEditForm(false)}
+          isLoading={updateLoading}
+        />
+      )}
+      
+      {/* Error Message */}
+      {error && (
+        <div className="fixed top-4 right-4 p-4 bg-red-50 border border-red-200 rounded-md z-50">
+          <p className="text-red-800">{error}</p>
+          <button 
+            onClick={() => setError(null)}
+            className="absolute top-1 right-1 text-red-600 hover:text-red-800"
+          >
+            ×
+          </button>
+        </div>
+      )}
     </div>
   );
 };

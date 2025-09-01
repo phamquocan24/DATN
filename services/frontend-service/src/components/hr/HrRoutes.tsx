@@ -19,7 +19,6 @@ const HrRoutes: React.FC<HrRoutesProps> = ({ currentUser }) => {
         <Routes>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<HrLayout activeTab="dashboard" currentUser={currentUser} />} />
-            <Route path="messages" element={<HrLayout activeTab="messages" currentUser={currentUser} />} />
             <Route path="company-profile" element={<HrLayout activeTab="profile" currentUser={currentUser} />} />
             <Route path="job-applications" element={<HrLayout activeTab="applicants" currentUser={currentUser} />} />
             <Route path="job-applications/:id" element={<ApplicantDetail />} />

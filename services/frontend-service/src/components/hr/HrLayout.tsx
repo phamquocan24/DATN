@@ -1,7 +1,7 @@
 import React, { useState, useEffect, ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import DashboardSidebar from './DashboardSidebar';
-import { HrDashboard, Messages, HrCompanyProfile, JobApplications, JobManagement, HrHeader, ApplicantDetail, MySchedule, Settings, TestManagement, HelpCenter } from '.';
+import { HrDashboard, HrCompanyProfile, JobApplications, JobManagement, HrHeader, ApplicantDetail, MySchedule, Settings, TestManagement, HelpCenter } from '.';
 import Logo from '../../assets/Logo.png';
 import { useHrNotifications } from '../../hooks/useHrNotifications';
 
@@ -77,8 +77,6 @@ const HrLayout: React.FC<HrLayoutProps> = ({ children, activeTab = 'dashboard', 
     switch (activeTab) {
       case 'dashboard':
         return <HrDashboard {...commonProps} />;
-      case 'messages':
-        return <Messages onConversationSelect={handleMarkMessagesAsRead} />;
       case 'profile':
         return <HrCompanyProfile />;
       case 'applicants':

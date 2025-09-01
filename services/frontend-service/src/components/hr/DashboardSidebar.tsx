@@ -22,15 +22,11 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ activeTab = 'dashbo
   const navigate = useNavigate();
 
   const handleNavigate = (path: string, id: string) => {
-    if (id === 'messages') {
-        onNavigate();
-    }
     navigate(path);
   };
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: dashboardIcon, path: '/hr/dashboard' },
-    { id: 'messages', label: 'Messages', icon: messageIcon, badge: 1, path: '/hr/messages' },
     { id: 'profile', label: 'Company Profile', icon: companyIcon, path: '/hr/company-profile' },
     { id: 'applicants', label: 'All Applicants', icon: applicantsIcon, path: '/hr/job-applications' },
     { id: 'listing', label: 'Job Listing', icon: listingIcon, path: '/hr/job-management' },
@@ -64,21 +60,11 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ activeTab = 'dashbo
                   className={`${isCollapsed ? 'w-6 h-6' : 'w-5 h-5'} flex-shrink-0 transition-all duration-300 ${activeTab === item.id ? 'filter brightness-0 invert' : ''}`} 
                 />
                 {!isCollapsed && <span className="font-medium">{item.label}</span>}
-                {!isCollapsed && item.id === 'messages' && hasUnreadMessages && item.badge && (
-                  <span className="ml-2 w-4 h-4 flex items-center justify-center bg-red-500 text-white text-xs font-bold rounded-full">
-                    {item.badge}
-                  </span>
-                )}
               </button>
               {/* Tooltip for collapsed state */}
               {isCollapsed && (
                 <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-2 py-1 bg-gray-800 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
                   {item.label}
-                  {item.id === 'messages' && hasUnreadMessages && item.badge && (
-                    <span className="ml-1 w-3 h-3 flex items-center justify-center bg-red-500 text-white text-xs font-bold rounded-full">
-                      {item.badge}
-                    </span>
-                  )}
                 </div>
               )}
             </div>
