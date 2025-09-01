@@ -55,7 +55,7 @@ const EditTest: React.FC = () => {
                         question_text: q.question_text || '',
                         question_type: q.question_type || 'ESSAY',
                         options: formattedOptions,
-                        correct_answer: q.correct_answer || '',
+                        correct_answer: String(q.correct_answer || ''),
                         points: Number(q.points) || 5,
                         time_limit_seconds: q.time_limit_seconds || 120,
                         explanation: q.explanation || '',
@@ -84,13 +84,13 @@ const EditTest: React.FC = () => {
                 question_text: q.question_text,
                 question_type: q.question_type,
                 options: q.question_type === 'MULTIPLE_CHOICE' ? q.options : [],
-                correct_answer: q.correct_answer,
+                correct_answer: String(q.correct_answer || ''),
                 points: q.points
             }))
         };
 
         await testApi.updateTest(id!, testData);
-        alert('Test updated successfully!');
+        // Test updated successfully - navigation will handle feedback
         navigate('/hr/test-management');
     };
 

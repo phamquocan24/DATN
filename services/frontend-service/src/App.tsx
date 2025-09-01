@@ -735,7 +735,7 @@ const MainContent = () => {
         path="/admin/dashboard"
         element={
           <ProtectedAdminRoute>
-            <AdminDashboard currentUser={currentUser} />
+            <AdminDashboard currentUser={currentUser} onLogout={handleLogout} />
           </ProtectedAdminRoute>
         }
       />
@@ -743,7 +743,7 @@ const MainContent = () => {
         path="/admin/job-listings"
         element={
           <ProtectedAdminRoute>
-            <AdminJobListings currentUser={currentUser} />
+            <AdminJobListings currentUser={currentUser} onLogout={handleLogout} />
           </ProtectedAdminRoute>
         }
       />
@@ -751,7 +751,7 @@ const MainContent = () => {
         path="/admin/candidates"
         element={
           <ProtectedAdminRoute>
-            <AdminCandidateManagement currentUser={currentUser} />
+            <AdminCandidateManagement currentUser={currentUser} onLogout={handleLogout} />
           </ProtectedAdminRoute>
         }
       />
@@ -759,7 +759,7 @@ const MainContent = () => {
         path="/admin/questions"
         element={
           <ProtectedAdminRoute>
-            <AdminQuestionManagement currentUser={currentUser} />
+            <AdminQuestionManagement currentUser={currentUser} onLogout={handleLogout} />
           </ProtectedAdminRoute>
         }
       />
@@ -767,7 +767,7 @@ const MainContent = () => {
         path="/admin/statistics"
         element={
           <ProtectedAdminRoute>
-            <AdminStatistics currentUser={currentUser} />
+            <AdminStatistics currentUser={currentUser} onLogout={handleLogout} />
           </ProtectedAdminRoute>
         }
       />
@@ -775,7 +775,7 @@ const MainContent = () => {
         path="/admin/activity-log"
         element={
           <ProtectedAdminRoute>
-            <AdminActivityLog currentUser={currentUser} />
+            <AdminActivityLog currentUser={currentUser} onLogout={handleLogout} />
           </ProtectedAdminRoute>
         }
       />
@@ -783,7 +783,7 @@ const MainContent = () => {
         path="/admin/feedback"
         element={
           <ProtectedAdminRoute>
-            <AdminFeedbackIssues currentUser={currentUser} />
+            <AdminFeedbackIssues currentUser={currentUser} onLogout={handleLogout} />
           </ProtectedAdminRoute>
         }
       />
@@ -791,7 +791,7 @@ const MainContent = () => {
         path="/admin/settings"
         element={
           <ProtectedAdminRoute>
-            <AdminSettings currentUser={currentUser} />
+            <AdminSettings currentUser={currentUser} onLogout={handleLogout} />
           </ProtectedAdminRoute>
         }
       />
@@ -799,7 +799,7 @@ const MainContent = () => {
         path="/admin/accounts"
         element={
           <ProtectedAdminRoute>
-            <AdminAccountsList currentUser={currentUser} />
+            <AdminAccountsList currentUser={currentUser} onLogout={handleLogout} />
           </ProtectedAdminRoute>
         }
       />
@@ -833,7 +833,7 @@ const MainContent = () => {
       />
 
       {/* HR Routes */}
-      <Route path="/hr/*" element={<ProtectedHrRoute><HrRoutes currentUser={currentUser} /></ProtectedHrRoute>} />
+      <Route path="/hr/*" element={<ProtectedHrRoute><HrRoutes currentUser={currentUser} onLogout={handleLogout} /></ProtectedHrRoute>} />
 
       {/* Candidate facing pages */}
       <Route path="/*" element={renderCandidateLayout()} />

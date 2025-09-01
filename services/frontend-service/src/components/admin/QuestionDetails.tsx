@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { FiArrowLeft, FiEdit, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { useToast } from '../../hooks/useToast';
+import { Toast } from '../common/Toast';
 import adminApi from '../../services/adminApi';
 
 
 
 
 const QuestionDetails: React.FC<{ test: any, onBack: () => void }> = ({ test, onBack }) => {
+    const { toastState, showToast, hideToast } = useToast();
     const [testDetails, setTestDetails] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -73,7 +76,7 @@ const QuestionDetails: React.FC<{ test: any, onBack: () => void }> = ({ test, on
                 options: q.options ? q.options.map((opt: any) => 
                     typeof opt === 'string' ? opt : opt.option_text
                 ) : [],
-                correct_answer: q.correct_answer,
+                correct_answer: String(q.correct_answer || ''),
                 points: q.points || 1
             }));
             
@@ -87,12 +90,12 @@ const QuestionDetails: React.FC<{ test: any, onBack: () => void }> = ({ test, on
                 questions: transformedQuestions
             };
             
-            console.log('Updating test with data:', updateData);
-            console.log('Test ID:', test.test_id);
+            // Updating test with validated data
             const response = await adminApi.updateTest(test.test_id, updateData);
-            console.log('Update response:', response);
+            // Update response received
             
             if (response.success) {
+                showToast('Test updated successfully!', 'success');
                 // Refresh test details after update
                 const updatedResponse = await adminApi.getTestDetails(test.test_id, true);
                 if (updatedResponse.success) {
@@ -110,11 +113,14 @@ const QuestionDetails: React.FC<{ test: any, onBack: () => void }> = ({ test, on
                 }
                 setIsEditing(false);
             } else {
-                setError(response.message || 'Failed to update test');
+                const errorMessage = response.message || 'Failed to update test';
+                setError(errorMessage);
+                showToast(errorMessage, 'error');
             }
         } catch (err: any) {
-            console.error('Error updating test:', err);
-            setError(err.response?.data?.message || 'Failed to update test');
+            const errorMessage = err.response?.data?.message || 'Failed to update test. Please try again.';
+            setError(errorMessage);
+            showToast(errorMessage, 'error');
         } finally {
             setLoading(false);
         }
@@ -640,6 +646,9 @@ const QuestionDetails: React.FC<{ test: any, onBack: () => void }> = ({ test, on
                 </div>
             </div>
              )}
+        
+        {/* Toast Notification */}
+        <Toast toastState={toastState} onClose={hideToast} />
         </>
     );
 };

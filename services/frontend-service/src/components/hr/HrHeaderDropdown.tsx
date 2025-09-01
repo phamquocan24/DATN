@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AvatarImg from '../../assets/Avatar17.png';
+import { useToast } from '../../hooks/useToast';
+import { Toast } from '../common/Toast';
 import authService from '../../services/authService';
 import api from '../../services/api';
 
 interface HrHeaderDropdownProps {
   currentUser?: any;
+  onLogout?: () => void;
 }
 
 // Get HR display info with fallbacks
@@ -18,26 +21,31 @@ const getHrDisplayInfo = (currentUser?: any) => {
   };
 };
 
-const HrHeaderDropdown: React.FC<HrHeaderDropdownProps> = ({ currentUser }) => {
+const HrHeaderDropdown: React.FC<HrHeaderDropdownProps> = ({ currentUser, onLogout }) => {
   const navigate = useNavigate();
+  const { toastState, showToast, hideToast } = useToast();
   const hrInfo = getHrDisplayInfo(currentUser);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   // Logout function
   const handleLogout = () => {
-    // Clear local state and storage immediately
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    delete api.defaults.headers.common['Authorization'];
-    
-    // Call logout API in background
-    authService.logout().catch(error => {
-      console.error('Logout API error:', error);
-    });
-    
-    navigate('/');
-    window.location.reload();
+    if (onLogout) {
+      // Use the provided logout handler (from App.tsx)
+      onLogout();
+    } else {
+      // Fallback: Clear local state and storage immediately
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      delete api.defaults.headers.common['Authorization'];
+      
+      // Call logout API in background
+      authService.logout().catch(error => {
+        showToast('Logout completed', 'info');
+      });
+      
+      navigate('/', { replace: true });
+    }
   };
 
   return (
@@ -93,6 +101,9 @@ const HrHeaderDropdown: React.FC<HrHeaderDropdownProps> = ({ currentUser }) => {
           </div>
         </div>
       )}
+      
+      {/* Toast Notification */}
+      <Toast toastState={toastState} onClose={hideToast} />
     </div>
   );
 };

@@ -12,26 +12,27 @@ import TestResultDetails from './TestResultDetails';
 
 interface HrRoutesProps {
   currentUser?: any;
+  onLogout?: () => void;
 }
 
-const HrRoutes: React.FC<HrRoutesProps> = ({ currentUser }) => {
+const HrRoutes: React.FC<HrRoutesProps> = ({ currentUser, onLogout }) => {
     return (
         <Routes>
             <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<HrLayout activeTab="dashboard" currentUser={currentUser} />} />
-            <Route path="company-profile" element={<HrLayout activeTab="profile" currentUser={currentUser} />} />
-            <Route path="job-applications" element={<HrLayout activeTab="applicants" currentUser={currentUser} />} />
+            <Route path="dashboard" element={<HrLayout activeTab="dashboard" currentUser={currentUser} onLogout={onLogout} />} />
+            <Route path="company-profile" element={<HrLayout activeTab="profile" currentUser={currentUser} onLogout={onLogout} />} />
+            <Route path="job-applications" element={<HrLayout activeTab="applicants" currentUser={currentUser} onLogout={onLogout} />} />
             <Route path="job-applications/:id" element={<ApplicantDetail />} />
-            <Route path="job-management" element={<HrLayout activeTab="listing" currentUser={currentUser} />} />
-            <Route path="job-management/:id" element={<HrLayout activeTab='listing' currentUser={currentUser}><JobApplicants /></HrLayout>} />
-            <Route path="post-job" element={<HrLayout activeTab='test' currentUser={currentUser}><PostNewJob /></HrLayout>} />
-            <Route path="my-schedule" element={<HrLayout activeTab="schedule" currentUser={currentUser} />} />
-            <Route path="settings" element={<HrLayout activeTab="settings" currentUser={currentUser} />} />
-            <Route path="test-management" element={<HrLayout activeTab="test" currentUser={currentUser} />} />
-            <Route path="test-management/:id" element={<HrLayout activeTab="test" currentUser={currentUser}><TestDetails /></HrLayout>} />
-            <Route path="test-management/:id/edit" element={<HrLayout activeTab="test" currentUser={currentUser}><EditTest /></HrLayout>} />
-            <Route path="test-management/:id/results/:candidateId" element={<HrLayout activeTab="test" currentUser={currentUser}><TestResultDetails /></HrLayout>} />
-            <Route path="help-center" element={<HrLayout activeTab="help" currentUser={currentUser} />} />
+            <Route path="job-management" element={<HrLayout activeTab="listing" currentUser={currentUser} onLogout={onLogout} />} />
+            <Route path="job-management/:id" element={<HrLayout activeTab='listing' currentUser={currentUser} onLogout={onLogout}><JobApplicants /></HrLayout>} />
+            <Route path="post-job" element={<HrLayout activeTab='test' currentUser={currentUser} onLogout={onLogout}><PostNewJob /></HrLayout>} />
+            <Route path="my-schedule" element={<HrLayout activeTab="schedule" currentUser={currentUser} onLogout={onLogout} />} />
+            <Route path="settings" element={<HrLayout activeTab="settings" currentUser={currentUser} onLogout={onLogout} />} />
+            <Route path="test-management" element={<HrLayout activeTab="test" currentUser={currentUser} onLogout={onLogout} />} />
+            <Route path="test-management/:id" element={<HrLayout activeTab="test" currentUser={currentUser} onLogout={onLogout}><TestDetails /></HrLayout>} />
+            <Route path="test-management/:id/edit" element={<HrLayout activeTab="test" currentUser={currentUser} onLogout={onLogout}><EditTest /></HrLayout>} />
+            <Route path="test-management/:id/results/:candidateId" element={<HrLayout activeTab="test" currentUser={currentUser} onLogout={onLogout}><TestResultDetails /></HrLayout>} />
+            <Route path="help-center" element={<HrLayout activeTab="help" currentUser={currentUser} onLogout={onLogout} />} />
         </Routes>
     )
 }

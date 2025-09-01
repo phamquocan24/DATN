@@ -145,7 +145,7 @@ class NotificationAPI {
    * Get count of unread notifications for authenticated user
    */
   async getUnreadCount(): Promise<NotificationResponse<{ unread_count: number }>> {
-    const response = await apiClient.get(`${this.basePath}/unread/count`);
+    const response = await apiClient.get(`${this.basePath}/unread-count`);
     return response.data;
   }
 

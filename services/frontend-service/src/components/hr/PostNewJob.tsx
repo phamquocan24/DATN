@@ -299,7 +299,7 @@ const PostNewJob: React.FC = () => {
       console.log('Job creation response:', response);
       
       if (response.success) {
-        alert(`Job "${payload.job_title}" posted successfully!`);
+        // Job posted successfully - navigation will provide feedback
         navigate('/hr/job-management');
       } else {
         throw new Error(response.message || 'Failed to create job');

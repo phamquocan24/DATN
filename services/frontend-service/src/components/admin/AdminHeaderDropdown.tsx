@@ -7,28 +7,33 @@ import api from '../../services/api';
 
 interface AdminHeaderDropdownProps {
   currentUser?: any;
+  onLogout?: () => void;
 }
 
-const AdminHeaderDropdown: React.FC<AdminHeaderDropdownProps> = ({ currentUser }) => {
+const AdminHeaderDropdown: React.FC<AdminHeaderDropdownProps> = ({ currentUser, onLogout }) => {
   const navigate = useNavigate();
   const adminInfo = getAdminDisplayInfo(currentUser);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   // Logout function
   const handleLogout = () => {
-    // Clear local state and storage immediately
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    delete api.defaults.headers.common['Authorization'];
-    
-    // Call logout API in background
-    authService.logout().catch(error => {
-      console.error('Logout API error:', error);
-    });
-    
-    navigate('/');
-    window.location.reload();
+    if (onLogout) {
+      // Use the provided logout handler (from App.tsx)
+      onLogout();
+    } else {
+      // Fallback: Clear local state and storage immediately
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      delete api.defaults.headers.common['Authorization'];
+      
+      // Call logout API in background
+      authService.logout().catch(error => {
+        // Logout API error occurred
+      });
+      
+      navigate('/', { replace: true });
+    }
   };
 
   return (

@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiCheck, FiX, FiPlus, FiChevronDown, FiMoreVertical } from 'react-icons/fi';
 import { FaInstagram } from 'react-icons/fa';
 import { BiWorld } from 'react-icons/bi';
+import { useToast } from '../../hooks/useToast';
+import { Toast } from '../common/Toast';
 import DashboardSidebar from './DashboardSidebar';
 import hrApi from '../../services/hrApi';
 
@@ -54,6 +56,7 @@ interface CandidateDetails {
 const ApplicantDetail: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { toastState, showToast, hideToast } = useToast();
   const [activeTab, setActiveTab] = useState<'profile' | 'resume' | 'progress' | 'schedule'>('profile');
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -257,8 +260,7 @@ const ApplicantDetail: React.FC = () => {
       // Refresh data to show updated status
       fetchApplicationDetails();
     } catch (error) {
-      console.error('Error rejecting candidate:', error);
-      alert('Failed to reject candidate. Please try again.');
+      showToast('Failed to reject candidate. Please try again.', 'error');
     }
   };
 
@@ -430,8 +432,7 @@ const ApplicantDetail: React.FC = () => {
       // Refresh data to show updated status
       fetchApplicationDetails();
     } catch (error) {
-      console.error('Error accepting candidate:', error);
-      alert('Failed to accept candidate. Please try again.');
+      showToast('Failed to accept candidate. Please try again.', 'error');
     }
   };
 
@@ -986,8 +987,7 @@ const ApplicantDetail: React.FC = () => {
                     setScheduleData({ scheduled_date: '', interview_type: 'PHONE', location: '', notes: '' });
                     fetchApplicationDetails(); // Refresh data
                   } catch (error) {
-                    console.error('Error scheduling interview:', error);
-                    alert('Failed to schedule interview. Please try again.');
+                    showToast('Failed to schedule interview. Please try again.', 'error');
                   }
                 }}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
@@ -998,6 +998,9 @@ const ApplicantDetail: React.FC = () => {
           </div>
         </div>
       )}
+      
+      {/* Toast Notification */}
+      <Toast toastState={toastState} onClose={hideToast} />
     </div>
   );
 };

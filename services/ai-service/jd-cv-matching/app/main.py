@@ -123,10 +123,17 @@ async def calculate_match(request: MatchRequest):
         cv_full_text = make_cv_text(parsed_content)
         cv_embedding_id = save_cv_embedding(request.cv_id, candidate_id, cv_full_text, 'full_text')
 
-        # Tách từng phần của CV
-        mo_ta_ban_than = parsed_content.get('mo_ta_ban_than', '')
+        # Get personal description from parsed content - Try multiple field names
+        mo_ta_ban_than = (parsed_content.get('mo_ta_ban_than') or 
+                         parsed_content.get('summary') or 
+                         parsed_content.get('objective') or 
+                         parsed_content.get('gioi_thieu_ban_than') or 
+                         parsed_content.get('personal_summary') or '')
 
-        ky_nang_parsed = parsed_content.get('ky_nang', [])
+        # Get skills from parsed content - Try multiple field names and structures
+        ky_nang_parsed = (parsed_content.get('ky_nang') or 
+                         parsed_content.get('skills') or 
+                         parsed_content.get('ki_nang') or [])
 
         # FIX: Lấy kỹ năng từ bảng candidate_skills - Get profile_id first
         cursor.execute("""
@@ -146,51 +153,113 @@ async def calculate_match(request: MatchRequest):
             """, (profile_id,))
             ky_nang_db = [row[0] for row in cursor.fetchall()]
 
-        # Combine skills from parsed CV and database
+        # Combine skills from parsed CV and database with improved extraction
         all_skills = []
+        
+        # Handle different skill data formats
         if isinstance(ky_nang_parsed, list):
-            all_skills.extend([skill.get('name', '') if isinstance(skill, dict) else str(skill) for skill in ky_nang_parsed])
+            for skill in ky_nang_parsed:
+                if isinstance(skill, dict):
+                    # Try multiple possible field names for skill name
+                    skill_name = (skill.get('name', '') or 
+                                skill.get('skill_name', '') or 
+                                skill.get('ten_ky_nang', '') or 
+                                str(skill))
+                    all_skills.append(skill_name)
+                elif isinstance(skill, str):
+                    all_skills.append(skill)
+        elif isinstance(ky_nang_parsed, str):
+            all_skills.append(ky_nang_parsed)
+            
         all_skills.extend(ky_nang_db)
         ky_nang_text = ' '.join(filter(None, all_skills))
 
-        # Get experience and education from parsed content
+        # Get experience from parsed content - Try multiple field names
         kinh_nghiem_text = ""
-        if 'kinh_nghiem' in parsed_content and isinstance(parsed_content['kinh_nghiem'], list):
+        
+        # Try different possible field names for experience
+        experience_data = (parsed_content.get('kinh_nghiem') or 
+                          parsed_content.get('kinh_nghiem_lam_viec') or 
+                          parsed_content.get('experience') or [])
+        
+        if isinstance(experience_data, list):
             exp_list = []
-            for exp in parsed_content['kinh_nghiem']:
+            for exp in experience_data:
                 if isinstance(exp, dict):
+                    # Try multiple possible field names for each experience entry
                     exp_parts = [
-                        exp.get('position', ''),
-                        exp.get('company', ''),
-                        exp.get('description', '')
+                        exp.get('position', '') or exp.get('vi_tri', '') or exp.get('job_title', ''),
+                        exp.get('company', '') or exp.get('cong_ty', '') or exp.get('company_name', ''),
+                        exp.get('description', '') or exp.get('mo_ta', '') or exp.get('job_description', ''),
+                        exp.get('duration', '') or exp.get('thoi_gian', '') or exp.get('time_period', '')
                     ]
                     exp_list.append(' '.join(filter(None, exp_parts)))
             kinh_nghiem_text = ' '.join(exp_list)
+        elif isinstance(experience_data, str):
+            kinh_nghiem_text = experience_data
 
+        # Get education from parsed content - Try multiple field names
         hoc_van_text = ""
-        if 'hoc_van' in parsed_content and isinstance(parsed_content['hoc_van'], list):
+        
+        # Try different possible field names for education
+        education_data = (parsed_content.get('hoc_van') or 
+                         parsed_content.get('education') or 
+                         parsed_content.get('hoc_van_dao_tao') or [])
+        
+        if isinstance(education_data, list):
             edu_list = []
-            for edu in parsed_content['hoc_van']:
+            for edu in education_data:
                 if isinstance(edu, dict):
+                    # Try multiple possible field names for each education entry
                     edu_parts = [
-                        edu.get('school', ''),
-                        edu.get('degree', ''),
-                        edu.get('field', '')
+                        edu.get('school', '') or edu.get('truong', '') or edu.get('school_name', ''),
+                        edu.get('degree', '') or edu.get('bang_cap', '') or edu.get('trinh_do', ''),
+                        edu.get('field', '') or edu.get('nganh', '') or edu.get('major', ''),
+                        edu.get('graduation_year', '') or edu.get('nam_tot_nghiep', '') or edu.get('year', '')
                     ]
                     edu_list.append(' '.join(filter(None, edu_parts)))
             hoc_van_text = ' '.join(edu_list)
+        elif isinstance(education_data, str):
+            hoc_van_text = education_data
 
         # Save CV section embeddings
         save_cv_embedding(request.cv_id, candidate_id, ky_nang_text, 'skills')
         save_cv_embedding(request.cv_id, candidate_id, kinh_nghiem_text, 'experience')
         save_cv_embedding(request.cv_id, candidate_id, hoc_van_text, 'education')
 
-        # Calculate similarities
+        # Debug logging
+        print(f"=== DEBUG SIMILARITY CALCULATION ===")
+        print(f"mo_ta_ban_than length: {len(mo_ta_ban_than) if mo_ta_ban_than else 0}")
+        print(f"ky_nang_text length: {len(ky_nang_text) if ky_nang_text else 0}")
+        print(f"kinh_nghiem_text length: {len(kinh_nghiem_text) if kinh_nghiem_text else 0}")
+        print(f"hoc_van_text length: {len(hoc_van_text) if hoc_van_text else 0}")
+        print(f"JD description length: {len(description) if description else 0}")
+        print(f"JD skills_text length: {len(skills_text) if skills_text else 0}")
+        print(f"JD requirements length: {len(requirements) if requirements else 0}")
+        print(f"JD education length: {len(education) if education else 0}")
+        print(f"==================================")
+
+        # Calculate similarities - Fixed logic
         overall_similarity = calculate_similarity(cv_full_text, jd_text)
-        mo_ta_ban_than_similarity = calculate_similarity(mo_ta_ban_than, description or "")
-        ky_nang_similarity = calculate_similarity(ky_nang_text, skills_text) if ky_nang_text and skills_text else 0.0
-        kinh_nghiem_similarity = calculate_similarity(kinh_nghiem_text, requirements or "") if kinh_nghiem_text else 0.0
-        hoc_van_similarity = calculate_similarity(hoc_van_text, education or "") if hoc_van_text else 0.0
+        
+        # Fix mo_ta_ban_than_similarity: Calculate even if one side is empty
+        mo_ta_ban_than_similarity = calculate_similarity(mo_ta_ban_than or "", description or "") if mo_ta_ban_than or description else 0.0
+        
+        # Fix ky_nang_similarity: Calculate if either side has content  
+        ky_nang_similarity = calculate_similarity(ky_nang_text or "", skills_text or "") if ky_nang_text or skills_text else 0.0
+        
+        # Fix kinh_nghiem_similarity: Calculate if either side has content
+        kinh_nghiem_similarity = calculate_similarity(kinh_nghiem_text or "", requirements or "") if kinh_nghiem_text or requirements else 0.0
+        
+        # Fix hoc_van_similarity: Calculate if either side has content
+        hoc_van_similarity = calculate_similarity(hoc_van_text or "", education or "") if hoc_van_text or education else 0.0
+        
+        print(f"Calculated similarities:")
+        print(f"  overall_similarity: {overall_similarity}")
+        print(f"  mo_ta_ban_than_similarity: {mo_ta_ban_than_similarity}")
+        print(f"  ky_nang_similarity: {ky_nang_similarity}")
+        print(f"  kinh_nghiem_similarity: {kinh_nghiem_similarity}")
+        print(f"  hoc_van_similarity: {hoc_van_similarity}")
         
         weighted_score = overall_similarity
 

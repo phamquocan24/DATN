@@ -216,7 +216,7 @@ export const adminApi = {
   },
 
   getUnreadCount: async () => {
-    const response = await apiClient.get('/api/v1/notifications/unread/count');
+    const response = await apiClient.get('/api/v1/notifications/unread-count');
     return response.data;
   },
 

@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
 import { useNotifications } from '../../hooks/useNotifications';
+import { useToast } from '../../hooks/useToast';
+import { Toast } from '../common/Toast';
+import { StatsCardsSkeleton, CardGridSkeleton } from '../common/LoadingStates';
 
 import BellIcon from '../../assets/bell-outlined.png';
 import NotificationPanel from './NotificationPanelAdmin';
@@ -55,10 +58,12 @@ const StatCard: React.FC<{ label: string; value: number; color: string; onClick?
 
 interface DashboardProps {
   currentUser?: any;
+  onLogout?: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
+const Dashboard: React.FC<DashboardProps> = ({ currentUser, onLogout }) => {
   const navigate = useNavigate();
+  const { toastState, showToast, hideToast } = useToast();
   
   // State for API data
   const [stats, setStats] = useState([
@@ -109,12 +114,11 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
 
         // Fetch job statistics
         const jobStatsResponse = await adminApi.getJobStatistics();
-        console.log('Job stats response:', jobStatsResponse);
-        console.log('Job stats data:', jobStatsResponse?.data);
+        // Job stats loaded successfully
 
         // Fetch application statistics  
         const appStatsResponse = await adminApi.getApplicationStatistics();
-        console.log('Application stats response:', appStatsResponse);
+        // Application stats loaded successfully
 
         // Process job statistics data
         if (jobStatsResponse?.data || jobStatsResponse) {
@@ -138,7 +142,7 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
           // Update job statistics chart data
           if (jobData.weekly_stats || jobData.daily_stats) {
             const weeklyData = jobData.weekly_stats || jobData.daily_stats || [];
-            console.log('Raw weekly data from API:', weeklyData);
+            // Processing weekly data
             
             const transformedData = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
               const dayData = weeklyData.find((d: any) => d.day === day || d.day_name === day);
@@ -148,14 +152,14 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
                 pending: dayData?.pending || dayData?.pending_count || 0,
                 spam: dayData?.spam || dayData?.spam_count || 0
               };
-              console.log(`Day ${day}:`, { dayData, result });
+              // Processing day data for ${day}
               return result;
             });
             
-            console.log('Final transformed chart data:', transformedData);
+            // Chart data processed successfully
             setJobStatsData(transformedData);
           } else {
-            console.log('No weekly_stats or daily_stats found in API response');
+            // No weekly stats data available
           }
 
           // Update stats cards
@@ -188,8 +192,9 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
         }
 
       } catch (err: any) {
-        console.error('Error fetching dashboard data:', err);
-        setError('Failed to load dashboard data');
+        const errorMessage = 'Failed to load dashboard data';
+        setError(errorMessage);
+        showToast(errorMessage, 'error');
       } finally {
         setLoading(false);
       }
@@ -363,8 +368,23 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
       <main className="p-4 sm:p-6 lg:p-8 bg-white" style={{ fontFamily: 'ABeeZee, sans-serif' }}>
         {/* Loading State */}
         {loading && (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          <div>
+            {/* Stats Cards Skeleton */}
+            <div className="mb-8">
+              <StatsCardsSkeleton cardCount={3} />
+            </div>
+            
+            {/* Chart Section Skeleton */}
+            <div className="mb-8 bg-white p-6 rounded-lg border border-gray-200">
+              <div className="h-6 bg-gray-200 rounded w-48 mb-4 animate-pulse"></div>
+              <div className="h-64 bg-gray-200 rounded animate-pulse"></div>
+            </div>
+            
+            {/* Updates Section Skeleton */}
+            <div className="bg-white p-6 rounded-lg border border-gray-200">
+              <div className="h-6 bg-gray-200 rounded w-32 mb-6 animate-pulse"></div>
+              <CardGridSkeleton itemCount={4} columns="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" />
+            </div>
           </div>
         )}
 
@@ -373,7 +393,92 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
             <p>{error}</p>
             <button 
-              onClick={() => window.location.reload()} 
+              onClick={() => {
+                setError(null);
+                setLoading(true);
+                // Trigger re-fetch by calling the effect
+                const fetchDashboardData = async () => {
+                  try {
+                    setLoading(true);
+                    setError(null);
+
+                    // Fetch job statistics
+                    const jobStatsResponse = await adminApi.getJobStatistics();
+                    // Job stats loaded successfully
+
+                    // Fetch application statistics  
+                    const appStatsResponse = await adminApi.getApplicationStatistics();
+                    // Application stats loaded successfully
+
+                    // Process job statistics data
+                    if (jobStatsResponse?.data || jobStatsResponse) {
+                      const jobData = jobStatsResponse.data || jobStatsResponse;
+                      
+                      // Update job open count
+                      setJobOpenCount(jobData.total_jobs || jobData.total_open_jobs || 0);
+
+                      // Update job statistics chart data
+                      if (jobData.weekly_stats || jobData.daily_stats) {
+                        const weeklyData = jobData.weekly_stats || jobData.daily_stats || [];
+                        // Processing weekly data
+                        
+                        const transformedData = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
+                          const dayData = weeklyData.find((d: any) => d.day === day || d.day_name === day);
+                          const result = {
+                            day,
+                            approved: dayData?.approved || dayData?.approved_count || 0,
+                            pending: dayData?.pending || dayData?.pending_count || 0,
+                            spam: dayData?.spam || dayData?.spam_count || 0
+                          };
+                          // Processing day data for ${day}
+                          return result;
+                        });
+                        
+                        // Chart data processed successfully
+                        setJobStatsData(transformedData);
+                      } else {
+                        // No weekly stats data available
+                      }
+
+                      // Update stats cards
+                      const pendingJobs = jobData.pending_jobs || jobData.pending_count || 0;
+                      setStats(prev => prev.map(stat => 
+                        stat.label === 'New Jobs to Review' 
+                          ? { ...stat, value: pendingJobs }
+                          : stat
+                      ));
+                    }
+
+                    // Process application statistics data
+                    if (appStatsResponse?.data || appStatsResponse) {
+                      const appData = appStatsResponse.data || appStatsResponse;
+                      
+                      // Update applicants summary
+                      const totalApplicants = appData.total_applications || appData.total_applicants || 0;
+                      const byType = appData.by_job_type || appData.applications_by_type || {};
+                      
+                      setApplicantsSummary({
+                        total: totalApplicants,
+                        byType: {
+                          fullTime: byType.FULL_TIME || byType.full_time || 0,
+                          partTime: byType.PART_TIME || byType.part_time || 0, 
+                          contract: byType.CONTRACT || byType.contract || 0,
+                          internship: byType.INTERNSHIP || byType.internship || 0,
+                          remote: byType.REMOTE || byType.remote || 0
+                        }
+                      });
+                    }
+
+                  } catch (err: any) {
+                    const errorMessage = 'Failed to load dashboard data';
+                    setError(errorMessage);
+                    showToast(errorMessage, 'error');
+                  } finally {
+                    setLoading(false);
+                  }
+                };
+                fetchDashboardData();
+              }} 
               className="mt-2 bg-red-500 text-white px-4 py-2 rounded text-sm hover:bg-red-600"
             >
               Retry
@@ -387,7 +492,7 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
         {/* Top Admin Bar */}
         <div className="flex items-center justify-between mb-6">
           {/* User Info with Dropdown */}
-          <AdminHeaderDropdown currentUser={currentUser} />
+          <AdminHeaderDropdown currentUser={currentUser} onLogout={onLogout} />
 
           {/* Right actions */}
           <div className="flex items-center space-x-6 relative">
@@ -684,6 +789,9 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
         </div>
         </div>
         )}
+        
+        {/* Toast Notification */}
+        <Toast toastState={toastState} onClose={hideToast} />
       </main>
     </AdminLayout>
   );

@@ -10,24 +10,43 @@ from sqlalchemy.sql import func
 class Job(Base):
     __tablename__ = "jobs"
     job_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    recruiter_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"))
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.user_id"))
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.company_id", ondelete="CASCADE"))
     title = Column(String(200))
-    description = Column(Text)
+    description = Column(Text)  # Keep this for compatibility, but note real DB uses job_description
+    job_description = Column(Text)  # Add the actual field name
     requirements = Column(Text)
+    job_requirements = Column(Text)  # Add the actual field name
     responsibilities = Column(Text)
+    job_responsibilities = Column(Text)  # Add the actual field name
+    benefits = Column(Text)
+    job_benefits = Column(Text)  # Add the actual field name
     experience_level = Column(String(20))
-    employment_type = Column(String(20))
+    employment_type = Column(String(30))
+    work_type = Column(String(30))
+    remote_work_option = Column(String(30))
     salary_min = Column(DECIMAL(12,2))
     salary_max = Column(DECIMAL(12,2))
-    city_id = Column(Integer)
-    work_arrangement = Column(String(20))
+    currency = Column(String(10))
+    city_id = Column(UUID(as_uuid=True))
+    district_id = Column(UUID(as_uuid=True))
+    work_location = Column(String(500))
+    location = Column(String(500))
+    address = Column(String(500))
     min_experience_years = Column(Integer)
     max_experience_years = Column(Integer)
-    category = Column(String(100))
+    experience_required = Column(Integer)
+    education_level = Column(String(50))
+    education_required = Column(String(50))
     education_requirements = Column(Text)
     language_requirements = Column(ARRAY(String))
+    deadline = Column(Date)
     application_deadline = Column(Date)
+    number_of_positions = Column(Integer)
+    status = Column(String(30))
+    priority_level = Column(String(20))
+    featured = Column(Boolean)
+    auto_review_threshold = Column(DECIMAL(3,2))
     
 
 class JobTest(Base):

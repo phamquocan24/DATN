@@ -154,6 +154,26 @@ export const TableLoadingSkeleton: React.FC<{
   rowCount?: number;
 }> = ({ columns, rowCount = 5 }) => {
   return (
+    <>
+      {Array.from({ length: rowCount }, (_, i) => (
+        <tr key={i}>
+          {columns.map((_, colIndex) => (
+            <td key={colIndex} className="px-6 py-4 whitespace-nowrap">
+              <Skeleton height="h-4" />
+            </td>
+          ))}
+        </tr>
+      ))}
+    </>
+  );
+};
+
+// New component for full table loading (when used outside tbody)
+export const FullTableLoadingSkeleton: React.FC<{ 
+  columns: string[];
+  rowCount?: number;
+}> = ({ columns, rowCount = 5 }) => {
+  return (
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">

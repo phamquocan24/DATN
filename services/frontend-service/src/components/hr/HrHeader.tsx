@@ -12,16 +12,17 @@ interface HrHeaderProps {
   onCloseNotif: () => void;
   onMarkAllAsRead: () => void;
   currentUser?: any;
+  onLogout?: () => void;
 }
 
-const HrHeader: React.FC<HrHeaderProps> = ({ notifOpen, hasUnread, unreadCount = 0, toggleNotif, onCloseNotif, onMarkAllAsRead, currentUser }) => {
+const HrHeader: React.FC<HrHeaderProps> = ({ notifOpen, hasUnread, unreadCount = 0, toggleNotif, onCloseNotif, onMarkAllAsRead, currentUser, onLogout }) => {
   const navigate = useNavigate();
 
   return (
     <div className="px-8 pt-7 bg-white" style={{ fontFamily: 'ABeeZee, sans-serif' }}>
       <header className="flex justify-between items-center">
         <div className="flex items-center text-left">
-          <HrHeaderDropdown currentUser={currentUser} />
+          <HrHeaderDropdown currentUser={currentUser} onLogout={onLogout} />
         </div>
         <div className="flex items-center space-x-4">
           <div className="relative">

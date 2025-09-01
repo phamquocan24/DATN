@@ -2,6 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiSearch, FiChevronDown } from 'react-icons/fi';
 import { useNotifications } from '../../hooks/useNotifications';
+import { useToast } from '../../hooks/useToast';
+import { Toast } from '../common/Toast';
+import { TableLoadingSkeleton } from '../common/LoadingStates';
 import AdminLayout from './AdminLayout';
 import AdminCreateUserForm from './AdminCreateUserForm';
 
@@ -20,10 +23,11 @@ interface AccountItem {
 
 interface AdminAccountsListProps {
   currentUser?: any;
+  onLogout?: () => void;
 }
 
-const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) => {
-  
+const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser, onLogout }) => {
+  const { toastState, showToast, hideToast } = useToast();
 
   const [notifOpen, setNotifOpen] = useState(false);
   const { unreadCount, markAllAsRead } = useNotifications();
@@ -74,7 +78,7 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
   
   // Modal states
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<{id: number, email: string} | null>(null);
+  const [selectedUser, setSelectedUser] = useState<{id: number, email: string, action?: 'deactivate' | 'reactivate'} | null>(null);
   const [deactivationReason, setDeactivationReason] = useState('');
 
   const fetchAccounts = async () => {
@@ -109,7 +113,7 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
       
       // Ensure usersData is an array
       if (!Array.isArray(usersData)) {
-        console.error('Users data is not an array:', usersData);
+        showToast('Invalid data format received from server', 'error');
         setError('Invalid data format received.');
         setAccounts([]);
         setPagination(null);
@@ -126,13 +130,14 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
               (user.role === 'ADMIN') ? 'Admin' as const : 'Candidate' as const
       }));
       
-      console.log('Transformed accounts:', transformedAccounts); // Debug log
+      // Accounts data transformed successfully
       setAccounts(transformedAccounts);
       setPagination(paginationData);
       setError(null);
     } catch (err) {
-      setError('Failed to load accounts.');
-      console.error('Error fetching accounts:', err);
+      const errorMessage = 'Failed to load accounts. Please try again.';
+      setError(errorMessage);
+      showToast(errorMessage, 'error');
       setAccounts([]); // Set empty array on error
       setPagination(null);
     } finally {
@@ -182,13 +187,20 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
   
   const handleDeactivate = (e: React.MouseEvent, userId: number, userEmail: string) => {
     e.stopPropagation(); // Prevent navigation
-    setSelectedUser({ id: userId, email: userEmail });
+    setSelectedUser({ id: userId, email: userEmail, action: 'deactivate' });
     setShowDeactivateModal(true);
   };
 
   const confirmDeactivation = async () => {
-    if (!selectedUser || !deactivationReason.trim()) {
-      alert('Reason is required to deactivate an account.');
+    if (!selectedUser) return;
+    
+    if (selectedUser.action === 'reactivate') {
+      await handleConfirmReactivation();
+      return;
+    }
+    
+    if (!deactivationReason.trim()) {
+      showToast('Reason is required to deactivate an account.', 'error');
       return;
     }
 
@@ -196,7 +208,7 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
       setIsLoading(true);
       const response = await adminApi.deactivateUser(selectedUser.id.toString(), deactivationReason.trim());
       
-      console.log('Deactivation response:', response);
+      // User deactivated successfully
       
       // Close modal and reset
       setShowDeactivateModal(false);
@@ -207,14 +219,14 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
       await fetchAccounts();
       
       // Show success message with details
-      alert(`SUCCESS\n\nAccount deactivated successfully!\n\nUser: ${selectedUser.email}\nStatus: Inactive\nTime: ${new Date().toLocaleString()}`);
+      showToast(`Account ${selectedUser.email} deactivated successfully`, 'success');
       
     } catch (err: any) {
-      console.error(`Failed to deactivate user ${selectedUser.id}`, err);
+      showToast(`Failed to deactivate user ${selectedUser.fullName}`, 'error');
       
       // Better error handling with specific messages
       const errorMessage = err?.response?.data?.error || err?.response?.data?.message || err.message || 'Unknown error occurred';
-      alert(`DEACTIVATION FAILED\n\nUser: ${selectedUser.email}\nError: ${errorMessage}\n\nPlease try again or contact support.`);
+      showToast(`Deactivation failed: ${errorMessage}`, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -281,28 +293,39 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
   const handleReactivate = async (e: React.MouseEvent, userId: number, userEmail: string) => {
     e.stopPropagation(); // Prevent navigation
     
-    if (window.confirm(`CONFIRM REACTIVATION\n\nAccount: ${userEmail}\n\nThis action will:\n• Enable user login\n• Restore account access\n• Log this action for audit\n\nProceed with reactivation?`)) {
-      try {
-        setIsLoading(true);
-        const response = await adminApi.updateUserStatus(userId.toString(), true, 'Account reactivated by admin');
-        
-        console.log('Reactivation response:', response);
-        
-        // Refresh the list after reactivation
-        await fetchAccounts();
-        
-        // Show success message with details
-        alert(`SUCCESS\n\nAccount reactivated successfully!\n\nUser: ${userEmail}\nStatus: Active\nTime: ${new Date().toLocaleString()}`);
-        
-      } catch (err: any) {
-        console.error(`Failed to reactivate user ${userId}`, err);
-        
-        // Better error handling with specific messages
-        const errorMessage = err?.response?.data?.error || err?.response?.data?.message || err.message || 'Unknown error occurred';
-        alert(`REACTIVATION FAILED\n\nUser: ${userEmail}\nError: ${errorMessage}\n\nPlease try again or contact support.`);
-      } finally {
-        setIsLoading(false);
-      }
+    // Show confirmation using toast instead of window.confirm
+    showToast(`Are you sure you want to reactivate account ${userEmail}?`, 'info');
+    
+    // Create a confirmation modal state instead of window.confirm
+    setSelectedUser({ id: userId, email: userEmail, action: 'reactivate' });
+    setShowDeactivateModal(true); // Reuse the modal for confirmation
+  };
+
+  const handleConfirmReactivation = async () => {
+    if (!selectedUser) return;
+    
+    try {
+      setIsLoading(true);
+      const response = await adminApi.updateUserStatus(selectedUser.id.toString(), true, 'Account reactivated by admin');
+      
+      // User reactivated successfully
+      
+      // Refresh the list after reactivation
+      await fetchAccounts();
+      
+      // Show success message with details
+      showToast(`Account ${selectedUser.email} reactivated successfully`, 'success');
+      
+    } catch (err: any) {
+      showToast('Failed to reactivate user', 'error');
+      
+      // Better error handling with specific messages
+      const errorMessage = err?.response?.data?.error || err?.response?.data?.message || err.message || 'Unknown error occurred';
+      showToast(`Reactivation failed: ${errorMessage}`, 'error');
+    } finally {
+      setIsLoading(false);
+      setShowDeactivateModal(false);
+      setSelectedUser(null);
     }
   };
 
@@ -317,7 +340,7 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
       {/* Top Admin Bar */}
       <div className="flex items-center justify-between mb-6">
         {/* User Info */}
-        <AdminHeaderDropdown currentUser={currentUser} />
+        <AdminHeaderDropdown currentUser={currentUser} onLogout={onLogout} />
 
         {/* Right actions */}
         <div className="flex items-center space-x-6 relative">
@@ -449,7 +472,7 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={5} className="text-center p-4">Loading accounts...</td></tr>
+                <TableLoadingSkeleton columns={['Full Name', 'Email', 'Status', 'Type', 'Action']} rowCount={10} />
               ) : error ? (
                 <tr><td colSpan={5} className="text-center p-4 text-red-500">{error}</td></tr>
               ) : accounts.map((account) => (
@@ -607,49 +630,65 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
       onUserCreated={handleUserCreated}
     />
 
-    {/* Deactivate User Modal */}
+    {/* Deactivate/Reactivate User Modal */}
     {showDeactivateModal && (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
           <div className="flex items-center mb-4">
-            <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center mr-3">
-              <span className="text-orange-600 text-lg">⚠️</span>
+            <div className={`w-8 h-8 ${selectedUser?.action === 'reactivate' ? 'bg-green-100' : 'bg-orange-100'} rounded-full flex items-center justify-center mr-3`}>
+              <span className={`${selectedUser?.action === 'reactivate' ? 'text-green-600' : 'text-orange-600'} text-lg`}>
+                {selectedUser?.action === 'reactivate' ? '✅' : '⚠️'}
+              </span>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 text-left">Deactivate Account</h3>
+            <h3 className="text-lg font-semibold text-gray-900 text-left">
+              {selectedUser?.action === 'reactivate' ? 'Reactivate Account' : 'Deactivate Account'}
+            </h3>
           </div>
           
           <div className="mb-4">
             <p className="text-sm text-gray-600 mb-2 text-left">
-              You are about to deactivate the following account:
+              You are about to {selectedUser?.action === 'reactivate' ? 'reactivate' : 'deactivate'} the following account:
             </p>
             <div className="bg-gray-50 p-3 rounded border">
               <p className="font-medium text-gray-900 text-left">{selectedUser?.email}</p>
             </div>
           </div>
 
-          <div className="mb-4">
-            <label htmlFor="deactivationReason" className="block text-sm font-medium text-gray-700 mb-2 text-left">
-              Reason for deactivation <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              id="deactivationReason"
-              value={deactivationReason}
-              onChange={(e) => setDeactivationReason(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-left"
-              rows={3}
-              placeholder="Please provide a reason for deactivating this account..."
-              disabled={isLoading}
-            />
-          </div>
+          {selectedUser?.action !== 'reactivate' && (
+            <div className="mb-4">
+              <label htmlFor="deactivationReason" className="block text-sm font-medium text-gray-700 mb-2 text-left">
+                Reason for deactivation <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                id="deactivationReason"
+                value={deactivationReason}
+                onChange={(e) => setDeactivationReason(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-left"
+                rows={3}
+                placeholder="Please provide a reason for deactivating this account..."
+                disabled={isLoading}
+              />
+            </div>
+          )}
 
-          <div className="bg-orange-50 border border-orange-200 rounded p-3 mb-4">
-            <p className="text-sm text-orange-800 text-left">
+          <div className={`${selectedUser?.action === 'reactivate' ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'} border rounded p-3 mb-4`}>
+            <p className={`text-sm ${selectedUser?.action === 'reactivate' ? 'text-green-800' : 'text-orange-800'} text-left`}>
               <strong>This action will:</strong>
             </p>
-            <ul className="text-sm text-orange-700 mt-1 list-disc list-inside text-left">
-              <li>Disable user login access</li>
-              <li>Restrict account functionality</li>
-              <li>Log this action for audit purposes</li>
+            <ul className={`text-sm ${selectedUser?.action === 'reactivate' ? 'text-green-700' : 'text-orange-700'} mt-1 list-disc list-inside text-left`}>
+              {selectedUser?.action === 'reactivate' ? (
+                <>
+                  <li>Enable user login access</li>
+                  <li>Restore account functionality</li>
+                  <li>Log this action for audit purposes</li>
+                </>
+              ) : (
+                <>
+                  <li>Disable user login access</li>
+                  <li>Restrict account functionality</li>
+                  <li>Log this action for audit purposes</li>
+                </>
+              )}
             </ul>
           </div>
 
@@ -663,10 +702,17 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
             </button>
             <button
               onClick={confirmDeactivation}
-              className="px-4 py-2 text-sm font-medium text-white bg-orange-600 border border-transparent rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={isLoading || !deactivationReason.trim()}
+              className={`px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                selectedUser?.action === 'reactivate' 
+                  ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500' 
+                  : 'bg-orange-600 hover:bg-orange-700 focus:ring-orange-500'
+              }`}
+              disabled={isLoading || (selectedUser?.action !== 'reactivate' && !deactivationReason.trim())}
             >
-              {isLoading ? 'Deactivating...' : 'Deactivate Account'}
+              {isLoading 
+                ? (selectedUser?.action === 'reactivate' ? 'Reactivating...' : 'Deactivating...') 
+                : (selectedUser?.action === 'reactivate' ? 'Reactivate Account' : 'Deactivate Account')
+              }
             </button>
           </div>
         </div>
@@ -679,6 +725,9 @@ const AdminAccountsList: React.FC<AdminAccountsListProps> = ({ currentUser }) =>
       onClose={() => setIsCreateUserOpen(false)}
       onUserCreated={handleUserCreated}
     />
+    
+    {/* Toast Notification */}
+    <Toast toastState={toastState} onClose={hideToast} />
     </AdminLayout>
   );
 };

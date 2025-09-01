@@ -34,48 +34,66 @@ api_prefix = "/api/v1/ai"
 # 1. Generate questions from single JD
 @app.post(f"{api_prefix}/generate-interview-questions")
 def generate_interview_questions(payload: GenerateQuestionRequest, db: Session = Depends(get_db)):
-    # 1. Lấy thông tin job
-    job = get_job(db, payload.job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+    try:
+        # 1. Lấy thông tin job
+        print(f"Looking for job with ID: {payload.job_id}")
+        job = get_job(db, payload.job_id)
+        if not job:
+            print(f"Job not found with ID: {payload.job_id}")
+            raise HTTPException(status_code=404, detail=f"Job not found with ID: {payload.job_id}")
 
-    # 2. Gọi AI để sinh câu hỏi (kết quả là list[dict])
-    questions = generate_questions_from_jd(job.description or "")
-    if not questions:
-        raise HTTPException(status_code=500, detail="Failed to generate questions")
+        # 2. Gọi AI để sinh câu hỏi (kết quả là list[dict])
+        # Try to get job description from different possible field names
+        job_desc = job.job_description or job.description or ""
+        print(f"Job description found: {len(job_desc)} characters")
+        
+        if not job_desc.strip():
+            raise HTTPException(status_code=400, detail="Job has no description to generate questions from")
+        
+        questions = generate_questions_from_jd(job_desc)
+        if not questions:
+            raise HTTPException(status_code=500, detail="AI service failed to generate questions - check GROQ_API_KEY and connectivity")
 
-    # 3. Tạo hoặc lấy job_test tương ứng
-    test = get_or_create_job_test(db, payload.job_id)
+        # 3. Tạo hoặc lấy job_test tương ứng
+        test = get_or_create_job_test(db, payload.job_id)
 
-    # 4. Lưu từng câu hỏi vào test_questions
-    saved_questions = []
-    for idx, item in enumerate(questions):
-        q = TestQuestion(
-            test_id=test.test_id,
-            question_text=item["question_text"],
-            question_type=item["question_type"],  # "core", "problem_solving", "fit"
-            points=1.0,
-            time_limit_seconds=120,
-            order_index=idx + 1,
-            explanation="",
-            required=True
-        )
-        db.add(q)
-        saved_questions.append(q)
+        # 4. Lưu từng câu hỏi vào test_questions
+        saved_questions = []
+        for idx, item in enumerate(questions):
+            q = TestQuestion(
+                test_id=test.test_id,
+                question_text=item["question_text"],
+                question_type=item["question_type"],  # "core", "problem_solving", "fit"
+                points=1.0,
+                time_limit_seconds=120,
+                order_index=idx + 1,
+                explanation="",
+                required=True
+            )
+            db.add(q)
+            saved_questions.append(q)
 
-    db.commit()
+        db.commit()
+        print(f"Successfully generated {len(saved_questions)} questions for job {payload.job_id}")
 
-    return {
-        "job_id": payload.job_id,
-        "test_id": test.test_id,
-        "questions_saved": [
-            {
-                "question_text": q.question_text,
-                #"question_type": q.question_type
-            }
-            for q in saved_questions
-        ]
-    }
+        return {
+            "job_id": payload.job_id,
+            "test_id": test.test_id,
+            "questions_saved": [
+                {
+                    "question_text": q.question_text,
+                    #"question_type": q.question_type
+                }
+                for q in saved_questions
+            ]
+        }
+    
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        print(f"Unexpected error in generate_interview_questions: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 

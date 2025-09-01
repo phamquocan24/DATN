@@ -2,6 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiMoreVertical, FiChevronDown, FiSearch, FiEdit, FiTrash2, FiPause, FiPlay, FiEye, FiX } from 'react-icons/fi';
 import calendarIcon from '../../assets/scheme.png';
+import { useToast } from '../../hooks/useToast';
+import { Toast } from '../common/Toast';
+import { TableLoadingSkeleton } from '../common/LoadingStates';
 import hrApi from '../../services/hrApi';
 import { getCompanyId } from '../../services/tokenUtils';
 
@@ -25,6 +28,7 @@ interface Job {
 }
 
 const JobManagement: React.FC = () => {
+  const { toastState, showToast, hideToast } = useToast();
   const [jobsPerPage, setJobsPerPage] = useState(10);
   const [isPageSelectOpen, setIsPageSelectOpen] = useState(false);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -55,13 +59,11 @@ const JobManagement: React.FC = () => {
         const companyId = getCompanyId();
         
         // Debug logging
-        console.log('=== JobManagement Debug ===');
-        console.log('Company ID from getCompanyId():', companyId);
+        // Loading jobs for company
         
         const token = localStorage.getItem('token');
         const userStr = localStorage.getItem('user');
-        console.log('Raw token:', token);
-        console.log('Raw user string:', userStr);
+        // Checking authentication credentials
         
         if (token) {
           try {
@@ -69,34 +71,32 @@ const JobManagement: React.FC = () => {
             const parts = token.split('.');
             if (parts.length === 3) {
               const payload = JSON.parse(atob(parts[1]));
-              console.log('Decoded token payload:', payload);
+              // Token decoded successfully
             }
           } catch (e) {
-            console.error('Error decoding token:', e);
+            // Token decoding failed
           }
         }
         
         if (userStr) {
           try {
             const user = JSON.parse(userStr);
-            console.log('Parsed user object:', user);
-            console.log('User role:', user?.role);
-            console.log('User company_id:', user?.company_id);
-            console.log('User recruiter_profile:', user?.recruiter_profile);
+            // User data parsed successfully
           } catch (e) {
-            console.error('Error parsing user:', e);
+            // User data parsing failed
           }
         }
         
         if (!companyId) {
-          console.error('No company ID found - HR user must be assigned to a company');
-          setError('No company assigned. Please contact administrator to assign you to a company.');
+          const errorMessage = 'No company assigned. Please contact administrator to assign you to a company.';
+          setError(errorMessage);
+          showToast(errorMessage, 'error');
           setIsLoading(false);
           return;
         }
 
         // Use the business service endpoint to get jobs by company
-        console.log('Calling API with companyId:', companyId);
+        // Fetching jobs from API
         const response = await hrApi.getJobsByCompany(companyId, {
           page: 1,
           limit: 100,
@@ -104,9 +104,8 @@ const JobManagement: React.FC = () => {
           direction: 'DESC'
         });
         
-        console.log('API Response:', response);
+        // Jobs data received successfully
         const jobsArray = response?.data || response || [];
-        console.log('Jobs array:', jobsArray);
         
         // Transform API data to component format
         const transformedJobs = jobsArray.map((job: any) => ({
@@ -211,7 +210,7 @@ const JobManagement: React.FC = () => {
       setSelectedJob(null);
       setDeleteReason('');
     } catch (err: any) {
-      console.error('Error deleting job:', err);
+      showToast('Failed to delete job. Please try again.', 'error');
       setError('Failed to delete job');
     }
   };
@@ -241,7 +240,7 @@ const JobManagement: React.FC = () => {
       setNewStatus('');
       setStatusReason('');
     } catch (err: any) {
-      console.error('Error updating job status:', err);
+      showToast('Failed to update job status. Please try again.', 'error');
       setError('Failed to update job status');
     }
   };
@@ -345,7 +344,7 @@ const JobManagement: React.FC = () => {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={8} className="text-center p-4">Loading jobs...</td></tr>
+              <TableLoadingSkeleton columns={['Role', 'Job Type', 'Applications', 'Date Posted', 'Expiry Date', 'Status', 'Needs', 'Actions']} rowCount={10} />
             ) : error ? (
               <tr><td colSpan={8} className="text-center p-4 text-red-500">{error}</td></tr>
             ) : currentJobs.map((job) => (
@@ -633,6 +632,9 @@ const JobManagement: React.FC = () => {
           </div>
         </div>
       )}
+    
+    {/* Toast Notification */}
+    <Toast toastState={toastState} onClose={hideToast} />
     </div>
   );
 };

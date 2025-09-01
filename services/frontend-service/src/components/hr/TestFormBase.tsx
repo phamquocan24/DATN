@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FiX, FiPlus, FiTrash2, FiZap } from 'react-icons/fi';
+import { useToast } from '../../hooks/useToast';
+import { Toast } from '../common/Toast';
 import testApi from '../../services/testApi';
 import hrApi from '../../services/hrApi';
 import { getCompanyId } from '../../services/tokenUtils';
@@ -55,6 +57,7 @@ const TestFormBase: React.FC<TestFormBaseProps> = ({
     title,
     isModal = false
 }) => {
+    const { toastState, showToast, hideToast } = useToast();
     const [loading, setLoading] = useState(false);
     const [loadingJobs, setLoadingJobs] = useState(false);
     const [generatingQuestions, setGeneratingQuestions] = useState(false);
@@ -183,18 +186,18 @@ const TestFormBase: React.FC<TestFormBaseProps> = ({
 
     const addQuestion = useCallback(() => {
         if (!currentQuestion.question_text.trim()) {
-            alert('Please enter a question text');
+            showToast('Please enter a question text', 'error');
             return;
         }
 
         if (currentQuestion.question_type === 'MULTIPLE_CHOICE') {
             const filledOptions = currentQuestion.options.filter(opt => opt.trim() !== '');
             if (filledOptions.length < 2) {
-                alert('Please provide at least 2 options for multiple choice questions');
+                showToast('Please provide at least 2 options for multiple choice questions', 'error');
                 return;
             }
             if (!currentQuestion.correct_answer.trim()) {
-                alert('Please select the correct answer');
+                showToast('Please select the correct answer', 'error');
                 return;
             }
         }
@@ -222,7 +225,7 @@ const TestFormBase: React.FC<TestFormBaseProps> = ({
 
     const generateAIQuestions = useCallback(async () => {
         if (!formData.job_id) {
-            alert('Please select a job first to generate AI questions');
+            showToast('Please select a job first to generate AI questions', 'error');
             return;
         }
 
@@ -243,7 +246,7 @@ const TestFormBase: React.FC<TestFormBaseProps> = ({
             if (result && result.questions_saved && Array.isArray(result.questions_saved)) {
                 const aiQuestions: Question[] = result.questions_saved.map((q: any) => ({
                     question_text: q.question_text || 'Generated question',
-                    question_type: 'ESSAY' as const,
+                    question_type: (q.question_type as 'MULTIPLE_CHOICE' | 'ESSAY' | 'TRUE_FALSE') || 'ESSAY',
                     options: [],
                     correct_answer: '',
                     points: 5
@@ -257,7 +260,7 @@ const TestFormBase: React.FC<TestFormBaseProps> = ({
                         console.log('New questions after:', newQuestions);
                         return newQuestions;
                     });
-                    alert(`Generated ${aiQuestions.length} AI questions successfully!`);
+                    showToast(`Generated ${aiQuestions.length} AI questions successfully!`, 'success');
                 } else {
                     throw new Error('No valid questions received from AI service');
                 }
@@ -276,17 +279,17 @@ const TestFormBase: React.FC<TestFormBaseProps> = ({
         e.preventDefault();
         
         if (!formData.job_id) {
-            alert('Please select a job');
+            showToast('Please select a job', 'error');
             return;
         }
 
         if (!formData.test_name.trim()) {
-            alert('Please enter test name');
+            showToast('Please enter test name', 'error');
             return;
         }
 
         if (!formData.test_description.trim()) {
-            alert('Please enter test description');
+            showToast('Please enter test description', 'error');
             return;
         }
 
@@ -649,6 +652,9 @@ const TestFormBase: React.FC<TestFormBaseProps> = ({
                     {loading ? 'Processing...' : submitLabel}
                 </button>
             </div>
+        
+        {/* Toast Notification */}
+        <Toast toastState={toastState} onClose={hideToast} />
         </div>
     );
 };

@@ -9,9 +9,10 @@ interface HrLayoutProps {
   children?: ReactNode;
   activeTab?: string;
   currentUser?: any;
+  onLogout?: () => void;
 }
 
-const HrLayout: React.FC<HrLayoutProps> = ({ children, activeTab = 'dashboard', currentUser }) => {
+const HrLayout: React.FC<HrLayoutProps> = ({ children, activeTab = 'dashboard', currentUser, onLogout }) => {
   const [notifOpen, setNotifOpen] = useState(false);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(true);
   const location = useLocation();
@@ -146,6 +147,7 @@ const HrLayout: React.FC<HrLayoutProps> = ({ children, activeTab = 'dashboard', 
           onCloseNotif={() => setNotifOpen(false)}
           onMarkAllAsRead={handleMarkAllAsRead}
           currentUser={currentUser}
+          onLogout={onLogout}
         />
         <div className="px-8 pt-6">
           <div className="border-t border-gray-200"></div>

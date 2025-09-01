@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
 import adminApi from '../../services/adminApi';
 
@@ -7,6 +8,7 @@ interface CandidateManagementProps {
 }
 
 const CandidateManagement: React.FC<CandidateManagementProps> = ({ currentUser }) => {
+  const { id } = useParams<{ id: string }>();
   const [candidateProfile, setCandidateProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,8 +20,8 @@ const CandidateManagement: React.FC<CandidateManagementProps> = ({ currentUser }
         setLoading(true);
         setError(null);
         
-        // Get candidate ID from URL params or use a default for demo
-        const candidateId = window.location.pathname.split('/').pop() || 'demo-id';
+        // Get candidate ID from URL params
+        const candidateId = id || 'demo-id';
         
         // Try to get user data from admin API
         const userData = await adminApi.getUserById(candidateId).catch(() => null);

@@ -84,7 +84,12 @@ const JobDetailsTab: React.FC = () => {
             if (editedJob.salary_min !== undefined) updateData.salary_min = editedJob.salary_min;
             if (editedJob.salary_max !== undefined) updateData.salary_max = editedJob.salary_max;
             if (editedJob.address) updateData.work_location = editedJob.address;
-            if (editedJob.application_deadline) updateData.deadline = editedJob.application_deadline;
+            // Only include deadline if it's being changed and is in the future
+            if (editedJob.application_deadline && 
+                editedJob.application_deadline !== jobDetails?.application_deadline &&
+                new Date(editedJob.application_deadline) > new Date()) {
+                updateData.deadline = editedJob.application_deadline;
+            }
             if (editedJob.remote_work_option) updateData.work_type = editedJob.remote_work_option;
             
             console.log('Sending update data:', updateData);

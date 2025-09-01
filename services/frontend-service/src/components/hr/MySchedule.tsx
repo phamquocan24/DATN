@@ -95,7 +95,7 @@ const MySchedule: React.FC = () => {
   });
   const [viewMode, setViewMode] = useState<'Day' | 'Week' | 'Month'>('Week');
 
-  const timeSlots = ['GMT -07', ...Array.from({ length: 12 }, (_, i) => `${i + 1} AM`), ...Array.from({ length: 11 }, (_, i) => `${i + 1} PM`), '12 AM'];
+  const timeSlots = ['GMT -07', '12 AM', ...Array.from({ length: 11 }, (_, i) => `${i + 1} AM`), '12 PM', ...Array.from({ length: 11 }, (_, i) => `${i + 1} PM`)];
   
   // Generate current week days
   const getWeekDays = (date: Date) => {

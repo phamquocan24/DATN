@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FiArrowLeft, FiEdit, FiUser, FiBarChart2, FiCheckCircle, FiClock, FiUserPlus, FiX } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useToast } from '../../hooks/useToast';
+import { Toast } from '../common/Toast';
 import testApi from '../../services/testApi';
 import { hrApi } from '../../services/hrApi';
 import { handleApiError } from '../../utils/errorHandler';
@@ -37,6 +39,7 @@ interface CandidateResult {
 const TestDetails: React.FC = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
+    const { toastState, showToast, hideToast } = useToast();
     const [test, setTest] = useState<TestDetails | null>(null);
     const [candidates, setCandidates] = useState<CandidateResult[]>([]);
     const [applications, setApplications] = useState<any[]>([]);
@@ -109,12 +112,12 @@ const TestDetails: React.FC = () => {
         
         // Enhanced validation
         if (!test) {
-            alert('Test information not available');
+            showToast('Test information not available', 'error');
             return;
         }
         
         if (!assignForm.selectedApplication) {
-            alert('Please select an application');
+            showToast('Please select an application', 'error');
             return;
         }
 
@@ -127,7 +130,7 @@ const TestDetails: React.FC = () => {
             setShowAssignModal(false);
             setAssignForm({ candidate_id: '', application_id: '', selectedApplication: null });
             loadTestResults(); // Reload test results
-            alert('Test assigned successfully!');
+            showToast('Test assigned successfully!', 'success');
         } catch (err: any) {
             handleApiError('Test Assignment', err, true);
         } finally {
@@ -483,6 +486,9 @@ const TestDetails: React.FC = () => {
                     </div>
                 </div>
             )}
+        
+        {/* Toast Notification */}
+        <Toast toastState={toastState} onClose={hideToast} />
         </div>
     );
 };

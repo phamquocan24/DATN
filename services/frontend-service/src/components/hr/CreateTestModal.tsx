@@ -23,13 +23,13 @@ const CreateTestModal: React.FC<CreateTestModalProps> = ({ isOpen, onClose, onTe
           question_text: q.question_text,
           question_type: q.question_type,
           options: q.question_type === 'MULTIPLE_CHOICE' ? q.options.filter(opt => opt.trim() !== '') : [],
-          correct_answer: q.correct_answer,
+          correct_answer: String(q.correct_answer || ''),
           points: q.points
         }))
       };
 
         await testApi.createTest(testData);
-        alert('Test created successfully!');
+        // Test created successfully - parent component will handle success feedback
         onTestCreated();
     onClose();
   };
