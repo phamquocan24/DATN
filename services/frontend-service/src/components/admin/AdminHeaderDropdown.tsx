@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AvatarImg from '../../assets/Avatar17.png';
-import { getAdminDisplayInfo } from '../../utils/adminUserInfo';
+import { useToast } from '../../hooks/useToast';
+import { Toast } from '../common/Toast';
 import authService from '../../services/authService';
 import api from '../../services/api';
 
@@ -10,8 +11,19 @@ interface AdminHeaderDropdownProps {
   onLogout?: () => void;
 }
 
+// Get Admin display info with fallbacks
+const getAdminDisplayInfo = (currentUser?: any) => {
+  return {
+    fullName: currentUser?.full_name || currentUser?.displayName || currentUser?.name || 'System Administrator',
+    email: currentUser?.email || 'admin@topcv.com',
+    role: currentUser?.role || 'ADMIN',
+    avatar: currentUser?.photoURL || currentUser?.profile_image_url || null
+  };
+};
+
 const AdminHeaderDropdown: React.FC<AdminHeaderDropdownProps> = ({ currentUser, onLogout }) => {
   const navigate = useNavigate();
+  const { toastState, showToast, hideToast } = useToast();
   const adminInfo = getAdminDisplayInfo(currentUser);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
@@ -28,8 +40,8 @@ const AdminHeaderDropdown: React.FC<AdminHeaderDropdownProps> = ({ currentUser, 
       delete api.defaults.headers.common['Authorization'];
       
       // Call logout API in background
-      authService.logout().catch(error => {
-        // Logout API error occurred
+      authService.logout().catch(() => {
+        showToast('Logout completed', 'info');
       });
       
       navigate('/', { replace: true });
@@ -89,6 +101,9 @@ const AdminHeaderDropdown: React.FC<AdminHeaderDropdownProps> = ({ currentUser, 
           </div>
         </div>
       )}
+      
+      {/* Toast Notification */}
+      <Toast toastState={toastState} onClose={hideToast} />
     </div>
   );
 };

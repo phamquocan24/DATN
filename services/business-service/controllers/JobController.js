@@ -1655,7 +1655,7 @@ class JobController {
    * /api/v1/jobs/pending:
    *   get:
    *     summary: Get pending jobs
-   *     description: Get jobs that are pending approval (Admin only)
+   *     description: Get jobs that are pending approval (DRAFT and PENDING status) (Admin only)
    *     tags: [Jobs]
    *     security:
    *       - bearerAuth: []
@@ -1730,7 +1730,7 @@ class JobController {
    *               $ref: '#/components/schemas/ErrorResponse'
    */
   /**
-   * GET /api/v1/jobs/pending - Get jobs pending approval
+   * GET /api/v1/jobs/pending - Get jobs pending approval (DRAFT and PENDING status)
    * Requires: ADMIN role
    */
   async getPendingJobs(req, res) {
@@ -1738,7 +1738,7 @@ class JobController {
       const { page = 1, limit = 20 } = req.query;
 
       const options = {
-        status: 'PENDING',
+        status: ['DRAFT', 'PENDING'],
         page: parseInt(page),
         limit: parseInt(limit),
         orderBy: 'created_at',

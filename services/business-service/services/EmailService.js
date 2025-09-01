@@ -6,7 +6,7 @@ const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
-    winston.format.errors({ stack: true }),
+    winston.format.errors({ stack: true }), 
     winston.format.json()
   ),
   transports: [
@@ -72,7 +72,7 @@ class EmailService {
       }
 
       const mailOptions = {
-        from: `"${process.env.EMAIL_FROM_NAME || 'TopCV Recruitment'}" <${process.env.EMAIL_FROM_ADDRESS}>`,
+        from: `"${process.env.EMAIL_FROM_NAME || 'JobHuntly Recruitment'}" <${process.env.EMAIL_FROM_ADDRESS}>`,
         to: options.to,
         subject: options.subject,
         html: options.html,
@@ -138,7 +138,7 @@ class EmailService {
    */
   async sendWelcomeEmail(email, fullName) {
     try {
-      const subject = '🎉 Chào mừng bạn đến với TopCV!';
+      const subject = '🎉 Chào mừng bạn đến với JobHuntly!';
       const { html, text } = this.getWelcomeTemplate(fullName);
 
       return await this.sendEmail({
@@ -166,7 +166,7 @@ class EmailService {
    */
   async sendPasswordResetEmail(email, resetToken, fullName) {
     try {
-      const subject = '🔒 Đặt lại mật khẩu TopCV';
+      const subject = '🔒 Đặt lại mật khẩu JobHuntly';
       const { html, text } = this.getPasswordResetTemplate(resetToken, fullName);
 
       return await this.sendEmail({
@@ -220,12 +220,12 @@ class EmailService {
    */
   getOTPSubject(type) {
     const subjects = {
-      REGISTRATION: '📧 Xác thực đăng ký tài khoản TopCV',
-      LOGIN: '🔐 Mã xác thực đăng nhập TopCV',
+      REGISTRATION: '📧 Xác thực đăng ký tài khoản JobHuntly',
+      LOGIN: '🔐 Mã xác thực đăng nhập JobHuntly',
       PASSWORD_RESET: '🔑 Mã xác thực đặt lại mật khẩu',
-      EMAIL_VERIFICATION: '✅ Xác thực địa chỉ email TopCV'
+      EMAIL_VERIFICATION: '✅ Xác thực địa chỉ email JobHuntly'
     };
-    return subjects[type] || '🔢 Mã xác thực TopCV';
+    return subjects[type] || '🔢 Mã xác thực JobHuntly';
   }
 
   /**
@@ -250,7 +250,7 @@ class EmailService {
     <html>
     <head>
         <meta charset="UTF-8">
-        <title>Mã xác thực TopCV</title>
+        <title>Mã xác thực JobHuntly</title>
         <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -264,12 +264,12 @@ class EmailService {
     <body>
         <div class="container">
             <div class="header">
-                <h1>🚀 TopCV Recruitment</h1>
+                <h1>🚀 JobHuntly Recruitment</h1>
                 <p>Mã xác thực ${message}</p>
             </div>
             <div class="content">
                 <h2>Xin chào!</h2>
-                <p>Bạn đã yêu cầu ${message} trên hệ thống TopCV. Vui lòng sử dụng mã xác thực bên dưới:</p>
+                <p>Bạn đã yêu cầu ${message} trên hệ thống JobHuntly. Vui lòng sử dụng mã xác thực bên dưới:</p>
                 
                 <div class="otp-code">${otpCode}</div>
                 
@@ -282,10 +282,10 @@ class EmailService {
                     </ul>
                 </div>
                 
-                <p>Cảm ơn bạn đã sử dụng TopCV!</p>
+                <p>Cảm ơn bạn đã sử dụng JobHuntly!</p>
             </div>
             <div class="footer">
-                <p>© 2025 TopCV Recruitment System. All rights reserved.</p>
+                <p>© 2025 JobHuntly Recruitment System. All rights reserved.</p>
                 <p>Email này được gửi tự động, vui lòng không reply.</p>
             </div>
         </div>
@@ -293,11 +293,11 @@ class EmailService {
     </html>`;
 
     const text = `
-TopCV Recruitment - Mã xác thực ${message}
+JobHuntly Recruitment - Mã xác thực ${message}
 
 Xin chào!
 
-Bạn đã yêu cầu ${message} trên hệ thống TopCV.
+Bạn đã yêu cầu ${message} trên hệ thống JobHuntly.
 Mã xác thực của bạn là: ${otpCode}
 
 Lưu ý:
@@ -305,9 +305,9 @@ Lưu ý:
 - Không chia sẻ mã này với bất kỳ ai
 - Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email
 
-Cảm ơn bạn đã sử dụng TopCV!
+Cảm ơn bạn đã sử dụng JobHuntly!
 
-© 2025 TopCV Recruitment System
+© 2025 JobHuntly Recruitment System
 `;
 
     return { html, text };
@@ -324,7 +324,7 @@ Cảm ơn bạn đã sử dụng TopCV!
     <html>
     <head>
         <meta charset="UTF-8">
-        <title>Chào mừng đến với TopCV</title>
+        <title>Chào mừng đến với JobHuntly</title>
         <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -338,12 +338,12 @@ Cảm ơn bạn đã sử dụng TopCV!
     <body>
         <div class="container">
             <div class="header">
-                <h1>🎉 Chào mừng đến với TopCV!</h1>
+                <h1>🎉 Chào mừng đến với JobHuntly!</h1>
                 <p>Hệ thống tuyển dụng hàng đầu Việt Nam</p>
             </div>
             <div class="content">
                 <h2>Xin chào ${fullName}!</h2>
-                <p>Chúc mừng bạn đã tạo tài khoản thành công trên TopCV. Bạn đã sẵn sàng khám phá những cơ hội nghề nghiệp tuyệt vời!</p>
+                <p>Chúc mừng bạn đã tạo tài khoản thành công trên JobHuntly. Bạn đã sẵn sàng khám phá những cơ hội nghề nghiệp tuyệt vời!</p>
                 
                 <div class="feature">
                     <h3>🔍 Tìm kiếm việc làm</h3>
@@ -367,7 +367,7 @@ Cảm ơn bạn đã sử dụng TopCV!
                 <p>Nếu bạn có bất kỳ câu hỏi nào, đừng ngần ngại liên hệ với chúng tôi!</p>
             </div>
             <div class="footer">
-                <p>© 2025 TopCV Recruitment System. All rights reserved.</p>
+                <p>© 2025 JobHuntly Recruitment System. All rights reserved.</p>
                 <p>Liên hệ: support@topcv.click | https://topcv.click</p>
             </div>
         </div>
@@ -375,11 +375,11 @@ Cảm ơn bạn đã sử dụng TopCV!
     </html>`;
 
     const text = `
-Chào mừng đến với TopCV!
+Chào mừng đến với JobHuntly!
 
 Xin chào ${fullName}!
 
-Chúc mừng bạn đã tạo tài khoản thành công trên TopCV. Bạn đã sẵn sàng khám phá những cơ hội nghề nghiệp tuyệt vời!
+Chúc mừng bạn đã tạo tài khoản thành công trên JobHuntly. Bạn đã sẵn sàng khám phá những cơ hội nghề nghiệp tuyệt vời!
 
 Tính năng nổi bật:
 - Tìm kiếm việc làm: Khám phá hàng nghìn cơ hội việc làm
@@ -388,7 +388,7 @@ Tính năng nổi bật:
 
 Truy cập: https://topcv.click
 
-© 2025 TopCV Recruitment System
+© 2025 JobHuntly Recruitment System
 Liên hệ: support@topcv.click
 `;
 
@@ -407,7 +407,7 @@ Liên hệ: support@topcv.click
     <html>
     <head>
         <meta charset="UTF-8">
-        <title>Đặt lại mật khẩu TopCV</title>
+        <title>Đặt lại mật khẩu JobHuntly</title>
         <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -422,12 +422,12 @@ Liên hệ: support@topcv.click
     <body>
         <div class="container">
             <div class="header">
-                <h1>🔒 TopCV Recruitment</h1>
+                <h1>🔒 JobHuntly Recruitment</h1>
                 <p>Yêu cầu đặt lại mật khẩu</p>
             </div>
             <div class="content">
                 <h2>Xin chào ${fullName}!</h2>
-                <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản TopCV của bạn.</p>
+                <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản JobHuntly của bạn.</p>
                 
                 <p><strong>Mã xác thực đặt lại mật khẩu của bạn là:</strong></p>
                 
@@ -452,7 +452,7 @@ Liên hệ: support@topcv.click
                 <p>Nếu bạn gặp khó khăn, vui lòng liên hệ đội hỗ trợ của chúng tôi.</p>
             </div>
             <div class="footer">
-                <p>© 2025 TopCV Recruitment System. All rights reserved.</p>
+                <p>© 2025 JobHuntly Recruitment System. All rights reserved.</p>
                 <p>Email này được gửi tự động, vui lòng không reply.</p>
             </div>
         </div>
@@ -460,11 +460,11 @@ Liên hệ: support@topcv.click
     </html>`;
 
     const text = `
-TopCV Recruitment - Đặt lại mật khẩu
+JobHuntly Recruitment - Đặt lại mật khẩu
 
 Xin chào ${fullName}!
 
-Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản TopCV của bạn.
+Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản JobHuntly của bạn.
 
 Mã xác thực đặt lại mật khẩu của bạn là: ${resetToken}
 
@@ -476,7 +476,7 @@ Lưu ý bảo mật:
 - Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này
 - Không chia sẻ mã này với bất kỳ ai
 
-© 2025 TopCV Recruitment System
+© 2025 JobHuntly Recruitment System
 `;
 
     return { html, text };
@@ -510,7 +510,7 @@ Lưu ý bảo mật:
         <div class="container">
             <div class="header">
                 <h1>📋 Ứng tuyển mới</h1>
-                <p>TopCV Recruitment System</p>
+                <p>JobHuntly Recruitment System</p>
             </div>
             <div class="content">
                 <h2>Bạn có ứng viên mới!</h2>
@@ -537,7 +537,7 @@ Lưu ý bảo mật:
                 <p>Vui lòng đăng nhập vào hệ thống để xem thông tin chi tiết và CV của ứng viên.</p>
             </div>
             <div class="footer">
-                <p>© 2025 TopCV Recruitment System. All rights reserved.</p>
+                <p>© 2025 JobHuntly Recruitment System. All rights reserved.</p>
                 <p>Truy cập: https://topcv.click</p>
             </div>
         </div>
@@ -545,7 +545,7 @@ Lưu ý bảo mật:
     </html>`;
 
     const text = `
-TopCV Recruitment - Ứng tuyển mới
+JobHuntly Recruitment - Ứng tuyển mới
 
 Bạn có ứng viên mới!
 
@@ -561,7 +561,7 @@ Thông tin ứng viên:
 
 Truy cập https://topcv.click/applications để xem chi tiết.
 
-© 2025 TopCV Recruitment System
+© 2025 JobHuntly Recruitment System
 `;
 
     return { html, text };

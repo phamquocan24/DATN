@@ -119,8 +119,8 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    // Development: Allow localhost on any port
-    if (origin.match(/^https?:\/\/localhost(:\d+)?$/)) {
+    // Development: Allow localhost and 127.0.0.1 on any port
+    if (origin.match(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/)) {
       return callback(null, true);
     }
     
@@ -164,6 +164,36 @@ app.use(cors({
   preflightContinue: false,
   optionsSuccessStatus: 204
 }));
+
+// Additional CORS middleware for preflight requests
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  
+  // Log CORS requests for debugging
+  if (process.env.NODE_ENV === 'development') {
+    logger.info('CORS request:', {
+      method: req.method,
+      path: req.path,
+      origin: origin,
+      userAgent: req.headers['user-agent']?.substring(0, 50)
+    });
+  }
+  
+  // Allow requests from localhost and 127.0.0.1 in development
+  if (origin && origin.match(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+    return res.status(204).end();
+  }
+  
+  next();
+});
 
 // CORS middleware for static files
 app.use('/uploads', (req, res, next) => {

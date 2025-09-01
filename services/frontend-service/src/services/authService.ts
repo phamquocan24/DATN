@@ -126,7 +126,25 @@ class AuthService {
       throw new Error(response.data.message || 'Login failed');
     } catch (error: any) {
       console.error('Login error:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Login failed');
+      
+      // Handle specific status codes with user-friendly messages
+      if (error.response?.status === 401) {
+        throw new Error('Incorrect email or password. Please check your credentials and try again.');
+      } else if (error.response?.status === 400) {
+        throw new Error('Please enter a valid email and password.');
+      } else if (error.response?.status === 429) {
+        throw new Error('Too many login attempts. Please wait a few minutes and try again.');
+      } else if (error.response?.status >= 500) {
+        throw new Error('Server is temporarily unavailable. Please try again later.');
+      }
+      
+      // Use server message if available, otherwise friendly fallback
+      const serverMessage = error.response?.data?.message;
+      if (serverMessage && !serverMessage.includes('status code')) {
+        throw new Error(serverMessage);
+      }
+      
+      throw new Error('Unable to log in. Please check your connection and try again.');
     }
   }
 
