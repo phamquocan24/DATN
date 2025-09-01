@@ -19,7 +19,6 @@ interface Job {
   match: number;
   applied: number;
   capacity: number;
-  salary?: string;
 }
 
 
@@ -105,7 +104,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         // Fetch recent applications (limit 5 for display)
         const recentResponse = await candidateApi.getMyApplications({ 
           limit: 5, 
-          orderBy: 'created_at', 
+          orderBy: 'submitted_at', 
           direction: 'DESC' 
         });
         
@@ -150,7 +149,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         // Use same API call as FindJobs Suitable Jobs
         const response = await candidateApi.getRecommendedJobs({ 
           page: 1, 
-          limit: 6 
+          limit: 5 
         });
         
         if (response && response.data && Array.isArray(response.data)) {
@@ -177,12 +176,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             logoColor: `bg-${['blue', 'green', 'purple', 'red', 'teal', 'orange'][index % 6]}-500 text-white`,
             match: Math.round(job.match_score || 85),
             applied: job.application_count || 0,
-            capacity: job.max_applications || 1,
-            salary: job.salary_min && job.salary_max 
-              ? `${job.salary_min.toLocaleString()} - ${job.salary_max.toLocaleString()} ${job.currency || 'VND'}`
-              : job.salary_min 
-                ? `From ${job.salary_min.toLocaleString()} ${job.currency || 'VND'}`
-                : 'Competitive Salary'
+            capacity: job.max_applications || 1
           }));
           setSuggestedJobs(transformedJobs);
         } else {
@@ -633,31 +627,39 @@ const Dashboard: React.FC<DashboardProps> = ({
             <>
               <div className="space-y-4">
                 {recentApplications.map((app) => (
-                  <div key={app.application_id || app.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                  <div 
+                    key={app.application_id || app.id} 
+                    className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-[#007BFF]/30 transition-colors cursor-pointer"
+                    onClick={onMyApplicationsClick}
+                  >
                     <div className="flex items-center space-x-4">
                       <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold ${
-                        app.company?.company_name ? 
+                        app.company_name ? 
                           `bg-blue-500 text-white` : 
                           'bg-gray-500 text-white'
                       }`}>
-                        {(app.company?.company_name || app.job?.company_name || 'C').charAt(0).toUpperCase()}
+                        {(app.company_name || 'C').charAt(0).toUpperCase()}
                       </div>
                       <div className="text-left">
-                        <h4 className="font-medium text-gray-900">{app.job?.title || 'Job Title'}</h4>
+                        <h4 className="font-medium text-gray-900">{app.job_title || 'Job Title'}</h4>
                         <p className="text-sm text-gray-500">
-                          {app.company?.company_name || app.job?.company_name || 'Company'} • 
-                          {app.job?.location || 'Location'} • 
-                          {app.job?.employment_type || 'Full-Time'}
+                          {app.company_name || 'Company'} • 
+                          {app.city_name || 'Location'} • 
+                          {app.employment_type === 'FULL_TIME' ? 'Full-Time' 
+                            : app.employment_type === 'PART_TIME' ? 'Part-Time'
+                            : app.employment_type === 'CONTRACT' ? 'Contract'
+                            : app.employment_type === 'INTERNSHIP' ? 'Internship'
+                            : 'Full-Time'}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-4">
                       <div className="text-right">
                         <p className="text-sm text-gray-500">Date Applied</p>
-                        <p className="text-sm font-medium">{formatDate(app.created_at || app.application_date)}</p>
+                        <p className="text-sm font-medium">{formatDate(app.submitted_at)}</p>
                       </div>
-                      <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(app.status)}`}>
-                        {getStatusDisplayText(app.status)}
+                      <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(app.current_status)}`}>
+                        {getStatusDisplayText(app.current_status)}
                       </span>
                       <button className="text-gray-400 hover:text-gray-600">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -719,16 +721,17 @@ const Dashboard: React.FC<DashboardProps> = ({
             <>
               <div className="space-y-4">
                 {suggestedJobs.map((job) => (
-                  <div key={job.job_id || job.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-[#007BFF]/30 transition-colors">
+                  <div 
+                    key={job.job_id || job.id} 
+                    className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-[#007BFF]/30 transition-colors cursor-pointer"
+                    onClick={() => handleJobClick(job)}
+                  >
                     <div className="flex items-center space-x-4">
                       <div className={`w-12 h-12 rounded-lg flex items-center justify-center font-bold ${job.logoColor}`}>
                         {job.logo}
                       </div>
                       <div className="text-left">
-                        <h4 
-                          className="font-medium text-gray-900 hover:text-[#007BFF] cursor-pointer transition-colors"
-                          onClick={() => handleJobClick(job)}
-                        >
+                        <h4 className="font-medium text-gray-900 hover:text-[#007BFF] transition-colors">
                           {job.title}
                         </h4>
                         <p className="text-sm text-gray-500">{job.company} • {job.location}</p>
@@ -753,17 +756,15 @@ const Dashboard: React.FC<DashboardProps> = ({
                           <p className="text-xs text-gray-500">
                             {job.applied} applied of {job.capacity} capacity
                           </p>
-                          {job.salary && (
-                            <p className="text-xs text-gray-600 font-medium">
-                              {job.salary}
-                            </p>
-                          )}
                         </div>
                       </div>
                     </div>
                     <button 
                       className="bg-[#007BFF] text-white px-6 py-2 rounded-lg hover:bg-[#0056b3] transition-colors font-medium"
-                      onClick={() => handleApplyJob(job)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleJobClick(job);
+                      }}
                     >
                       Apply
                     </button>

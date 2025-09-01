@@ -279,24 +279,56 @@ const MainContent = () => {
     // CANDIDATE users stay on current page or go to dashboard if needed
   };
 
-  const handleLogout = () => {
-    // Clear local state and storage immediately
-    setToken(null);
-    setCurrentUser(null);
-    setIsAdmin(false);
-    setIsHr(false);
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    delete api.defaults.headers.common['Authorization'];
-    
-    // Call logout API in background (don't wait for it)
-    authService.logout().catch(error => {
-      console.error('Logout API error:', error);
-    });
-    
-    navigate('/');
-    setCurrentPage('home');
+  const handleLogout = async () => {
+    try {
+      // Clear local state and storage immediately
+      setToken(null);
+      setCurrentUser(null);
+      setIsAdmin(false);
+      setIsHr(false);
+      
+      // Call authService logout which will clear all auth data
+      await authService.logout();
+      
+      // Additional cleanup - clear any remaining localStorage items
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      
+      // Clear API headers
+      delete api.defaults.headers.common['Authorization'];
+      
+      // Reset any additional state that might persist
+      setCurrentPage('home');
+      
+      // Clear any persistent caches or session data
+      if (typeof window !== 'undefined') {
+        // Clear session storage
+        sessionStorage.clear();
+        
+        // Clear any cached API data (if any API cache exists)
+        try {
+          // Reset API instance defaults to initial state
+          api.defaults.headers.common = {};
+        } catch (e) {
+          console.warn('Failed to reset API defaults:', e);
+        }
+      }
+      
+      // Force navigate to home and replace history
+      navigate('/', { replace: true });
+      
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Even if logout API fails, still clear local data and navigate
+      setToken(null);
+      setCurrentUser(null);
+      setIsAdmin(false);
+      setIsHr(false);
+      localStorage.clear(); // Clear all localStorage as fallback
+      delete api.defaults.headers.common['Authorization'];
+      navigate('/', { replace: true });
+    }
   };
 
   const handleJobClick = (jobId: string) => {

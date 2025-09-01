@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNotifications } from '../../hooks/useNotifications';
-import { FiSearch, FiChevronDown, FiMoreVertical, FiTrash2 } from 'react-icons/fi';
+import { FiSearch, FiChevronDown, FiMoreVertical, FiTrash2, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import AdminLayout from './AdminLayout';
 
 import BellIcon from '../../assets/bell-outlined.png';
@@ -46,6 +46,15 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [jobToDelete, setJobToDelete] = useState<Job | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Approve/Reject modal states
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [jobToApprove, setJobToApprove] = useState<Job | null>(null);
+  const [jobToReject, setJobToReject] = useState<Job | null>(null);
+  const [approvalReason, setApprovalReason] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
 
 
@@ -158,6 +167,75 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
       setJobToDelete(null);
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleApproveJob = (job: Job) => {
+    setJobToApprove(job);
+    setApprovalReason('Approved by admin');
+    setShowApprovalModal(true);
+    setOpenDropdownId(null);
+  };
+
+  const handleRejectJob = (job: Job) => {
+    setJobToReject(job);
+    setRejectionReason('');
+    setShowRejectionModal(true);
+    setOpenDropdownId(null);
+  };
+
+  const handleConfirmApproval = async () => {
+    if (!jobToApprove) return;
+    
+    try {
+      setIsSubmitting(true);
+      await adminApi.approveJob(jobToApprove.id.toString(), approvalReason || 'Approved by admin');
+      
+      // Update local state - change status to ACTIVE (which will be mapped from PUBLISHED)
+      setJobs(prevJobs => prevJobs.map(job => 
+        job.id === jobToApprove.id 
+          ? { ...job, status: 'ACTIVE' }
+          : job
+      ));
+      
+      setShowApprovalModal(false);
+      setJobToApprove(null);
+      setApprovalReason('');
+    } catch (err: any) {
+      console.error('Error approving job:', err);
+      // Could add a toast notification here instead of alert
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmRejection = async () => {
+    if (!jobToReject) return;
+    
+    if (!rejectionReason.trim()) {
+      alert('Rejection reason is required');
+      return;
+    }
+    
+    try {
+      setIsSubmitting(true);
+      await adminApi.rejectJob(jobToReject.id.toString(), rejectionReason);
+      
+      // Update local state - change status to REJECTED (which will be mapped from CLOSED)
+      setJobs(prevJobs => prevJobs.map(job => 
+        job.id === jobToReject.id 
+          ? { ...job, status: 'REJECTED' }
+          : job
+      ));
+      
+      setShowRejectionModal(false);
+      setJobToReject(null);
+      setRejectionReason('');
+    } catch (err: any) {
+      console.error('Error rejecting job:', err);
+      // Could add a toast notification here instead of alert
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -346,13 +424,38 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
                             
                             {/* Dropdown Menu */}
                             {openDropdownId === job.id && (
-                              <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                              <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                                {/* Show approve/reject for PENDING jobs */}
+                                {job.status?.toUpperCase() === 'PENDING' && (
+                                  <>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleApproveJob(job);
+                                      }}
+                                      className="w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-green-50 flex items-center gap-2 rounded-t-lg"
+                                    >
+                                      <FiCheckCircle className="w-4 h-4" />
+                                      Approve Job
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRejectJob(job);
+                                      }}
+                                      className="w-full text-left px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 flex items-center gap-2 border-b border-gray-100"
+                                    >
+                                      <FiXCircle className="w-4 h-4" />
+                                      Reject Job
+                                    </button>
+                                  </>
+                                )}
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleDeleteJob(job);
                                   }}
-                                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 rounded-lg"
+                                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 rounded-b-lg"
                                 >
                                   <FiTrash2 className="w-4 h-4" />
                                   Delete Job
@@ -457,6 +560,121 @@ const JobListings: React.FC<JobListingsProps> = ({ currentUser }) => {
                   <>
                     <FiTrash2 className="w-4 h-4" />
                     Delete Job
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Approval Modal */}
+      {showApprovalModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Approve Job</h3>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to approve "{jobToApprove?.role}"? This will make the job visible to candidates.
+            </p>
+            
+            <div className="mb-4">
+              <label htmlFor="approval-reason" className="block text-sm font-medium text-gray-700 mb-2">
+                Approval Reason (Optional)
+              </label>
+              <textarea
+                id="approval-reason"
+                value={approvalReason}
+                onChange={(e) => setApprovalReason(e.target.value)}
+                placeholder="Enter approval reason..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                rows={3}
+              />
+            </div>
+            
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowApprovalModal(false);
+                  setJobToApprove(null);
+                  setApprovalReason('');
+                }}
+                disabled={isSubmitting}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmApproval}
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 flex items-center gap-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Approving...
+                  </>
+                ) : (
+                  <>
+                    <FiCheckCircle className="w-4 h-4" />
+                    Approve Job
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Modal */}
+      {showRejectionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Reject Job</h3>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to reject "{jobToReject?.role}"? This action will prevent the job from being published.
+            </p>
+            
+            <div className="mb-4">
+              <label htmlFor="rejection-reason" className="block text-sm font-medium text-gray-700 mb-2">
+                Rejection Reason (Required)
+              </label>
+              <textarea
+                id="rejection-reason"
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Enter rejection reason..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                rows={3}
+                required
+              />
+            </div>
+            
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowRejectionModal(false);
+                  setJobToReject(null);
+                  setRejectionReason('');
+                }}
+                disabled={isSubmitting}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmRejection}
+                disabled={isSubmitting || !rejectionReason.trim()}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 flex items-center gap-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Rejecting...
+                  </>
+                ) : (
+                  <>
+                    <FiXCircle className="w-4 h-4" />
+                    Reject Job
                   </>
                 )}
               </button>

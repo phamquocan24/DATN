@@ -28,23 +28,32 @@ const AdminHeaderDropdown: React.FC<AdminHeaderDropdownProps> = ({ currentUser, 
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   // Logout function
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (onLogout) {
       // Use the provided logout handler (from App.tsx)
       onLogout();
     } else {
-      // Fallback: Clear local state and storage immediately
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
-      delete api.defaults.headers.common['Authorization'];
-      
-      // Call logout API in background
-      authService.logout().catch(() => {
+      // Fallback: Complete logout process
+      try {
+        // Call authService logout which clears all auth data
+        await authService.logout();
+        
+        // Additional cleanup
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        delete api.defaults.headers.common['Authorization'];
+        
         showToast('Logout completed', 'info');
-      });
-      
-      navigate('/', { replace: true });
+        navigate('/', { replace: true });
+      } catch (error) {
+        console.error('Logout error:', error);
+        // Even if logout API fails, still clear local data
+        localStorage.clear(); // Clear all localStorage as fallback
+        delete api.defaults.headers.common['Authorization'];
+        showToast('Logout completed', 'info');
+        navigate('/', { replace: true });
+      }
     }
   };
 

@@ -76,6 +76,14 @@ class AuthService {
     localStorage.removeItem(this.userKey);
     // Also clear any legacy keys
     localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    
+    // Clear Authorization header from api client
+    try {
+      delete apiClient.defaults.headers.common['Authorization'];
+    } catch (error) {
+      console.warn('Failed to clear Authorization header:', error);
+    }
   }
 
   // Check if user is authenticated
