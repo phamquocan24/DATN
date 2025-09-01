@@ -619,8 +619,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onAuthSucc
                 </div>
 
                 {/* Title */}
-                <h2 className="text-lg font-bold text-gray-900 mb-3">
-                  {currentMode === 'signup' ? 'Get more opportunities' : 'Welcome Back, Dude'}
+                <h2 className="text-lg font-bold text-gray-900 mb-3 text-center">
+                  {currentMode === 'signup' 
+                    ? (userType === 'candidate' ? 'Get more opportunities' : 'Find top talent for your company')
+                    : (userType === 'candidate' ? 'Welcome back, Job Seeker' : 'Welcome back, Recruiter')
+                  }
                 </h2>
 
                 {/* Google Auth Button */}
@@ -783,13 +786,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onAuthSucc
           </form>
 
                 {/* Switch mode link */}
-                <div className="mt-0.5 text-center">
-                  <span className="text-gray-600 text-xs">
+                <div className="mt-0.5 text-center px-2">
+                  <span className="text-gray-600 text-xs break-words">
                     {currentMode === 'signup' ? 'Already have an account?' : "Don't have an account?"}{' '}
                   </span>
                   <button
                     onClick={() => switchMode(currentMode === 'signup' ? 'login' : 'signup')}
-                    className="text-[#007BFF] hover:text-[#007BFF] font-medium text-xs"
+                    className="text-[#007BFF] hover:text-[#007BFF] font-medium text-xs whitespace-nowrap"
                   >
                     {currentMode === 'signup' ? 'Login' : 'Sign Up'}
                   </button>
@@ -797,11 +800,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode, onAuthSucc
 
                 {/* Terms and Privacy (only for signup) */}
                 {currentMode === 'signup' && (
-                  <div className="mt-0.5 text-center text-xs text-gray-500 leading-tight">
-                    By clicking 'Continue', you acknowledge that you have read and accept the{' '}
-                    <a href="#" className="text-[#007BFF] hover:text-[#007BFF]">Terms of Service</a>
-                    {' '}and{' '}
-                    <a href="#" className="text-[#007BFF] hover:text-[#007BFF]">Privacy Policy</a>.
+                  <div className="mt-0.5 text-center text-xs text-gray-500 leading-tight px-2">
+                    <span className="inline-block break-words">
+                      By clicking 'Continue', you acknowledge that you have read and accept the{' '}
+                      <a href="#" className="text-[#007BFF] hover:text-[#007BFF] break-words">Terms of Service</a>
+                      {' '}and{' '}
+                      <a href="#" className="text-[#007BFF] hover:text-[#007BFF] break-words">Privacy Policy</a>.
+                    </span>
                   </div>
                 )}
               </>

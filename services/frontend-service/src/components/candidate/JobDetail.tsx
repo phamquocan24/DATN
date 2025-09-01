@@ -407,12 +407,14 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, onJobClick, onCompan
     return (
         <>
             <div className="text-left mb-16">
-                {/* Header */}
-                <div className="flex justify-between items-center mb-6">
-                    <button onClick={onBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium">
-                        <FiArrowLeft className="w-5 h-5" /> Back to job listings
-                    </button>
-                </div>
+                {/* Main content with left and right margin */}
+                <div className="mx-4 lg:mx-8">
+                    {/* Header */}
+                    <div className="flex justify-between items-center mb-6">
+                        <button onClick={onBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium">
+                            <FiArrowLeft className="w-5 h-5" /> Back to job listings
+                        </button>
+                    </div>
 
                 {/* New Job Header */}
                 <div className="border rounded-lg bg-white shadow-sm p-6 mb-8 transition-all duration-300 hover:shadow-lg hover:border-[#007BFF] cursor-pointer">
@@ -645,15 +647,16 @@ const JobDetail: React.FC<JobDetailProps> = ({ job, onBack, onJobClick, onCompan
                     job={job}
                 />
 
-                {/* Share Toast Notification */}
-                {showShareToast && (
-                    <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 transform transition-all duration-300 ease-out animate-bounce">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Job link copied to clipboard!
-                    </div>
-                )}
+                    {/* Share Toast Notification */}
+                    {showShareToast && (
+                        <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 transform transition-all duration-300 ease-out animate-bounce">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Job link copied to clipboard!
+                        </div>
+                    )}
+                </div>
             </div>
         </>
     );

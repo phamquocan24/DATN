@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Footer } from './Footer';
 import JobDetail from './JobDetail';
 import GroupUnderline from '../../assets/Group.png';
 import Pagination from '../common/Pagination';
@@ -962,9 +961,6 @@ export const FindJobs: React.FC<FindJobsProps> = ({ onJobClick, onCompanyClick }
           </div>
         </div>
       </div>
-      
-      {/* Footer */}
-      <Footer />
     </>
   );
 };

@@ -7,21 +7,26 @@ import { IoLocationOutline } from "react-icons/io5";
 import { BsBuildings } from "react-icons/bs";
 import { Footer } from './Footer';
 import api from '../../services/api';
+import candidateApi from '../../services/candidateApi';
 
 
 interface CompanyProfileProps {
   companyId?: string;
   onBack?: () => void;
+  onNavigateToCompanies?: () => void;
+  onJobClick?: (jobId: string) => void;
 }
 
 
-export const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId, onBack }) => {
+export const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId, onBack, onNavigateToCompanies, onJobClick }) => {
     console.log('CompanyProfile received companyId:', companyId);
     
     const [isFollowing, setIsFollowing] = useState(false);
     const [companyDetails, setCompanyDetails] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
     const [showShareToast, setShowShareToast] = useState(false);
+    const [companyJobs, setCompanyJobs] = useState<any[]>([]);
+    const [jobsLoading, setJobsLoading] = useState(false);
 
   useEffect(() => {
     if (!companyId) return;
@@ -42,8 +47,58 @@ export const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId, onBac
       }
     };
 
+    const fetchCompanyJobs = async () => {
+      try {
+        setJobsLoading(true);
+        // Use candidateApi to get jobs by company
+        const response = await candidateApi.getCompanyJobs(companyId, { 
+          limit: 10 
+        });
+        
+        console.log('Company jobs response:', response);
+        
+        // Handle different response structures
+        const jobsArray = Array.isArray(response) 
+          ? response 
+          : (response?.data || response?.jobs || []);
+          
+        // Filter for active jobs only
+        const activeJobs = jobsArray.filter((job: any) => 
+          job.status === 'ACTIVE' || job.status === 'active'
+        );
+        
+        setCompanyJobs(activeJobs);
+      } catch (err: any) {
+        console.error('Error fetching company jobs:', err);
+        setCompanyJobs([]);
+      } finally {
+        setJobsLoading(false);
+      }
+    };
+
     fetchCompanyProfile();
+    fetchCompanyJobs();
   }, [companyId]);
+
+  const handleBackToCompanies = () => {
+    if (onNavigateToCompanies) {
+      onNavigateToCompanies();
+    } else if (onBack) {
+      onBack();
+    } else {
+      // Fallback - redirect to companies page
+      window.location.href = '/candidate/companies';
+    }
+  };
+
+  const handleJobDetailsClick = (jobId: string) => {
+    if (onJobClick) {
+      onJobClick(jobId);
+    } else {
+      // Fallback - redirect to job details page
+      window.location.href = `/candidate/job-details/${jobId}`;
+    }
+  };
 
   const handleShareClick = async () => {
     try {
@@ -119,23 +174,17 @@ export const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId, onBac
     );
   }
 
-
-
-
-
-
-
-
   return (
     <div style={{fontFamily:'ABeeZee, sans-serif'}}>
+      {/* Main content with left and right margin */}
+      <div className="mx-4 lg:mx-8">
         <div className="flex items-center justify-between mb-6">
-            <button onClick={onBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium">
+            <button onClick={handleBackToCompanies} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium">
                 <FiArrowLeft className="w-5 h-5" /> Back to companies
             </button>
         </div>
-
-      {/* Header panel */}
-      <div className="flex flex-col lg:flex-row lg:items-start gap-8 bg-white border border-gray-200 rounded-lg p-6 mb-8">
+        {/* Header panel */}
+        <div className="flex flex-col lg:flex-row lg:items-start gap-8 bg-white border border-gray-200 rounded-lg p-6 mb-8">
         <div className="relative">
           <img 
             src={companyDetails.logo_url || companyLogo} 
@@ -273,10 +322,11 @@ export const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId, onBac
               </div>
 
       {/* Contact Links */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Contact</h3>
-                    </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="lg:col-span-2 bg-white border border-gray-200 rounded-lg p-6 text-left">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Contact</h3>
+          </div>
         <div className="space-y-3 text-sm">
           {companyDetails.website && (
             <a 
@@ -311,7 +361,8 @@ export const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId, onBac
             </div>
           )}
         </div>
-              </div>
+        </div>
+      </div>
 
       {/* Company Jobs */}
       <div className="bg-white border border-gray-200 rounded-lg p-6 mb-8">
@@ -320,29 +371,104 @@ export const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId, onBac
             Open Positions at {companyDetails.company_name}
           </h3>
           <span className="text-sm text-gray-500">
-            {companyDetails.active_jobs || 0} active positions
+            {companyJobs.length} active positions
           </span>
         </div>
         
-        <div className="text-center py-8 text-gray-500">
-          <div className="text-4xl mb-2">💼</div>
-          <p>Job listings will be loaded here</p>
-          <p className="text-sm">
-            Total Jobs: {companyDetails.total_jobs || 0} | 
-            Active: {companyDetails.active_jobs || 0}
-          </p>
-        </div>
+        {jobsLoading ? (
+          <div className="text-center py-8 text-gray-500">
+            <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p>Loading job positions...</p>
+          </div>
+        ) : companyJobs.length > 0 ? (
+          <div className="space-y-4">
+            {companyJobs.map((job: any) => (
+              <div key={job.job_id || job.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-1">{job.title}</h4>
+                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <span className="flex items-center gap-1">
+                        <IoLocationOutline className="w-4 h-4" />
+                        {job.city || job.location || 'Remote'}
+                      </span>
+                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                        {job.employment_type || job.type || 'Full-time'}
+                      </span>
+                      <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
+                        {job.status}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    {job.salary_min && job.salary_max && (
+                      <div className="text-lg font-semibold text-gray-900">
+                        ${job.salary_min?.toLocaleString()} - ${job.salary_max?.toLocaleString()}
+                      </div>
+                    )}
+                    <div className="text-sm text-gray-500">
+                      Posted {new Date(job.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+                
+                {job.description && (
+                  <p className="text-sm text-gray-700 mb-3 line-clamp-2">
+                    {job.description.length > 150 
+                      ? `${job.description.substring(0, 150)}...` 
+                      : job.description}
+                  </p>
+                )}
+                
+                {job.skills && Array.isArray(job.skills) && job.skills.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {job.skills.slice(0, 4).map((skill: string, index: number) => (
+                      <span key={index} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                        {skill}
+                      </span>
+                    ))}
+                    {job.skills.length > 4 && (
+                      <span className="px-2 py-1 bg-gray-100 text-gray-500 rounded text-xs">
+                        +{job.skills.length - 4} more
+                      </span>
+                    )}
+                  </div>
+                )}
+                
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-4 text-sm text-gray-600">
+                    <span>{job.applications_count || 0} applicants</span>
+                    {job.view_count && <span>{job.view_count} views</span>}
+                  </div>
+                  <button 
+                    onClick={() => handleJobDetailsClick(job.job_id || job.id)}
+                    className="px-4 py-2 bg-[#007BFF] text-white rounded-lg hover:bg-[#0056b3] transition-colors text-sm font-medium"
+                  >
+                    View Details
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <div className="text-4xl mb-2">💼</div>
+            <p>No active job positions at the moment</p>
+            <p className="text-sm">Check back later for new opportunities!</p>
+          </div>
+        )}
       </div>
 
-      {/* Share Toast Notification */}
-      {showShareToast && (
-          <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 transform transition-all duration-300 ease-out animate-bounce">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              Company profile link copied to clipboard!
-          </div>
-      )}
+        {/* Share Toast Notification */}
+        {showShareToast && (
+            <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 transform transition-all duration-300 ease-out animate-bounce">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Company profile link copied to clipboard!
+            </div>
+        )}
+      </div>
 
       <Footer />
     </div>

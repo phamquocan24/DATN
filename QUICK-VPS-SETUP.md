@@ -12,26 +12,30 @@
 
 ## 🎯 **OPTION 1: SUPER QUICK DEPLOY (KHUYẾN NGHỊ)**
 
-### **1. Upload & Extract**
+### **1. Upload File Zip**
 ```bash
 # SSH vào VPS
 ssh root@your-vps-ip
 
-# Upload DATN.zip (sử dụng scp, winscp, hoặc wget)
+# Upload file zip (tên gì cũng được: DATN.zip, DATN(new).zip, v.v.)
 cd /opt
-wget [your-file-url]/DATN.zip
-# HOẶC upload qua SCP:
-# scp DATN.zip root@your-vps-ip:/opt/
 
-# Extract
-unzip DATN.zip
-cd DATN
+# Option A: Download trực tiếp (nếu có URL)
+wget [your-file-url]/DATN.zip
+
+# Option B: Upload qua SCP
+scp "DATN(new).zip" root@your-vps-ip:/opt/
+
+# Option C: Upload qua WinSCP/FileZilla
+# Upload file zip vào thư mục /opt/
 ```
 
-### **2. Quick Deploy**
+### **2. Smart Auto Deploy**
 ```bash
-# Run our optimized script
-chmod +x deployment/quick-production-deploy.sh
+# OPTION A: Super Smart (Auto-detect & Deploy)
+sudo ./deployment/smart-vps-deploy.sh
+
+# OPTION B: Manual Quick Deploy
 sudo ./deployment/quick-production-deploy.sh
 ```
 

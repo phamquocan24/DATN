@@ -317,6 +317,28 @@ const MainContent = () => {
     setSelectedCompanyId(null);
   };
 
+  const handleBackToCompanies = () => {
+    handlePageChange('companies');
+    setSelectedCompanyId(null);
+  };
+
+  const handleJobClickFromCompany = (jobId: string) => {
+    setSelectedJobId(jobId);
+    navigate(`/candidate/job-detail/${jobId}`);
+    setCurrentPage('job-detail');
+  };
+
+  const handleBackToFindJobs = () => {
+    handlePageChange('find-jobs');
+    setSelectedJobId(null);
+  };
+
+  const handleJobClickWithFindJobsBack = (jobId: string) => {
+    setSelectedJobId(jobId);
+    navigate(`/candidate/job-detail/${jobId}`);
+    setCurrentPage('job-detail');
+  };
+
   const handleFindJobsClick = () => {
     handlePageChange('find-jobs');
   };
@@ -324,7 +346,7 @@ const MainContent = () => {
   // Removed unused handleApplyClick function
 
   // JobDetailWrapper component to fetch and display job details
-  const JobDetailWrapper = ({ jobId, onBack }: { jobId: string | null, onBack: () => void }) => {
+  const JobDetailWrapper = ({ jobId, onBack, onJobClick: onJobClickProp }: { jobId: string | null, onBack: () => void, onJobClick?: (jobId: string) => void }) => {
     // Create initial placeholder job data
     const [jobData, setJobData] = useState<any>(() => ({
       job_id: jobId || '',
@@ -530,7 +552,7 @@ const MainContent = () => {
       <JobDetail 
         job={jobData}
         onBack={onBack}
-        onJobClick={handleJobClick}
+        onJobClick={onJobClickProp || handleJobClick}
         onCompanyClick={handleCompanyClick}
         onResumeClick={() => handlePageChange('resume')}
       />
@@ -581,7 +603,8 @@ const MainContent = () => {
         return (
           <JobDetailWrapper 
             jobId={selectedJobId}
-            onBack={handleBackClick}
+            onBack={handleBackToFindJobs}
+            onJobClick={handleJobClickWithFindJobsBack}
           />
         );
               case 'company-profile':
@@ -589,6 +612,8 @@ const MainContent = () => {
           <CompanyProfile 
             companyId={selectedCompanyId || undefined} 
             onBack={handleBackClick}
+            onNavigateToCompanies={handleBackToCompanies}
+            onJobClick={handleJobClickFromCompany}
           />
         );
       case 'resume':
@@ -683,7 +708,8 @@ const MainContent = () => {
         currentPage === 'profile' || 
         currentPage === 'my-applications' || 
         currentPage === 'test-management' ||
-        currentPage === 'job-detail') && <Footer />}
+        currentPage === 'job-detail' ||
+        currentPage === 'find-jobs') && <Footer />}
       <AuthModal 
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 
