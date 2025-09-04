@@ -129,7 +129,9 @@ app.use(cors({
       'http://localhost:3000',
       'http://localhost:4000', 
       'http://localhost:5173',  // Vite dev server
-      'http://localhost:8000',
+      'http://localhost:8001',  // AI JD-CV Matching service
+      'http://localhost:8002',  // AI Question Generation service  
+      'http://localhost:8003',  // AI CV Extraction service
       'http://localhost:8080',
       'http://127.0.0.1:3000',
       'http://127.0.0.1:4000',
