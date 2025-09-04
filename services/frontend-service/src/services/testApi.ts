@@ -165,6 +165,17 @@ export const testApi = {
   generateInterviewQuestions: async (data: {
     job_id: string;
   }) => {
+    // Prevent multiple concurrent calls for the same job_id
+    const callKey = `generate_${data.job_id}`;
+    if ((testApi as any)._activeCalls?.has(callKey)) {
+      throw new Error('Question generation is already in progress for this job');
+    }
+    
+    // Initialize active calls tracking
+    if (!(testApi as any)._activeCalls) {
+      (testApi as any)._activeCalls = new Set();
+    }
+    (testApi as any)._activeCalls.add(callKey);
     try {
       // Check if AI service is available first
       const healthResponse = await fetch('http://localhost:8002/health', {
@@ -180,35 +191,89 @@ export const testApi = {
 
       // Use direct fetch for AI service as it's on different port
       console.log('🔄 Calling AI service with job_id:', data.job_id);
-      const timestamp = Date.now();
-      const response = await fetch(`http://localhost:8002/api/v1/ai/generate-interview-questions?t=${timestamp}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-          // Remove auth token as AI service may not need it
-        },
-        body: JSON.stringify({ job_id: data.job_id }) // Only send job_id
-      });
       
-      console.log('📊 AI service response status:', response.status);
-
-      if (!response.ok) {
-        let errorMessage = `HTTP error! status: ${response.status}`;
+      // Add retry mechanism with exponential backoff
+      let lastError = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          const errorData = await response.json();
-          errorMessage = errorData.detail || errorData.message || errorMessage;
-        } catch (e) {
-          // If response is not JSON, use status text
-          errorMessage = response.statusText || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
+          console.log(`🔄 Attempt ${attempt}/3 calling AI service`);
+          
+          // Add delay between attempts (except first attempt)
+          if (attempt > 1) {
+            const delay = Math.pow(2, attempt - 1) * 1000; // 2s, 4s
+            console.log(`⏳ Waiting ${delay}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+          
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+          
+          // Generate fresh timestamp for each attempt to avoid caching
+          const attemptTimestamp = Date.now();
+          const response = await fetch(`http://localhost:8002/api/v1/ai/generate-interview-questions?t=${attemptTimestamp}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache',
+              // Remove auth token as AI service may not need it
+            },
+            body: JSON.stringify({ job_id: data.job_id }), // Only send job_id
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          
+          console.log('📊 AI service response status:', response.status);
 
-      const result = await response.json();
-      return result;
+          if (!response.ok) {
+            let errorMessage = `HTTP error! status: ${response.status}`;
+            try {
+              const errorData = await response.json();
+              errorMessage = errorData.detail || errorData.message || errorMessage;
+            } catch (e) {
+              // If response is not JSON, use status text
+              errorMessage = response.statusText || errorMessage;
+            }
+            
+            // If it's a rate limit or server error, continue to retry
+            if (response.status === 429 || response.status >= 500) {
+              throw new Error(`Retryable error: ${errorMessage}`);
+            } else {
+              // For client errors (4xx except 429), don't retry
+              throw new Error(errorMessage);
+            }
+          }
+
+          const result = await response.json();
+          console.log(`✅ Successfully generated questions on attempt ${attempt}`);
+          
+          // If successful, break out of retry loop immediately
+          if (result && (result.questions_saved || result.job_id)) {
+            return result;
+          } else {
+            throw new Error('Invalid response: No questions were generated');
+          }
+          
+        } catch (error: any) {
+          lastError = error;
+          console.error(`❌ Attempt ${attempt} failed:`, error.message);
+          
+          // If it's an abort error or non-retryable error, break immediately
+          if (error.name === 'AbortError') {
+            throw new Error('Request timeout - AI service took too long to respond');
+          }
+          
+          // If it's the last attempt or a non-retryable error, throw
+          if (attempt === 3 || (!error.message?.includes('Retryable error') && !error.message?.includes('Failed to fetch'))) {
+            throw error;
+          }
+        }
+      }
+      
+      // If we get here, all retries failed
+      throw lastError || new Error('All retry attempts failed');
     } catch (error: any) {
       console.error('Error generating interview questions:', error);
       
@@ -220,6 +285,9 @@ export const testApi = {
       } else {
         throw new Error(error.message || 'Failed to generate interview questions');
       }
+    } finally {
+      // Always clean up active call tracking
+      (testApi as any)._activeCalls?.delete(callKey);
     }
   },
 

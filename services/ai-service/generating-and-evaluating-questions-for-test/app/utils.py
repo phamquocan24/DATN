@@ -9,10 +9,15 @@ import requests
 from langdetect import detect
 import json
 from datetime import datetime
+import time
 
 LLM_API_URL = os.getenv("LLM_API_URL", "https://api.groq.com/openai/v1/chat/completions")
 LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "llama-3.1-8b-instant")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+
+# Rate limiting: Track last API call time
+_last_api_call_time = 0
+_min_interval_between_calls = 2.0  # 2 seconds between API calls
 
 # --------- Pydantic Schemas ---------
 class GenerateQuestionRequest(BaseModel):
@@ -98,6 +103,11 @@ def generate_questions_from_jd(jd_text: str, model: str = LLM_MODEL_NAME) -> Lis
     if not jd_text:
         return []
 
+    # Validate API key before making request
+    if not GROQ_API_KEY or GROQ_API_KEY.strip() == "":
+        print("❌ GROQ_API_KEY is not configured")
+        return []
+
     lang = detect_language(jd_text)
     prompt = get_prompt(jd_text, lang)
 
@@ -116,10 +126,30 @@ def generate_questions_from_jd(jd_text: str, model: str = LLM_MODEL_NAME) -> Lis
     }
 
     try:
-        response = requests.post(LLM_API_URL, headers=headers, json=payload)
+        # Rate limiting: Ensure minimum interval between API calls
+        global _last_api_call_time
+        current_time = time.time()
+        time_since_last_call = current_time - _last_api_call_time
+        
+        if time_since_last_call < _min_interval_between_calls:
+            sleep_time = _min_interval_between_calls - time_since_last_call
+            print(f"⏳ Rate limiting: Waiting {sleep_time:.1f} seconds before API call...")
+            time.sleep(sleep_time)
+        
+        print(f"🔄 Calling Groq API with model: {model}")
+        _last_api_call_time = time.time()
+        response = requests.post(LLM_API_URL, headers=headers, json=payload, timeout=60)
         response.raise_for_status()
-        content = response.json().get("choices", [{}])[0].get("message", {}).get("content", "")
+        
+        response_data = response.json()
+        content = response_data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        
+        if not content:
+            print("❌ Empty response from Groq API")
+            return []
+        
         lines = [line.strip("-• ").strip() for line in content.splitlines() if line.strip()]
+        print(f"📝 Parsed {len(lines)} lines from AI response")
 
         questions = []
         for i, line in enumerate(lines):
@@ -139,10 +169,20 @@ def generate_questions_from_jd(jd_text: str, model: str = LLM_MODEL_NAME) -> Lis
                 "question_type": q_type
             })
 
+        print(f"✅ Generated {len(questions)} valid questions")
         return questions
 
+    except requests.exceptions.Timeout as e:
+        print(f"❌ Groq API timeout: {e}")
+        return []
+    except requests.exceptions.HTTPError as e:
+        print(f"❌ Groq API HTTP error: {e.response.status_code} - {e.response.text}")
+        return []
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Groq API request error: {e}")
+        return []
     except Exception as e:
-        print("❌ Error calling Groq API:", e)
+        print(f"❌ Unexpected error calling Groq API: {e}")
         return []
     
 # --------- Evaluation Functions ---------

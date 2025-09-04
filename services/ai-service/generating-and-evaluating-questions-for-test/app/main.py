@@ -52,7 +52,12 @@ def generate_interview_questions(payload: GenerateQuestionRequest, db: Session =
         
         questions = generate_questions_from_jd(job_desc)
         if not questions:
-            raise HTTPException(status_code=500, detail="AI service failed to generate questions - check GROQ_API_KEY and connectivity")
+            # Check if GROQ_API_KEY is configured
+            groq_key = os.getenv("GROQ_API_KEY", "")
+            if not groq_key or groq_key == "":
+                raise HTTPException(status_code=500, detail="GROQ_API_KEY is not configured. Please set the environment variable.")
+            else:
+                raise HTTPException(status_code=500, detail="AI service failed to generate questions. This could be due to: 1) Rate limiting from Groq API, 2) Network connectivity issues, 3) Invalid API key, or 4) Service overload. Please try again in a few moments.")
 
         # 3. Tạo hoặc lấy job_test tương ứng
         test = get_or_create_job_test(db, payload.job_id)
