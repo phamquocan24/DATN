@@ -1084,36 +1084,17 @@ const Profile: React.FC<ProfileProps> = ({
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-left">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
-                <div className="flex gap-2">
-                  {/* Debug CV Data Button - Only show in development */}
-                  {process.env.NODE_ENV === 'development' && (
-                    <button
-                      onClick={() => {
-                        console.log('=== CV DATA DEBUG ===');
-                        console.log('Current User ID:', profileData.user_id);
-                        console.log('CV Education:', profileData.cv_education);
-                        console.log('CV Experience:', profileData.cv_experience);
-                        console.log('Full Profile Data:', profileData);
-                        alert(`User: ${profileData.full_name} (${profileData.user_id})\nCV Education: ${profileData.cv_education ? 'HAS DATA' : 'NULL'}\nCV Experience: ${profileData.cv_experience ? 'HAS DATA' : 'NULL'}`);
-                      }}
-                      className="px-3 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full hover:bg-yellow-200 transition-colors"
-                      title="Debug CV Data"
-                    >
-                      Debug CV
-                    </button>
-                  )}
-                  {!editingSections.personal && (
-                  <button 
-                      onClick={() => handleSectionEdit('personal')}
-                    className="p-2 text-gray-400 hover:text-[#007bff] hover:bg-blue-50 rounded-full transition-colors"
-                      title="Edit personal information"
-                  >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </button>
-                )}
-                </div>
+                {!editingSections.personal && (
+                <button 
+                    onClick={() => handleSectionEdit('personal')}
+                  className="p-2 text-gray-400 hover:text-[#007bff] hover:bg-blue-50 rounded-full transition-colors"
+                    title="Edit personal information"
+                >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              )}
             </div>
             
               <div className="space-y-4">
