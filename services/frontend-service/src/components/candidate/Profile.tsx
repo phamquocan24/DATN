@@ -1285,7 +1285,7 @@ const Profile: React.FC<ProfileProps> = ({
                               return languages.map((lang: any) => `${lang.language} (${lang.proficiency || 'Intermediate'})`).join(', ');
                             }
                             
-                            // Handle plain string array
+                            // Handle plain string array (new format: "English (Intermediate)")
                             return languages.join(', ');
                           }
                           
