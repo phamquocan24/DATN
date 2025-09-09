@@ -203,7 +203,7 @@ const SkillManagement: React.FC<SkillManagementProps> = ({
       )}
 
       {/* Skills List */}
-      <div className="space-y-3">
+      <div className={`space-y-3 ${skills.length > 5 ? 'max-h-80 overflow-y-auto pr-2' : ''}`}>
         {skills.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

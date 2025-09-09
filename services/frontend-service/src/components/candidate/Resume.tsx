@@ -519,25 +519,89 @@ export const Resume: React.FC = () => {
 
   const handleApplyToProfile = async (data: CVExtractResponse) => {
     try {
-      // Apply selected data to user profile
-      const profileUpdateData = {
-        full_name: data.full_name,
-        phone: data.phone,
-        bio: data.objective,
-        // Map other fields as needed
-      };
+      // Apply selected data to user profile with comprehensive mapping
+      const profileUpdateData: any = {};
+      
+      // Basic profile fields
+      if (data.full_name) profileUpdateData.full_name = data.full_name;
+      if (data.phone) profileUpdateData.phone = data.phone;
+      if (data.objective) profileUpdateData.bio = data.objective;
+      if (data.address) profileUpdateData.address = data.address;
+      
+      // Candidate-specific fields - extract from experience and education
+      if (data.experience && data.experience.length > 0) {
+        const latestExperience = data.experience[0]; // Assuming first is most recent
+        if (latestExperience.position) profileUpdateData.current_job_title = latestExperience.position;
+        if (latestExperience.company) profileUpdateData.current_company = latestExperience.company;
+        
+        // Calculate years of experience
+        const totalYears = data.experience.length; // Simple calculation
+        profileUpdateData.years_experience = totalYears;
+      }
+      
+      // Education level from highest education
+      if (data.education && data.education.length > 0) {
+        const highestEducation = data.education[0]; // Assuming first is highest
+        if (highestEducation.degree) {
+          // Map degree to education level (matching database enum values)
+          const degree = highestEducation.degree.toLowerCase();
+          if (degree.includes('phd') || degree.includes('tiến sĩ')) {
+            profileUpdateData.education_level = 'PHD';
+          } else if (degree.includes('master') || degree.includes('thạc sĩ')) {
+            profileUpdateData.education_level = 'MASTER';
+          } else if (degree.includes('bachelor') || degree.includes('cử nhân') || degree.includes('đại học')) {
+            profileUpdateData.education_level = 'BACHELOR';
+          } else {
+            profileUpdateData.education_level = 'COLLEGE';
+          }
+        }
+      }
+      
+      // Languages - convert to JSON array format expected by backend
+      if (data.languages && data.languages.length > 0) {
+        profileUpdateData.languages = data.languages.map(lang => ({
+          language: lang.language,
+          proficiency: lang.proficiency || 'Intermediate'
+        }));
+      }
+      
+      // Skills - send to backend for processing
+      if (data.skills && data.skills.length > 0) {
+        profileUpdateData.cv_skills = data.skills.map(skill => ({
+          skill_name: skill.skill_name,
+          skill_type: skill.skill_type || 'TECHNICAL',
+          proficiency_level: skill.proficiency_level || 'INTERMEDIATE'
+        }));
+      }
+      
+      // Education data for detailed display
+      if (data.education && data.education.length > 0) {
+        profileUpdateData.cv_education = data.education;
+      }
+      
+      // Experience data for detailed display
+      if (data.experience && data.experience.length > 0) {
+        profileUpdateData.cv_experience = data.experience;
+      }
+      
+      console.log('Applying CV data to profile:', profileUpdateData);
       
       const response = await candidateApi.updateProfile(profileUpdateData);
       console.log('Profile updated from CV data:', response);
       
-      // Show success message
-      showToastMessage('Profile updated successfully with CV data!', 'success');
+      // Show success message with details
+      const updatedFields = Object.keys(profileUpdateData);
+      showToastMessage(
+        `Profile updated successfully! Updated fields: ${updatedFields.join(', ')}`, 
+        'success'
+      );
       
       // Close modal
       handleClosePreviewModal();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update profile from CV data:', error);
-      showToastMessage('Failed to update profile. Please try again.', 'error');
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update profile';
+      showToastMessage(`Failed to update profile: ${errorMessage}`, 'error');
     }
   };
 

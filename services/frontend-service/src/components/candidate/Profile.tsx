@@ -76,6 +76,24 @@ interface UserProfileData {
     skill_count?: number;
     cv_count?: number;
   };
+  
+  // CV extracted data for detailed display
+  cv_education?: Array<{
+    school: string;
+    degree: string;
+    field: string;
+    start_date: string;
+    end_date: string;
+    gpa?: string;
+  }>;
+  
+  cv_experience?: Array<{
+    company: string;
+    position: string;
+    start_date: string;
+    end_date: string;
+    description: string;
+  }>;
 }
 
 interface ProfileProps {
@@ -804,7 +822,41 @@ const Profile: React.FC<ProfileProps> = ({
             </div>
             
             <div className="space-y-6">
-              {profileData.current_job_title || profileData.candidate_profile?.current_job_title || editingSections.experience ? (
+              {/* Display detailed work experience from CV if available */}
+              {profileData.cv_experience && profileData.cv_experience.length > 0 ? (
+                <div className="space-y-4">
+                  {profileData.cv_experience.map((exp, index) => (
+                    <div key={index} className="flex space-x-4 p-4 bg-gray-50 rounded-lg">
+                      <div className="w-12 h-12 rounded-xl bg-[#007bff] flex items-center justify-center flex-shrink-0">
+                        <svg className="w-6 h-6" fill="white" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900 mb-1">{exp.position}</h4>
+                        <p className="text-[#007bff] font-medium mb-2">{exp.company}</p>
+                        <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
+                          {exp.start_date && exp.end_date && (
+                            <span>{exp.start_date} - {exp.end_date}</span>
+                          )}
+                          {index === 0 && (
+                            <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">Current</span>
+                          )}
+                        </div>
+                        {exp.description && (
+                          <p className="text-gray-700 text-sm leading-relaxed">{exp.description}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {/* Summary */}
+                  <div className="flex items-center justify-center pt-4 border-t border-gray-200">
+                    <p className="text-gray-600 text-sm">
+                      {profileData.candidate_profile?.years_experience || profileData.cv_experience.length} years of experience
+                    </p>
+                  </div>
+                </div>
+              ) : profileData.current_job_title || profileData.candidate_profile?.current_job_title || editingSections.experience ? (
                 <div className="flex space-x-4">
                   <div className="w-12 h-12 flex items-center justify-center">
                     <svg className="w-6 h-6 text-[#007bff]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -911,7 +963,34 @@ const Profile: React.FC<ProfileProps> = ({
             </div>
             
             <div className="space-y-6">
-              {profileData.education_level || profileData.candidate_profile?.education_level || editingSections.education ? (
+              {/* Display detailed education from CV if available */}
+              {profileData.cv_education && profileData.cv_education.length > 0 ? (
+                <div className="space-y-4">
+                  {profileData.cv_education.map((edu, index) => (
+                    <div key={index} className="flex space-x-4 p-4 bg-gray-50 rounded-lg">
+                      <div className="w-12 h-12 rounded-xl bg-[#007bff] flex items-center justify-center flex-shrink-0">
+                        <svg className="w-6 h-6" fill="white" viewBox="0 0 24 24">
+                          <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/>
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900 mb-1">
+                          {edu.degree} {edu.field && `in ${edu.field}`}
+                        </h4>
+                        <p className="text-[#007bff] font-medium mb-1">{edu.school}</p>
+                        <div className="flex items-center space-x-4 text-sm text-gray-600">
+                          {edu.start_date && edu.end_date && (
+                            <span>{edu.start_date} - {edu.end_date}</span>
+                          )}
+                          {edu.gpa && (
+                            <span>GPA: {edu.gpa}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : profileData.education_level || profileData.candidate_profile?.education_level || editingSections.education ? (
                 <div className="flex space-x-4">
                   <div className="w-12 h-12 rounded-xl flex items-center justify-center">
                     <svg className="w-6 h-6" fill="#007bff" viewBox="0 0 24 24">
@@ -1005,17 +1084,36 @@ const Profile: React.FC<ProfileProps> = ({
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-left">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
-                {!editingSections.personal && (
-                <button 
-                    onClick={() => handleSectionEdit('personal')}
-                  className="p-2 text-gray-400 hover:text-[#007bff] hover:bg-blue-50 rounded-full transition-colors"
-                    title="Edit personal information"
-                >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              </button>
-              )}
+                <div className="flex gap-2">
+                  {/* Debug CV Data Button - Only show in development */}
+                  {process.env.NODE_ENV === 'development' && (
+                    <button
+                      onClick={() => {
+                        console.log('=== CV DATA DEBUG ===');
+                        console.log('Current User ID:', profileData.user_id);
+                        console.log('CV Education:', profileData.cv_education);
+                        console.log('CV Experience:', profileData.cv_experience);
+                        console.log('Full Profile Data:', profileData);
+                        alert(`User: ${profileData.full_name} (${profileData.user_id})\nCV Education: ${profileData.cv_education ? 'HAS DATA' : 'NULL'}\nCV Experience: ${profileData.cv_experience ? 'HAS DATA' : 'NULL'}`);
+                      }}
+                      className="px-3 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full hover:bg-yellow-200 transition-colors"
+                      title="Debug CV Data"
+                    >
+                      Debug CV
+                    </button>
+                  )}
+                  {!editingSections.personal && (
+                  <button 
+                      onClick={() => handleSectionEdit('personal')}
+                    className="p-2 text-gray-400 hover:text-[#007bff] hover:bg-blue-50 rounded-full transition-colors"
+                      title="Edit personal information"
+                  >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                )}
+                </div>
             </div>
             
               <div className="space-y-4">
@@ -1180,7 +1278,52 @@ const Profile: React.FC<ProfileProps> = ({
                       />
                     ) : (
                       <p className="font-medium">
-                        {profileData.languages?.length ? profileData.languages.join(', ') : 'Not provided'}
+                        {(() => {
+                          const languages = profileData.languages;
+                          if (!languages) return 'Not provided';
+                          
+                          // Handle array format
+                          if (Array.isArray(languages)) {
+                            if (languages.length === 0) return 'Not provided';
+                            
+                            // Check if it's array of JSON strings (legacy format from database)
+                            if (typeof languages[0] === 'string' && languages[0].startsWith('{')) {
+                              try {
+                                const parsedLanguages = languages.map(langStr => JSON.parse(langStr));
+                                return parsedLanguages.map(lang => 
+                                  `${lang.language} (${lang.proficiency || 'Intermediate'})`
+                                ).join(', ');
+                              } catch (e) {
+                                console.error('Error parsing language strings:', e);
+                                return languages.join(', ');
+                              }
+                            }
+                            
+                            // Check if it's array of objects with language/proficiency
+                            if (typeof languages[0] === 'object' && languages[0] && 'language' in languages[0]) {
+                              return languages.map((lang: any) => `${lang.language} (${lang.proficiency || 'Intermediate'})`).join(', ');
+                            }
+                            
+                            // Handle plain string array
+                            return languages.join(', ');
+                          }
+                          
+                          // Handle string format (in case it's JSON string)
+                          if (typeof languages === 'string') {
+                            try {
+                              const parsed = JSON.parse(languages);
+                              if (Array.isArray(parsed)) {
+                                return parsed.map(lang => 
+                                  typeof lang === 'object' ? `${lang.language} (${lang.proficiency || 'Intermediate'})` : lang
+                                ).join(', ');
+                              }
+                            } catch (e) {
+                              return languages;
+                            }
+                          }
+                          
+                          return 'Not provided';
+                        })()}
                     </p>
                   )}
                   </div>
