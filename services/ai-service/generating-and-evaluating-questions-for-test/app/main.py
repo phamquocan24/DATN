@@ -97,8 +97,10 @@ def generate_interview_questions(payload: GenerateQuestionRequest, db: Session =
         # Re-raise HTTP exceptions as-is
         raise
     except Exception as e:
-        print(f"Unexpected error in generate_interview_questions: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        # Sanitize Unicode characters to prevent encoding errors
+        error_message = str(e).encode('ascii', 'ignore').decode('ascii')
+        print(f"Unexpected error in generate_interview_questions: {error_message}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {error_message}")
 
 
 

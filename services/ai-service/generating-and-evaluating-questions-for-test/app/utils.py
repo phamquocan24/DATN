@@ -105,7 +105,7 @@ def generate_questions_from_jd(jd_text: str, model: str = LLM_MODEL_NAME) -> Lis
 
     # Validate API key before making request
     if not GROQ_API_KEY or GROQ_API_KEY.strip() == "":
-        print("❌ GROQ_API_KEY is not configured")
+        print("[ERROR] GROQ_API_KEY is not configured")
         return []
 
     lang = detect_language(jd_text)
@@ -133,10 +133,10 @@ def generate_questions_from_jd(jd_text: str, model: str = LLM_MODEL_NAME) -> Lis
         
         if time_since_last_call < _min_interval_between_calls:
             sleep_time = _min_interval_between_calls - time_since_last_call
-            print(f"⏳ Rate limiting: Waiting {sleep_time:.1f} seconds before API call...")
+            print(f"[WAIT] Rate limiting: Waiting {sleep_time:.1f} seconds before API call...")
             time.sleep(sleep_time)
         
-        print(f"🔄 Calling Groq API with model: {model}")
+        print(f"[INFO] Calling Groq API with model: {model}")
         _last_api_call_time = time.time()
         response = requests.post(LLM_API_URL, headers=headers, json=payload, timeout=60)
         response.raise_for_status()
@@ -145,11 +145,11 @@ def generate_questions_from_jd(jd_text: str, model: str = LLM_MODEL_NAME) -> Lis
         content = response_data.get("choices", [{}])[0].get("message", {}).get("content", "")
         
         if not content:
-            print("❌ Empty response from Groq API")
+            print("[ERROR] Empty response from Groq API")
             return []
         
         lines = [line.strip("-• ").strip() for line in content.splitlines() if line.strip()]
-        print(f"📝 Parsed {len(lines)} lines from AI response")
+        print(f"[INFO] Parsed {len(lines)} lines from AI response")
 
         questions = []
         for i, line in enumerate(lines):
@@ -169,20 +169,20 @@ def generate_questions_from_jd(jd_text: str, model: str = LLM_MODEL_NAME) -> Lis
                 "question_type": q_type
             })
 
-        print(f"✅ Generated {len(questions)} valid questions")
+        print(f"[SUCCESS] Generated {len(questions)} valid questions")
         return questions
 
     except requests.exceptions.Timeout as e:
-        print(f"❌ Groq API timeout: {e}")
+        print(f"[ERROR] Groq API timeout: {e}")
         return []
     except requests.exceptions.HTTPError as e:
-        print(f"❌ Groq API HTTP error: {e.response.status_code} - {e.response.text}")
+        print(f"[ERROR] Groq API HTTP error: {e.response.status_code} - {e.response.text}")
         return []
     except requests.exceptions.RequestException as e:
-        print(f"❌ Groq API request error: {e}")
+        print(f"[ERROR] Groq API request error: {e}")
         return []
     except Exception as e:
-        print(f"❌ Unexpected error calling Groq API: {e}")
+        print(f"[ERROR] Unexpected error calling Groq API: {e}")
         return []
     
 # --------- Evaluation Functions ---------
@@ -190,20 +190,20 @@ def generate_questions_from_jd(jd_text: str, model: str = LLM_MODEL_NAME) -> Lis
 def get_review_prompt(question: str, answer: str, lang: str = LLM_MODEL_NAME) -> str:
     if lang == "vi":
         return f"""
-## 🧑 Vai trò (Role)
+## [ROLE] Vai trò
 Bạn là chuyên gia nhân sự cấp cao, nhiều kinh nghiệm phỏng vấn ứng viên.
 
-## 📄 Bối cảnh (Context)
+## [CONTEXT] Bối cảnh
 - Câu hỏi phỏng vấn: {question}
 - Câu trả lời của ứng viên: {answer}
 
-## 📝 Hướng dẫn (Instructions)
+## [INSTRUCTIONS] Hướng dẫn
 1. Đánh giá câu trả lời dựa trên mức độ phù hợp với câu hỏi, tính chính xác, độ rõ ràng.
 2. Viết **nhận xét ngắn gọn** (1–3 câu) giúp ứng viên hiểu điểm mạnh & điểm yếu.
 3. Chấm điểm câu trả lời trên **thang điểm 100** (0 là hoàn toàn sai, 100 là rất tốt). nếu câu trả lời trống, trả về 0. nếu câu trả lời đúng với câu hỏi, trả về chính xác 100.
 4. Đưa ra 1–2 gợi ý cải thiện, nếu cần.
 
-## 📦 Định dạng (Format)
+## [FORMAT] Định dạng
 Trả về JSON đúng cấu trúc sau, không giải thích thêm, không thêm thông tin khác ngoài JSON:
 
 {{
@@ -216,20 +216,20 @@ Trả lời **hoàn toàn bằng tiếng Việt**.
 """
     else:
         return f"""
-## 🧑 Role
+## [ROLE]
 You are a senior HR professional with extensive experience interviewing candidates.
 
-## 📄 Context
+## [CONTEXT]
 - Interview question: {question}
 - Candidate's answer: {answer}
 
-## 📝 Instructions
+## [INSTRUCTIONS]
 1. Evaluate the answer based on its relevance, accuracy, and clarity.
 2. Write a **brief comment** (1–3 sentences) summarizing strengths and weaknesses.
 3. Give a score from 0 to 100 (0 = completely wrong/no answer, 100 = excellent). if the answer is empty, return 0. if the answer is correct, return exactly 100.
 4. Provide 1–2 suggestions for improvement, if applicable.
 
-## 📦 Format
+## [FORMAT]
 Return a JSON object matching the exact structure below. Do not include explanations or extra text:
 
 {{
@@ -266,7 +266,7 @@ def generate_evaluation(question: str, answer: str, model: str = LLM_MODEL_NAME)
     )
 
     if response.status_code != 200:
-        print("❌ Error calling API:", response.text)
+        print("[ERROR] Error calling API:", response.text)
         return {}
 
     content = response.json()["choices"][0]["message"]["content"]
@@ -274,8 +274,8 @@ def generate_evaluation(question: str, answer: str, model: str = LLM_MODEL_NAME)
     try:
         return json.loads(content)
     except Exception as e:
-        print("❌ Error parsing JSON:", e)
-        print("🔎 Content returned:", content)
+        print("[ERROR] Error parsing JSON:", e)
+        print("[DEBUG] Content returned:", content)
         return {}
 
 def evaluate_single_answer(question_id: str, answer_id: str, db) -> dict:
