@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AvatarImg from '../../assets/Avatar17.png';
+import UserIcon from '../../assets/user-outlined.png';
 import { useToast } from '../../hooks/useToast';
 import { Toast } from '../common/Toast';
 import authService from '../../services/authService';
@@ -54,14 +54,23 @@ const HrHeaderDropdown: React.FC<HrHeaderDropdownProps> = ({ currentUser, onLogo
         onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
         className="flex items-center space-x-3 hover:bg-gray-50 rounded-lg p-2 transition-colors"
       >
-        <img 
-          src={hrInfo.avatar || AvatarImg} 
-          alt="Avatar" 
-          className="w-10 h-10 rounded-full object-cover border border-gray-200" 
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = AvatarImg;
-          }}
-        />
+        <div className="w-10 h-10 rounded-full flex items-center justify-center border border-gray-200">
+          {hrInfo.avatar ? (
+            <img 
+              src={hrInfo.avatar} 
+              alt="Avatar" 
+              className="w-full h-full rounded-full object-cover" 
+              onError={(e) => {
+                const parent = e.currentTarget.parentElement;
+                if (parent) {
+                  parent.innerHTML = `<img src="${UserIcon}" alt="HR" class="w-6 h-6" />`;
+                }
+              }}
+            />
+          ) : (
+            <img src={UserIcon} alt="HR" className="w-6 h-6" />
+          )}
+        </div>
         <div className="text-left">
           <p className="text-sm font-semibold text-gray-800">{hrInfo.fullName}</p>
           <p className="text-xs text-gray-500">{hrInfo.email}</p>

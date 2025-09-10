@@ -134,11 +134,19 @@ const MainContent = () => {
     return false;
   });
 
+  // Add logout state to prevent race condition
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   // Protected Route components
   const ProtectedAdminRoute = ({ children }: { children: React.ReactNode }) => {
     // If we have a token but no currentUser yet, we're still loading
-    if (token && !currentUser) {
+    if (token && !currentUser && !isLoggingOut) {
       return <div>Loading...</div>;
+    }
+    
+    // If logging out, don't redirect - let logout complete
+    if (isLoggingOut) {
+      return <div>Logging out...</div>;
     }
     
     // Check currentUser directly to avoid timing issues
@@ -281,14 +289,17 @@ const MainContent = () => {
 
   const handleLogout = async () => {
     try {
-      // Clear local state and storage immediately
+      // Set logout state to prevent race condition
+      setIsLoggingOut(true);
+      
+      // Call authService logout first
+      await authService.logout();
+      
+      // Clear local state and storage
       setToken(null);
       setCurrentUser(null);
       setIsAdmin(false);
       setIsHr(false);
-      
-      // Call authService logout which will clear all auth data
-      await authService.logout();
       
       // Additional cleanup - clear any remaining localStorage items
       localStorage.removeItem('token');
@@ -315,6 +326,9 @@ const MainContent = () => {
         }
       }
       
+      // Clear logout state before navigation
+      setIsLoggingOut(false);
+      
       // Force navigate to home and replace history
       navigate('/', { replace: true });
       
@@ -327,6 +341,7 @@ const MainContent = () => {
       setIsHr(false);
       localStorage.clear(); // Clear all localStorage as fallback
       delete api.defaults.headers.common['Authorization'];
+      setIsLoggingOut(false);
       navigate('/', { replace: true });
     }
   };
