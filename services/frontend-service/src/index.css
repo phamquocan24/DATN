@@ -2,7 +2,7 @@
 
 /* Quicksand font family with local fallbacks */
 @font-face {
-  font-family: 'QuicksandLocal';
+  font-family: 'QuicksandLocal'
   src: local('Quicksand'), 
        local('Quicksand-Regular'),
        local('QuicksandRegular');
