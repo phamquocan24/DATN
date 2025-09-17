@@ -1,0 +1,193 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+/* Be Vietnam font family with local fallbacks */
+@font-face {
+  font-family: 'BeVietnamLocal';
+  src: local('Be Vietnam Pro'), 
+       local('Be Vietnam'), 
+       local('BeVietnamPro'),
+       local('BeVietnam');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  html {
+    font-family: 'BeVietnamLocal', 'Be Vietnam Pro', 'Be Vietnam', 'Inter', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+  }
+  
+  body {
+    font-family: 'BeVietnamLocal', 'Be Vietnam Pro', 'Be Vietnam', 'Inter', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+    overflow-x: hidden;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 100%;
+    line-height: 1.5;
+    font-weight: 400;
+  }
+  
+  #root {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    width: 100%;
+  }
+}
+
+@layer utilities {
+  /* Remove all margins and padding from key elements */
+  .no-spacing {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .no-margin {
+    margin: 0 !important;
+  }
+  
+  .no-padding {
+    padding: 0 !important;
+  }
+  
+  /* Prevent layout shift during transitions */
+  .layout-stable {
+    contain: layout style;
+    will-change: transform;
+  }
+  
+  /* Smooth transitions for sidebar with GPU acceleration */
+  .sidebar-transition {
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: width;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+  
+  /* Stable content area */
+  .content-stable {
+    min-height: 100vh;
+    contain: layout;
+    will-change: auto;
+    transform: translateZ(0);
+  }
+  
+  /* Prevent content jumping during page transitions */
+  .page-transition {
+    transition: opacity 0.15s ease-in-out;
+    will-change: opacity;
+  }
+  
+  /* Loading skeleton styles */
+  .skeleton {
+    @apply animate-pulse bg-gray-200 rounded;
+  }
+  
+  /* Be Vietnam font utilities */
+  .font-be-vietnam {
+    font-family: 'BeVietnamLocal', 'Be Vietnam Pro', 'Be Vietnam', 'Inter', sans-serif !important;
+  }
+  
+  .text-be-vietnam {
+    font-family: 'BeVietnamLocal', 'Be Vietnam Pro', 'Be Vietnam', 'Inter', sans-serif;
+  }
+  
+  /* Optimized readability for Vietnamese text */
+  .vietnam-text {
+    font-family: 'BeVietnamLocal', 'Be Vietnam Pro', 'Be Vietnam', 'Inter', sans-serif;
+    letter-spacing: -0.01em;
+    line-height: 1.5;
+    font-feature-settings: 'kern' 1, 'liga' 1;
+  }
+  
+  /* Weight variants for Be Vietnam */
+  .vietnam-light { font-weight: 300; }
+  .vietnam-normal { font-weight: 400; }
+  .vietnam-medium { font-weight: 500; }
+  .vietnam-semibold { font-weight: 600; }
+  .vietnam-bold { font-weight: 700; }
+
+  /* Enhanced Responsive Utilities */
+  .responsive-container {
+    @apply w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  .responsive-grid {
+    @apply grid gap-4 xs:gap-6;
+    @apply grid-cols-1 xs:grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5;
+  }
+  
+  .responsive-card {
+    @apply w-full p-4 sm:p-6 bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow;
+  }
+  
+  .responsive-text {
+    @apply text-sm xs:text-base sm:text-lg;
+  }
+  
+  .responsive-heading {
+    @apply text-xl xs:text-2xl sm:text-3xl lg:text-4xl font-bold;
+  }
+  
+  .responsive-button {
+    @apply px-3 py-2 xs:px-4 xs:py-2 sm:px-6 sm:py-3 text-sm xs:text-base rounded-lg;
+  }
+  
+  .responsive-modal {
+    @apply w-full max-w-sm xs:max-w-md sm:max-w-lg lg:max-w-xl xl:max-w-2xl mx-4 sm:mx-auto;
+  }
+  
+  /* Mobile-first design helpers */
+  .mobile-padding {
+    @apply px-4 xs:px-6 sm:px-8 lg:px-12;
+  }
+  
+  .mobile-margin {
+    @apply mb-4 xs:mb-6 sm:mb-8 lg:mb-12;
+  }
+  
+  .mobile-text {
+    @apply text-sm xs:text-base sm:text-lg leading-relaxed;
+  }
+  
+  /* Touch-friendly interactive elements */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
+  }
+  
+  .mobile-search {
+    @apply w-full h-12 xs:h-14 px-4 xs:px-6 text-base xs:text-lg rounded-lg;
+  }
+  
+  /* Responsive spacing utilities */
+  .space-responsive > * + * {
+    @apply mt-2 xs:mt-3 sm:mt-4 lg:mt-6;
+  }
+  
+  /* Safe area support for mobile devices */
+  .safe-area-padding {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* Enhanced mobile scrolling */
+  .mobile-scroll {
+    @apply overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100;
+    -webkit-overflow-scrolling: touch;
+  }
+}

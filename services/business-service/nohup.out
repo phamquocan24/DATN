@@ -1,0 +1,13 @@
+
+> business-service@2.0.0 start
+> node server.js
+
+{"level":"info","message":"Firebase Admin SDK initialized successfully with environment variables","timestamp":"2025-09-13T18:05:27.105Z"}
+{"idleCount":0,"level":"info","message":"Connected to PostgreSQL database","timestamp":"2025-09-13T18:05:27.250Z","totalCount":1,"waitingCount":0}
+{"level":"info","message":"Database connection test successful","serverTime":"2025-09-13T18:05:27.252Z","timestamp":"2025-09-13T18:05:27.254Z","version":"PostgreSQL"}
+{"level":"info","message":"Database connection verified","timestamp":"2025-09-13T18:05:27.254Z"}
+{"level":"info","message":"Business Service running on port 5001","timestamp":"2025-09-13T18:05:27.256Z"}
+{"level":"info","message":"Health check: http://localhost:5001/health","timestamp":"2025-09-13T18:05:27.256Z"}
+{"level":"info","message":"API Documentation: http://localhost:5001/api/docs","timestamp":"2025-09-13T18:05:27.256Z"}
+{"level":"info","message":"Email transporter is ready to send messages","timestamp":"2025-09-13T18:05:28.543Z"}
+{"level":"info","message":"SIGTERM received, shutting down gracefully","timestamp":"2025-09-13T18:14:03.517Z"}

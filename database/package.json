@@ -1,0 +1,51 @@
+{
+  "name": "cv-recruitment-database",
+  "version": "1.0.0",
+  "description": "PostgreSQL database setup for CV Recruitment System with UUID and vector embeddings",
+  "main": "config.js",
+  "scripts": {
+    "db:setup": "echo 'Use: cd database && source ../database.env && cat schema-uuid.sql | docker exec -i datn_postgres17 psql -U $POSTGRES_USER -d $POSTGRES_DB'",
+    "db:sample": "echo 'Use: cd database && source ../database.env && docker exec -i datn_postgres17 psql -U $POSTGRES_USER -d $POSTGRES_DB -c \"SELECT generate_sample_data();\"'",
+    "db:check": "echo 'Use: cd database && source ../database.env && docker exec -i datn_postgres17 psql -U $POSTGRES_USER -d $POSTGRES_DB -c \"\\dt\"'",
+    "db:console": "echo 'Use: cd database && source ../database.env && docker exec -it datn_postgres17 psql -U $POSTGRES_USER -d $POSTGRES_DB'",
+    "db:backup": "./backup-database.sh",
+    "db:timezone": "echo 'Use: cd database && source ../database.env && docker exec -i datn_postgres17 psql -U $POSTGRES_USER -d $POSTGRES_DB -c \"SHOW timezone; SELECT NOW();\"'"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^17.2.1",
+    "express-validator": "^7.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.3",
+    "uuid": "^9.0.1",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.2",
+    "supertest": "^6.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-org/cv-recruitment.git"
+  },
+  "keywords": [
+    "postgresql",
+    "database",
+    "recruitment",
+    "uuid",
+    "vector-embeddings",
+    "ai-matching",
+    "migrations"
+  ],
+  "author": "CV Recruitment Team",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/your-org/cv-recruitment/issues"
+  },
+  "homepage": "https://github.com/your-org/cv-recruitment#readme"
+}

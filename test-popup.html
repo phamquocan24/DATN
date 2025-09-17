@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Success Popup</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-md mx-auto">
+        <h1 class="text-2xl font-bold mb-6 text-center">Test Success Popup</h1>
+        <button onclick="showPopup()" class="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+            Show Success Popup
+        </button>
+    </div>
+
+    <!-- Success Popup -->
+    <div id="successPopup" class="hidden fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex min-h-full items-center justify-center p-4 text-center">
+            <div class="fixed inset-0 bg-black bg-opacity-25" onclick="hidePopup()"></div>
+            
+            <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-md">
+                <div class="bg-white px-6 py-6 text-center">
+                    <!-- Success Icon -->
+                    <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-4">
+                        <svg class="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+
+                    <!-- Success Message -->
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                        Ứng tuyển thành công! 🎉
+                    </h3>
+                    <p class="text-sm text-gray-600 mb-6">
+                        Đơn ứng tuyển của bạn đã được gửi thành công đến <span class="font-medium">Tech Company</span>. 
+                        Họ sẽ xem xét và phản hồi trong thời gian sớm nhất.
+                    </p>
+
+                    <!-- Action Buttons -->
+                    <div class="flex flex-col space-y-3">
+                        <button
+                            onclick="hidePopup()"
+                            class="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                        >
+                            Đóng
+                        </button>
+                        <button
+                            onclick="window.location.href = '/dashboard'"
+                            class="w-full bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                        >
+                            Xem lịch sử ứng tuyển
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showPopup() {
+            document.getElementById('successPopup').classList.remove('hidden');
+        }
+        
+        function hidePopup() {
+            document.getElementById('successPopup').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
