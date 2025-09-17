@@ -9,10 +9,18 @@ from pdf2image import convert_from_path
 import base64
 from pydantic import BaseModel
 from motor.motor_asyncio import AsyncIOMotorClient
+from dotenv import load_dotenv
 
+load_dotenv()
 
 from fastapi.middleware.cors import CORSMiddleware
-app = FastAPI()
+
+app = FastAPI(
+    title="CV Extraction and Improvement API",
+    description="AI-powered CV extraction and improvement service",
+    version="1.0.0"
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Hoặc chỉ định origin như ["http://localhost:5500"]
@@ -189,4 +197,15 @@ def improve_cv_api(cv: UploadFile = File(...), cong_ty_ung_tuyen: str=Form(...),
 @app.post("/feedback") #lưu trữ vào database
 async def save_feedback(feedback: Feedback):
     result = await feedback_collection.insert_one(feedback.model_dump())
-    return {"message": "Feedback saved", "id": str(result.inserted_id)} 
+    return {"message": "Feedback saved", "id": str(result.inserted_id)}
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "service": "extract-and-improve-cv"}
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("SERVICE_PORT", 8003))
+    host = os.getenv("SERVICE_HOST", "0.0.0.0")
+    uvicorn.run(app, host=host, port=port) 
